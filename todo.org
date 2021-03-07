@@ -1,0 +1,81 @@
+
+
+* Design Decisions:
+  Not going to use moveit.
+  Moveit is designed to be used with robot arms and is mostly concerned with
+  path planning of end effectors and not mobile robots. So, it would probably
+  not work for my purposes.
+  
+* Plan:
+  First, set up octomap.
+  Then using a blank octomap with fake obstacles,
+  Use OMPL to do RRT path planning as a rosnode.
+  Then integrate it with either move_base(ros1)
+  or navigation(ros2).
+  Then create a dynamic planner to integrate with
+  move_base/navigation.
+  organize the code you have written a bit better into different files.
+
+
+
+
+
+* OMPL
+  WTF why is it so hard. I guess I need to read the tutorial shit.
+  
+  Create ODE based state propagator class. using jackal dynamic model.
+  Don't implement your own state sampler class. Use SteeredControlSampler.
+  Do implement JackalStatePropagator. give JackalStatePropagator to SpaceInformation.
+  Then SteeredControlSampler is called with SpaceINformation and obtains JackalStatePropagator.
+  
+  Sampler Allocator will have to make a bunch of copies of jackal dynamic model. Possibly this is going to be slow.
+  
+  
+
+  !!!use control/* not geometric/*!!!
+
+  Use realvectorstatespace as usual
+  
+  Find out about distance function. Its L2 norm implemented in RealVectorStateSpace.
+  Distance function gets used in the nearest neighbor calculations.
+  It might be good to actually just leave it how it is. Probably not.
+
+
+* More information required:
+  Ask Norris about whether to use ros 1 or 2.
+
+
+
+* Minimum Viable Product:
+** RRT Algorithm
+   Do it with ompl
+
+** Double D*
+   Do it with ompl?
+
+** Occupancy grid generation
+   octomap. Generate a basic grid with a few simple obstacles
+   just for testing the planning algorithms.
+   
+** Octomap ROS server
+   Figure out how to use the octomap server node
+
+
+** Implement custom OcTree inheriting from OcTreeDataNode class
+   So, the current default OcTreeNode only holds a single float that
+   represents occupancy. Thats not enough. We need an OcTree with Nodes
+   that contain the wealth of information available. Will need to implement
+   classes that inherit from the more abstract templated OcTree class.
+   Not a huge deal.
+
+
+** Implement custom motion validator class that uses octomap raycasting
+
+* Nice To Have:
+** Multithreading
+   Use multiple threads to explore vehicle states faster
+
+** URDF for specifying dynamic model
+   Load URDF into rbdl instead of manually specifying
+   vehicle description.
+   So you can swap it out for other vehicle models.
