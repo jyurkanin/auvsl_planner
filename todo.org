@@ -6,6 +6,7 @@
   path planning of end effectors and not mobile robots. So, it would probably
   not work for my purposes.
   
+
 * Plan:
   First, set up octomap.
   Then using a blank octomap with fake obstacles,
@@ -17,21 +18,19 @@
   organize the code you have written a bit better into different files.
 
 
-
-
-
+  
 * OMPL
   WTF why is it so hard. I guess I need to read the tutorial shit.
   
-  Create ODE based state propagator class. using jackal dynamic model.
-  Don't implement your own state sampler class. Use SteeredControlSampler.
-  Do implement JackalStatePropagator. give JackalStatePropagator to SpaceInformation.
-  Then SteeredControlSampler is called with SpaceINformation and obtains JackalStatePropagator.
+  Done: 1. Create ODE based state propagator class. using jackal dynamic model.
+  Dont: 2. Don't implement your own state sampler class. Use SteeredControlSampler.
+                 I'm not sure steeredcontrolsampler is what I need. I think I should use SimpleDirectControlSampler
+  Done: 2. Use SimpleDirectedControlSampler. This requires a controlsampler to be passed to si_.
+  Todo: 3. Implement a controlsampler. Iterate over possible control values.
+           (Currently using default random control sampler which is stupid)
+  Done 4. Do implement JackalStatePropagator. give JackalStatePropagator to SpaceInformation.
   
-  Sampler Allocator will have to make a bunch of copies of jackal dynamic model. Possibly this is going to be slow.
   
-  
-
   !!!use control/* not geometric/*!!!
 
   Use realvectorstatespace as usual
@@ -45,7 +44,7 @@
   Ask Norris about whether to use ros 1 or 2.
 
 
-
+  
 * Minimum Viable Product:
 ** RRT Algorithm
    Do it with ompl
@@ -71,6 +70,8 @@
 
 ** Implement custom motion validator class that uses octomap raycasting
 
+
+
 * Nice To Have:
 ** Multithreading
    Use multiple threads to explore vehicle states faster
@@ -79,3 +80,11 @@
    Load URDF into rbdl instead of manually specifying
    vehicle description.
    So you can swap it out for other vehicle models.
+** Configuration file for all parameters. YAML format maybe. I think ROS has a way to do this.
+   Numerous parameters that could be adjusted between runs.
+   Fuzzy constant speed.
+   Max angular vel
+   Planner goal bias
+   Planner resolution
+   Dynamic model ode time step
+   

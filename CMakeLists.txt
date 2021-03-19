@@ -166,10 +166,12 @@ include_directories(${OMPL_INCLUDE_DIRS})
 
 
 add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
-  src/dynamic_model/auvsl_sim/dynamic_model.cpp
-  src/dynamic_model/auvsl_sim/soil_table.cpp
-  src/dynamic_model/auvsl_sim/solver.cpp
-  src/dynamic_model/auvsl_sim/utils.cpp
+  src/GlobalParams.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/PlannerVisualizer.cpp
+  src/utils.cpp
   )
 
 
@@ -177,6 +179,7 @@ target_link_libraries(${PROJECT_NAME}_node ${OCTOMAP_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${OMPL_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node rbdl)
+target_link_libraries(${PROJECT_NAME}_node X11)
 #############
 ## Install ##
 #############
