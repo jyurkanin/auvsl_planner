@@ -5,10 +5,10 @@
 #include "JackalStatePropagator.h"
 #include "GlobalParams.h"
 #include "PlannerVisualizer.h"
+#include <ompl/base/spaces/RealVectorStateSpace.h>
 
 
-
-
+//launch-prefix="gdb -ex run --args
 
   
 /*
@@ -24,12 +24,12 @@
  */
 
 bool isStateValid(const ompl::base::State *state){
-  const ompl::base::RealVectorStateSpace::StateType& state_vector = *state->as<ompl::base::RealVectorStateSpace::StateType>();
+  const ompl::base::VehicleStateSpace::StateType& state_vector = *state->as<ompl::base::VehicleStateSpace::StateType>();
   
   //ROS_INFO("States %f %f %f %f %f %f\n", state_vector[0], state_vector[1], state_vector[2], state_vector[3], state_vector[4], state_vector[5]);
   // Square Obstacle at the origin
   if((fabs(state_vector[0]) < 3 && fabs(state_vector[1]) < 3) ||
-     fabs(state_vector[0]) > 10 || fabs(state_vector[0]) > 10){
+     fabs(state_vector[0]) > 10 || fabs(state_vector[1]) > 10){
     return false;
   }
   else{
@@ -41,15 +41,13 @@ bool isStateValid(const ompl::base::State *state){
 
 
 /*
-
-
 */
 
 
 
 void plan(){
   // construct the state space we are planning in
-  ompl::base::RealVectorStateSpace space(6);
+  ompl::base::VehicleStateSpace space(6);
   
   // set the bounds
   ompl::base::RealVectorBounds bounds(6);
@@ -74,11 +72,14 @@ void plan(){
   
 
   ompl::base::StateSpacePtr space_ptr = ompl::base::StateSpacePtr(&space);
-  ompl::control::RealVectorControlSpace cspace(space_ptr, 1);
-  ompl::base::RealVectorBounds cbounds(1);
+  ompl::control::RealVectorControlSpace cspace(space_ptr, 2);
+  ompl::base::RealVectorBounds cbounds(2);
   
   cbounds.setLow(0, -GlobalParams::get_max_angular_vel());
   cbounds.setHigh(0, GlobalParams::get_max_angular_vel());
+
+  cbounds.setLow(1, -GlobalParams::get_fuzzy_constant_speed());
+  cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
   
   cspace.setBounds(cbounds);
 
@@ -87,7 +88,7 @@ void plan(){
   ompl::control::StatePropagatorPtr dynamic_model_ptr(new JackalStatePropagator(si));
   si->setStatePropagator(dynamic_model_ptr);
   si->setPropagationStepSize(GlobalParams::get_propagation_step_size());
-  si->setMinMaxControlDuration(1, 50);
+  si->setMinMaxControlDuration(1, 10);
   
   //  si->setControlSampler();
   
@@ -112,11 +113,12 @@ void plan(){
   goal[4] = 0;
   goal[5] = 0;
 
-  pdef->setStartAndGoalStates(start, goal);
-
+  pdef->setStartAndGoalStates(start, goal, .1);
+  
+  
   ompl::control::RRT planner(si);
   planner.setProblemDefinition(pdef);
-  planner.setGoalBias(.05); //.05 was recommended.
+  planner.setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
   planner.setIntermediateStates(true);
 
   PlannerVisualizer planner_visualizer((ompl::base::PlannerPtr) &planner, .5);
@@ -124,8 +126,8 @@ void plan(){
     planner_visualizer.startMonitor();
   }
   
-
-  ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(10.0), ompl::base::exactSolnPlannerTerminationCondition(pdef));
+  
+  ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(30.0), ompl::base::exactSolnPlannerTerminationCondition(pdef));
   ompl::base::PlannerStatus solved = planner.solve(ptc);
   
   if(solved){

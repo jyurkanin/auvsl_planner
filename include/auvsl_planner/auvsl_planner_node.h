@@ -1,6 +1,6 @@
 
 #include <ompl/base/SpaceInformation.h>
-#include <ompl/base/spaces/RealVectorStateSpace.h>
+#include "VehicleStateSpace.h"
 #include <ompl/control/planners/rrt/RRT.h>
 #include <ompl/control/SimpleSetup.h>
 #include <ompl/control/spaces/RealVectorControlSpace.h>

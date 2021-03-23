@@ -1,3 +1,4 @@
+#include <ros/ros.h>
 #include "JackalStatePropagator.h"
 #include <stdio.h>
 
@@ -19,8 +20,8 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
   float x_end[21];
   
   for(unsigned i = 0; i < vehicle_state_len; i++){
-    x_start[0] = 0;
-    x_end[0] = 0;
+    x_start[i] = 0;
+    x_end[i] = 0;
   }
   
   x_start[0] = (float) val[0];       //x
@@ -31,12 +32,13 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
   x_start[12] = (float) val[4];
   x_start[16] = (float) val[5];
   
-  
-  float Vf = GlobalParams::get_fuzzy_constant_speed();
+  float Vf = control_vector[1];//GlobalParams::get_fuzzy_constant_speed();
   float base_width = solver.base_size[0];
   float vl = Vf - control_vector[0]*(base_width/2.0);
   float vr = Vf + control_vector[0]*(base_width/2.0);
-
+  
+  //ROS_INFO("Vl Vr %f %f\nBefore State %f %f %f %f %f %f", vl, vr, val[0], val[1], val[2], val[3], val[4], val[5]);
+  
   /*
   float dt = .01;
   result_val[0] = val[0];
@@ -52,8 +54,8 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
     result_val[1] += dt*result_val[4];
     result_val[2] += dt*result_val[5];
   }
-  */  
-
+  */ 
+  
   
   solver.solve(x_start, x_end, vl, vr, (float) duration);
   
@@ -65,7 +67,9 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
   result_val[3] = x_end[11];
   result_val[4] = x_end[12];
   result_val[5] = x_end[16];
-  
+    
+
+  //ROS_INFO("After State %f %f %f %f %f %f", result_val[0], result_val[1], result_val[2], result_val[3], result_val[4], result_val[5]);
   
 }
 

@@ -172,6 +172,8 @@ add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
   src/JackalDynamicSolver.cpp
   src/PlannerVisualizer.cpp
   src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
   )
 
 
