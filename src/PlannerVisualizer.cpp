@@ -1,9 +1,10 @@
 #include <ompl/util/Time.h>
+#include <ompl/control/PathControl.h>
 #include <limits>
 #include <functional>
 #include <ros/ros.h>
 #include "PlannerVisualizer.h"
-
+#include "JackalStatePropagator.h"
 
 
 void PlannerVisualizer::startMonitor(){
@@ -22,6 +23,7 @@ void PlannerVisualizer::startMonitor(){
   
   XSetBackground(dpy, gc, 0);
   
+  has_solution = 0;
   
   if (monitorThread_)
     return;
@@ -43,6 +45,29 @@ void PlannerVisualizer::stopMonitor(){
   monitorThread_->join();
   monitorThread_.reset();
 }
+
+
+
+void PlannerVisualizer::setSolution(ompl::base::PlannerSolution *solution){
+  planner_solution = solution;
+  
+  ompl::control::PathControl *path = planner_solution->path_->as<ompl::control::PathControl>();
+  
+  std::vector<ompl::base::State*> states = path->getStates();
+  std::vector<ompl::control::Control*> controls = path->getControls();
+  std::vector<double> durations = path->getControlDurations();
+  
+  JackalStatePropagator dynamic_model(sic_);
+
+  num_waypoints_ = controls.size() + 1;//1 + floorf(path->length() / GlobalParams::get_propagation_step_size());
+  waypoints_ = new float[num_waypoints_*2];
+  dynamic_model.getWaypoints(controls, durations, states, waypoints_);
+
+  has_solution = 1;
+}
+
+
+
   
 void PlannerVisualizer::threadFunction(){
   ompl::time::point startTime = ompl::time::now();
@@ -61,11 +86,28 @@ void PlannerVisualizer::threadFunction(){
 
     drawTree(planner_data);
     drawObstacles();
-    drawGoal();    
+    drawGoal();
     
+    if(has_solution){
+      drawSolution();
+    }
+    
+    XFlush(dpy);
     
     lastOutputTime = ompl::time::now();
     std::this_thread::sleep_for(ompl::time::seconds(0.01));
+  }
+}
+
+void PlannerVisualizer::drawSolution(){
+  float curr_x, curr_y, prev_x, prev_y;
+  
+  XSetForeground(dpy, gc, 0xFFFFFF);
+  for(int i = 0; i < num_waypoints_ - 1; i++){
+    scaleXY(waypoints_[(i*2)+0], waypoints_[(i*2)+1], curr_x, curr_y);
+    scaleXY(waypoints_[(i*2)+2], waypoints_[(i*2)+3], prev_x, prev_y);
+    
+    XDrawLine(dpy, w, gc, curr_x, curr_y, prev_x, prev_y);
   }
 }
 
@@ -76,7 +118,7 @@ void PlannerVisualizer::drawGoal(){
   scaleXY(goal_x, goal_y, temp_x, temp_y);
   
   XSetForeground(dpy, gc, 0xFF0000);
-  XDrawArc(dpy, w, gc, temp_x, temp_y, 11, 11, 0, 360*64);
+  XFillArc(dpy, w, gc, temp_x, temp_y, 11, 11, 0, 360*64);
 }
 
 void PlannerVisualizer::drawObstacles(){
@@ -95,12 +137,11 @@ void PlannerVisualizer::drawObstacles(){
   //ROS_INFO("width %f height %f blx %f bly %f\n", temp_width, temp_height, temp_x, temp_y);
   
   XSetForeground(dpy, gc, 0xFF0000);
-  XDrawRectangle(dpy, w, gc, temp_x, temp_y - temp_height, temp_width, temp_height);
+  XFillRectangle(dpy, w, gc, temp_x, temp_y - temp_height, temp_width, temp_height);
 }
 
 void PlannerVisualizer::drawTree(const ompl::base::PlannerData &planner_data){
   drawSubTree(planner_data, planner_data.vertexIndex(planner_data.getStartVertex(0)));
-  XFlush(dpy);
 }
 
 void PlannerVisualizer::drawSubTree(const ompl::base::PlannerData &planner_data, unsigned v_idx){
@@ -139,15 +180,18 @@ void PlannerVisualizer::drawSubTree(const ompl::base::PlannerData &planner_data,
   
   if(planner_data.isGoalVertex(v_idx)){
     XSetForeground(dpy, gc, 0xFF0000);
+    XFillArc(dpy, w, gc, vertex_x, vertex_y, 11, 11, 0, 360*64);
   }
   else if(planner_data.isStartVertex(v_idx)){
     XSetForeground(dpy, gc, 0xFF00FF);
+    XFillArc(dpy, w, gc, vertex_x, vertex_y, 11, 11, 0, 360*64);
   }
   else{
     XSetForeground(dpy, gc, 0xFF);
+    XFillArc(dpy, w, gc, vertex_x, vertex_y, 3, 3, 0, 360*64);
   }
   
-  XFillArc(dpy, w, gc, vertex_x, vertex_y, 3, 3, 0, 360*64);
+  
   
 }
 

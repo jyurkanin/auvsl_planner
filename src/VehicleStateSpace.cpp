@@ -171,12 +171,12 @@ void ompl::base::VehicleStateSpace::setDimensionName(unsigned int index, const s
 double ompl::base::VehicleStateSpace::getMaximumExtent() const
 {
   double e = 0.0;
-  for (unsigned int i = 0; i < dimension_; ++i)
-    {
+  //for (unsigned int i = 0; i < dimension_; ++i)
+  for(unsigned int i = 0; i < 2; ++i) {
       double d = bounds_.high[i] - bounds_.low[i];
       e += d * d;
-    }
-  return sqrt(e);
+  }
+  return sqrt(e) + 100;
 }
   
 double ompl::base::VehicleStateSpace::getMeasure() const
@@ -230,21 +230,44 @@ void ompl::base::VehicleStateSpace::deserialize(State *state, const void *serial
 {
   memcpy(state->as<StateType>()->values, serialization, stateBytes_);
 }
-  
-double ompl::base::VehicleStateSpace::distance(const State *state1, const State *state2) const
-{
+
+bool ompl::base::VehicleStateSpace::isMetricSpace() const {
+  std::vector<float> weights = GlobalParams::get_distance_weights();
+  return (weights[2] == 0) && (weights[3] == 0);
+}
+
+
+
+//                                                       best,temp                dest    
+double ompl::base::VehicleStateSpace::distance(const State *state1, const State *state2) const {
   double dist = 0.0;
   const double *s1 = static_cast<const StateType *>(state1)->values;
   const double *s2 = static_cast<const StateType *>(state2)->values;
-
+  
   std::vector<float> weights = GlobalParams::get_distance_weights();
-     
-  for (unsigned int i = 0; i < dimension_; ++i)
-    {
-      double diff = (*s1++) - (*s2++);
-      dist += diff * diff * weights[i];
-    }
-  return sqrt(dist);
+  double vec[2] = {s2[0] - s1[0], s2[1] - s1[1]};  
+  double vec_magnitude = sqrt((vec[0]*vec[0]) + (vec[1]*vec[1]));
+  
+  double vel_magnitude = sqrt((s1[3]*s1[3]) + (s1[4]*s1[4]));
+  
+  double velocity_dot = ((vec[0]*s1[3]) + (vec[1]*s1[4])) / (vel_magnitude*vec_magnitude); //1 means least error, -1 means going in the opposite direction (most error)
+  double velocity_err = (vec_magnitude == 0)? 0: (1 - velocity_dot); 
+  
+  float heading = fmod((2*M_PI) + atan2f(vec[1], vec[0]), 2*M_PI);
+  float heading_err = abs(heading - s1[2]);
+  
+  //ROS_INFO("From (%.2f %.2f)    To (%.2f %.2f)    Velocity (%.2f %.2f)     Velocity Err %.2f    Heading Err %.2f", s1[0], s1[1], s2[0], s2[1],  s1[3], s1[4], velocity_err, heading_err);
+  
+  //for(unsigned int i = 0; i < dimension_; ++i) {
+  for(unsigned int i = 0; i < 2; ++i) {
+    double diff = (s1[i]) - (s2[i]);
+    dist += diff * diff * weights[i];
+  }
+
+  dist = sqrt(dist) + fmin(100, weights[2]*velocity_err + weights[3]*heading_err); //this limit is for simplfiying getMaximumExtent function.
+  
+  
+  return dist;
 }
   
 bool ompl::base::VehicleStateSpace::equalStates(const State *state1, const State *state2) const
@@ -259,10 +282,11 @@ bool ompl::base::VehicleStateSpace::equalStates(const State *state1, const State
     }
   return true;
 }
-  
+
 void ompl::base::VehicleStateSpace::interpolate(const State *from, const State *to, const double t,
                                                 State *state) const
 {
+  ROS_INFO("Class has the audacity to try interpolating. Idk why");
   const auto *rfrom = static_cast<const StateType *>(from);
   const auto *rto = static_cast<const StateType *>(to);
   const StateType *rstate = static_cast<StateType *>(state);

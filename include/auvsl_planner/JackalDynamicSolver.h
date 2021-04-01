@@ -31,6 +31,7 @@ class JackalDynamicSolver{
   ~JackalDynamicSolver();
   
   static void init_model(int debug);
+  static void del_model();
   static void load_nn_gc_model();
   
   void get_tire_sinkages(float *X, float *tire_sinkages); //in body frame.

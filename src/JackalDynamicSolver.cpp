@@ -63,7 +63,6 @@ Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> JackalDynamicSolver:
 
 JackalDynamicSolver::JackalDynamicSolver(){
   stepsize = GlobalParams::get_timestep();
-  debug_level = GlobalParams::get_debug_level();
   tau = VectorNd::Zero(model->qdot_size);
   
   for(int i = 0; i < model->mBodies.size(); i++){
@@ -74,8 +73,10 @@ JackalDynamicSolver::JackalDynamicSolver(){
 }
 
 void JackalDynamicSolver::init_model(int debug){
-  if(debug_level == 2){
-      log_file.open("log_file.csv", std::ofstream::out);
+  debug_level = debug;//;GlobalParams::get_debug_level();
+  if(debug_level == 2 && !log_file.is_open()){
+      ROS_INFO("DEBUG LEVEL 2");
+      log_file.open("/home/justin/code/AUVSL_ROS/log_file.csv", std::ofstream::out);
   }
   
   printf("INIT model\n");
@@ -129,9 +130,12 @@ void JackalDynamicSolver::init_model(int debug){
 
 
 JackalDynamicSolver::~JackalDynamicSolver(){
-    if(debug_level == 2){
-        log_file.close();
-    }
+}
+
+void JackalDynamicSolver::del_model(){
+  if(debug_level == 2){
+    log_file.close();
+  }
 }
 
 Eigen::Matrix<float,JackalDynamicSolver::JackalDynamicSolver::num_in_features,1> JackalDynamicSolver::scale_input(Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> features){
@@ -215,7 +219,7 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         X_tire.r = r + quat.toMatrix().transpose() * model->GetJointFrame(3+i).r;
         X_tire.E = quat.toMatrix();
 	
-        features[0] = .0395; //sinkages[i]; //
+        features[0] = .0026; //sinkages[i]; //
         if(sinkages[i] <= 0){ //Tire is not in contact with the ground.
             f_ext[3+i] = X_tire.applyTranspose(SpatialVector(0,0,0,0,0,0));
             continue;
@@ -358,7 +362,8 @@ qd_init = [0 0 0 0];
   temp[10] = base_vel[3]; //Vx
   temp[11] = base_vel[4]; //Vy
   temp[12] = base_vel[5]; //Vz
-  
+
+  /*
   temp[17] = Xout[6]; //q1
   temp[18] = Xout[7];
   temp[19] = Xout[8];
@@ -368,7 +373,17 @@ qd_init = [0 0 0 0];
   temp[14] = Xout[18];
   temp[15] = Xout[19];
   temp[16] = Xout[20];
+  */
 
+  temp[13] = Xout[6]; //q1
+  temp[14] = Xout[7];
+  temp[15] = Xout[8];
+  temp[16] = Xout[9];
+
+  temp[17] = Xout[17]; //qd1
+  temp[18] = Xout[18];
+  temp[19] = Xout[19];
+  temp[20] = Xout[20];
   
   for(int i = 0; i < 20; i++){
       log_file << temp[i] << ',';
@@ -381,8 +396,8 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
   float Xout[21];
   float Xout_next[21];
   
-  // 0 1 2 3  4  5  6  7  8  9  10 11 12 13 14 15 16 17  18  19  20
-  // x,y,z,qx,qy,qz,q1,q2,q3,q4,qw,vx,vy,vz,ax,ay,az,qd1,qd2,qd3,qd4        
+  // 0 1 2   3  4  5    6  7  8  9    10   11 12 13   14 15 16   17  18  19  20
+  // x,y,z,  qx,qy,qz,  q1,q2,q3,q4,  qw,  vx,vy,vz,  ax,ay,az,  qd1,qd2,qd3,qd4        
   for(int i = 0; i < 21; i++){
     Xout[i] = x_init[i];
   }

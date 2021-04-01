@@ -12,6 +12,9 @@ float GlobalParams::propagation_step_size;
 float GlobalParams::visualize_planner;
 float GlobalParams::goal_bias;
 std::vector<float> GlobalParams::distance_weights;
+int GlobalParams::num_control_samples;
+bool GlobalParams::add_intermediate_states;
+
 
 
 void GlobalParams::load_params(ros::NodeHandle *nh){
@@ -26,7 +29,8 @@ void GlobalParams::load_params(ros::NodeHandle *nh){
   nh->getParam("/visualize_planner", visualize_planner);
   nh->getParam("/goal_bias", goal_bias);
   nh->getParam("/distance_weights", distance_weights);
-  
+  nh->getParam("/add_intermediate_states", add_intermediate_states);
+  nh->getParam("/num_control_samples", num_control_samples);
 }
 
 
@@ -42,3 +46,6 @@ float GlobalParams::get_propagation_step_size(){return GlobalParams::propagation
 float GlobalParams::get_visualize_planner(){return GlobalParams::visualize_planner;}
 float GlobalParams::get_goal_bias(){return GlobalParams::goal_bias;}
 std::vector<float> GlobalParams::get_distance_weights(){return GlobalParams::distance_weights;}
+
+bool GlobalParams::get_add_intermediate_states(){return GlobalParams::add_intermediate_states;}
+int  GlobalParams::get_num_control_samples(){return GlobalParams::num_control_samples;}

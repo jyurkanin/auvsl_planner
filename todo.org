@@ -40,9 +40,20 @@
   It might be good to actually just leave it how it is. Probably not.
 
 
+* TODO Smarter Control Sampling
+  Sample omega's such that (~omega*duration) + heading = heading towards target
+  Sample forward velocities such that (~Vf*duration) + position = target_position
+
+  Where ~omega is required omega + small random sampling
+        ~Vf is required Vf + small random sampling
+
 * TODO Smart Distance Function
   Only Penalize velocity if it is not in the direction towards
-  the goal state. So do a dot product.
+  the goal state. So do a dot product. Before I implement this, 
+  I'm going to have to convert from RBDL velocity to world frame
+  velocity. RBDL floating based velocity representation is painfully
+  bad. Fortunately I figured it out long ago through trial and error
+  and suffering.
 
 * <2021-03-18 Thu> Update
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.

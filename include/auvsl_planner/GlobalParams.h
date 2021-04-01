@@ -17,7 +17,9 @@ public:
   static float get_visualize_planner();
   static float get_goal_bias();
   static std::vector<float> get_distance_weights();
-
+  static int get_num_control_samples();
+  static bool get_add_intermediate_states();
+  
 private:
   static float fuzzy_constant_speed;
   static float max_angular_vel;
@@ -29,4 +31,6 @@ private:
   static float visualize_planner;
   static float goal_bias;
   static std::vector<float> distance_weights;
+  static int num_control_samples;
+  static bool add_intermediate_states;
 };

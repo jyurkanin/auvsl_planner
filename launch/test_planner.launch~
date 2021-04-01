@@ -1,6 +1,6 @@
 <launch>
     <rosparam file="$(find auvsl_planner)/config/params.yaml" />
-    <node pkg="auvsl_planner" type="auvsl_planner_node" name="auvsl_global_planner" output="screen" launch-prefix=""/>
+    <node pkg="auvsl_planner" type="test_planner_node" name="test_global_planner" output="screen" launch-prefix="gdb"/>
         
     <!-- Eventually I will also be running the octomap node from here as well as the local planner -->
     

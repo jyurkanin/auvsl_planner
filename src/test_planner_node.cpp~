@@ -1,0 +1,95 @@
+#include <ros/ros.h>
+#include <std_msgs/String.h>
+
+#include "VehicleStateSpace.h"
+#include "GlobalParams.h"
+
+ompl::base::StateSamplerPtr sampler;
+ompl::control::SpaceInformationPtr si;
+ompl::base::VehicleStateSpace ;
+ompl::base::State *allocRandomState(ompl::base::SpaceInformationPtr si){
+  
+  
+  return state;
+}
+
+/*
+ * Test if vehicle state space is a metric space
+ * Test for positive definiteness
+ * Test for symmetry
+ */
+void test_vehicle_space(){
+  
+  
+  ompl::base::State *state1 = si->allocState();
+  ompl::base::State *state2 = si->allocState();
+
+  for(int i = 0; i < 100; i++){
+    sampler->sampleUniform(state1);
+    sampler->sampleUniform(state2);
+    
+    
+  }
+
+  si->freeState(state1);
+  si->freeState(state2);
+}
+
+void init_ompl(){
+  ompl::base::VehicleStateSpace space(6);
+  ompl::base::RealVectorBounds bounds(6);
+  
+  bounds.setLow(0, -10);
+  bounds.setHigh(0, 10);
+  
+  bounds.setLow(1, -10);
+  bounds.setHigh(1, 10);
+  
+  bounds.setLow(2, 0);
+  bounds.setHigh(2, 2*M_PI);
+  
+  bounds.setLow(3, -100);
+  bounds.setHigh(3, 100);
+  
+  bounds.setLow(4, -100);
+  bounds.setHigh(4, 100);
+
+  bounds.setLow(5, -100);
+  bounds.setHigh(5, 100);
+  space.setBounds(bounds);
+  
+  ompl::base::StateSpacePtr space_ptr = ompl::base::StateSpacePtr(&space);
+  ompl::control::RealVectorControlSpace cspace(space_ptr, 2);
+  ompl::base::RealVectorBounds cbounds(2);
+  
+  cbounds.setLow(0, -GlobalParams::get_max_angular_vel());
+  cbounds.setHigh(0, GlobalParams::get_max_angular_vel());
+
+  cbounds.setLow(1, -.1);
+  cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
+  
+  cspace.setBounds(cbounds);
+  
+  si = ompl::control::SpaceInformationPtr(new ompl::control::SpaceInformation(space_ptr, ompl::control::ControlSpacePtr(&cspace)));  
+  sampler = si->allocStateSampler();  
+}
+
+int main(int argc, char **argv){
+  ros::init(argc, argv, "auvsl_global_planner");
+  ros::NodeHandle nh;
+  ros::Publisher pub = nh.advertise<std_msgs::String>("Global_Planner", 1); //buffer size is one. Only one global plan needed
+  
+  GlobalParams::load_params(&nh);
+  
+  ros::Rate loop_rate(10);
+  
+
+  init_ompl();
+  test_vehicle_space();
+  
+  
+  ros::spinOnce();
+  loop_rate.sleep();
+  
+  return 0;
+}

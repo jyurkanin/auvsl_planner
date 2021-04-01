@@ -5,8 +5,9 @@
 #include "JackalStatePropagator.h"
 #include "GlobalParams.h"
 #include "PlannerVisualizer.h"
-#include <ompl/base/spaces/RealVectorStateSpace.h>
-
+//#include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/base/goals/GoalSpace.h>
+#include <ompl/control/SimpleDirectedControlSampler.h>
 
 //launch-prefix="gdb -ex run --args
 
@@ -37,8 +38,9 @@ bool isStateValid(const ompl::base::State *state){
   }
 }
 
-
-
+ompl::control::DirectedControlSamplerPtr allocCustomControlSampler(const ompl::control::SpaceInformation *si){
+  return std::make_shared<ompl::control::SimpleDirectedControlSampler>(si, GlobalParams::get_num_control_samples());
+}
 
 /*
 */
@@ -78,7 +80,7 @@ void plan(){
   cbounds.setLow(0, -GlobalParams::get_max_angular_vel());
   cbounds.setHigh(0, GlobalParams::get_max_angular_vel());
 
-  cbounds.setLow(1, -GlobalParams::get_fuzzy_constant_speed());
+  cbounds.setLow(1, -.1);
   cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
   
   cspace.setBounds(cbounds);
@@ -89,8 +91,8 @@ void plan(){
   si->setStatePropagator(dynamic_model_ptr);
   si->setPropagationStepSize(GlobalParams::get_propagation_step_size());
   si->setMinMaxControlDuration(1, 10);
-  
-  //  si->setControlSampler();
+
+  si->setDirectedControlSamplerAllocator(allocCustomControlSampler);
   
   si->setStateValidityChecker(isStateValid);
   si->setStateValidityCheckingResolution(GlobalParams::get_state_checker_resolution());    //this is for checking motions
@@ -105,23 +107,40 @@ void plan(){
   start[4] = 0;
   start[5] = 0;
   
-  ompl::base::ScopedState<> goal(space_ptr);
-  goal[0] = -5;
-  goal[1] = -8;
-  goal[2] = 0;
-  goal[3] = 0;
-  goal[4] = 0;
-  goal[5] = 0;
+  ompl::base::GoalSpace goal(si);
+  ompl::base::VehicleStateSpace gspace(6);
+  ompl::base::RealVectorBounds gbounds(6);
+  gbounds.setLow(0, -5.1);
+  gbounds.setHigh(0, -4.9);
+  
+  gbounds.setLow(1, -8.1);
+  gbounds.setHigh(1, -7.9);
+  
+  gbounds.setLow(2, 0);
+  gbounds.setHigh(2, 2*M_PI);
+  
+  gbounds.setLow(3, -10);
+  gbounds.setHigh(3, 10);
+  
+  gbounds.setLow(4, -10);
+  gbounds.setHigh(4, 10);
 
-  pdef->setStartAndGoalStates(start, goal, .1);
+  gbounds.setLow(5, -10);
+  gbounds.setHigh(5, 10);
+  
+  gspace.setBounds(gbounds);
+  goal.setSpace(ompl::base::StateSpacePtr(&gspace));
+  
+  pdef->addStartState(start);
+  pdef->setGoal((ompl::base::GoalPtr) &goal);
   
   
   ompl::control::RRT planner(si);
   planner.setProblemDefinition(pdef);
   planner.setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
-  planner.setIntermediateStates(true);
+  planner.setIntermediateStates(GlobalParams::get_add_intermediate_states());
 
-  PlannerVisualizer planner_visualizer((ompl::base::PlannerPtr) &planner, .5);
+  PlannerVisualizer planner_visualizer(si, (ompl::base::PlannerPtr) &planner, .5);
   if(GlobalParams::get_visualize_planner()){
     planner_visualizer.startMonitor();
   }
@@ -131,11 +150,14 @@ void plan(){
   ompl::base::PlannerStatus solved = planner.solve(ptc);
   
   if(solved){
-    std::cout << "Solution Found: \n";
-    pdef->getSolutionPath()->print(std::cout);
+    ROS_INFO("Solution Found");
+    ompl::base::PlannerSolution soln = pdef->getSolutions()[0];
+    planner_visualizer.setSolution(&soln);
+    
+    //pdef->getSolutionPath()->print(std::cout);
   }
   else{
-    std::cout << "No Solution Found: \n";
+    ROS_INFO("No Solution Found");
   }
 
   std::cin.get();

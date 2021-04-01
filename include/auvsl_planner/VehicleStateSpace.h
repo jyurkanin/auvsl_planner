@@ -91,7 +91,9 @@ namespace ompl{
     {
       return bounds_;
     }
-  
+
+    bool isMetricSpace() const override;
+      
     unsigned int getDimension() const override;
     const std::string &getDimensionName(unsigned int index) const;
   

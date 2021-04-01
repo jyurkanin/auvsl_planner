@@ -7,6 +7,9 @@
 
 #include <ompl/base/Planner.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/base/ProblemDefinition.h>
+#include <ompl/control/SpaceInformation.h>
+
 
 #include <X11/keysymdef.h>
 #include <X11/Xutil.h>
@@ -29,8 +32,8 @@ class PlannerVisualizer{
   PlannerVisualizer(const PlannerVisualizer &) = delete;
   PlannerVisualizer &operator=(const PlannerVisualizer &) = delete;
   
-  PlannerVisualizer(ompl::base::PlannerPtr planner, double period = 0.5)
-   : planner_(std::move(planner)),  period_(period), shouldMonitor_(false){
+  PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr planner, double period = 0.5)
+    : sic_(sic), planner_(std::move(planner)),  period_(period), shouldMonitor_(false){
 
  }
   
@@ -47,11 +50,19 @@ class PlannerVisualizer{
   void startMonitor();
   void stopMonitor();
 
-  
+  void setSolution(ompl::base::PlannerSolution *solution);
+  void drawSolution();
   
  private:
   void threadFunction();
+  
+  int has_solution;
+  ompl::control::SpaceInformationPtr sic_;
+  ompl::base::PlannerSolution *planner_solution;
 
+  unsigned num_waypoints_;
+  float *waypoints_;
+  
   Display *dpy;
   Window w;
   GC gc;

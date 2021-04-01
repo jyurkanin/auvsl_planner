@@ -2,13 +2,15 @@
 # This files holds the parameters for the dynamic_model, planner, and octomap
 #
 
-fuzzy_constant_speed: 1 # m/s
+fuzzy_constant_speed: 5 # m/s
 max_angular_vel: .5     # rad/s
-timestep: .01
-debug_level: 0
+timestep: .001
+debug_level: 2
 planner_resolution: .01
 state_checker_resolution: .01   # 1%
 propagation_step_size: .1
 visualize_planner: 1
-goal_bias: .5
-distance_weights: [1,1,.1, .1,.1,.1]   
+goal_bias: .1
+distance_weights: [1,1, 0,0, 1,1]
+add_intermediate_states: true
+num_control_samples: 10
