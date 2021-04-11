@@ -18,6 +18,7 @@ public:
   static float get_goal_bias();
   static std::vector<float> get_distance_weights();
   static int get_num_control_samples();
+  static int get_seed();
   static bool get_add_intermediate_states();
   
 private:
@@ -33,4 +34,5 @@ private:
   static std::vector<float> distance_weights;
   static int num_control_samples;
   static bool add_intermediate_states;
+  static int seed;
 };

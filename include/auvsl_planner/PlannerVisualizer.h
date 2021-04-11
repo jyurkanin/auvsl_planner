@@ -35,7 +35,7 @@ class PlannerVisualizer{
   PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr planner, double period = 0.5)
     : sic_(sic), planner_(std::move(planner)),  period_(period), shouldMonitor_(false){
 
- }
+  }
   
   ~PlannerVisualizer(){
       stopMonitor();
@@ -61,7 +61,7 @@ class PlannerVisualizer{
   ompl::base::PlannerSolution *planner_solution;
 
   unsigned num_waypoints_;
-  float *waypoints_;
+  std::vector<float> waypoints_;
   
   Display *dpy;
   Window w;

@@ -138,6 +138,7 @@ void JackalDynamicSolver::del_model(){
   }
 }
 
+
 Eigen::Matrix<float,JackalDynamicSolver::JackalDynamicSolver::num_in_features,1> JackalDynamicSolver::scale_input(Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> features){
     //Do a transform to standard normal.
     Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> scaled_features;

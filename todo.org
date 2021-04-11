@@ -40,6 +40,12 @@
   It might be good to actually just leave it how it is. Probably not.
 
 
+* TODO Prevent Excessive Skidding
+  This isn't Tokyo drift. Computing Vl and Vr from Vf and W using kinematic approx might be dumb.
+  Perhaps a better idea is just to do Vl = Vf - W and Vr = Vf - W
+  So that way the total difference between tire velocities is limited to prevent skidding.
+  This is actually not really different from the current approach. Shit.
+
 * TODO Smarter Control Sampling
   Sample omega's such that (~omega*duration) + heading = heading towards target
   Sample forward velocities such that (~Vf*duration) + position = target_position
@@ -47,13 +53,14 @@
   Where ~omega is required omega + small random sampling
         ~Vf is required Vf + small random sampling
 
-* TODO Smart Distance Function
+* Smart Distance Function
   Only Penalize velocity if it is not in the direction towards
   the goal state. So do a dot product. Before I implement this, 
   I'm going to have to convert from RBDL velocity to world frame
   velocity. RBDL floating based velocity representation is painfully
   bad. Fortunately I figured it out long ago through trial and error
-  and suffering.
+  and suffering. Note RBDL linear velocity actually matches real linear
+  velocity. Oh.
 
 * <2021-03-18 Thu> Update
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.

@@ -5,7 +5,9 @@
 #include "JackalStatePropagator.h"
 #include "GlobalParams.h"
 #include "PlannerVisualizer.h"
-//#include <ompl/base/spaces/RealVectorStateSpace.h>
+#include "VehicleControlSampler.h"
+
+#include <ompl/util/RandomNumbers.h>
 #include <ompl/base/goals/GoalSpace.h>
 #include <ompl/control/SimpleDirectedControlSampler.h>
 
@@ -38,9 +40,15 @@ bool isStateValid(const ompl::base::State *state){
   }
 }
 
-ompl::control::DirectedControlSamplerPtr allocCustomControlSampler(const ompl::control::SpaceInformation *si){
+ompl::control::DirectedControlSamplerPtr allocCustomDirectedControlSampler(const ompl::control::SpaceInformation *si){
   return std::make_shared<ompl::control::SimpleDirectedControlSampler>(si, GlobalParams::get_num_control_samples());
 }
+
+
+ompl::control::ControlSamplerPtr allocCustomControlSampler(const ompl::control::ControlSpace *cspace){
+  return std::make_shared<VehicleControlSampler>(cspace);
+}
+
 
 /*
 */
@@ -48,6 +56,8 @@ ompl::control::DirectedControlSamplerPtr allocCustomControlSampler(const ompl::c
 
 
 void plan(){
+  ompl::RNG::setSeed(GlobalParams::get_seed());
+  
   // construct the state space we are planning in
   ompl::base::VehicleStateSpace space(6);
   
@@ -75,6 +85,9 @@ void plan(){
 
   ompl::base::StateSpacePtr space_ptr = ompl::base::StateSpacePtr(&space);
   ompl::control::RealVectorControlSpace cspace(space_ptr, 2);
+  
+  cspace.setControlSamplerAllocator(allocCustomControlSampler);
+  
   ompl::base::RealVectorBounds cbounds(2);
   
   cbounds.setLow(0, -GlobalParams::get_max_angular_vel());
@@ -92,7 +105,8 @@ void plan(){
   si->setPropagationStepSize(GlobalParams::get_propagation_step_size());
   si->setMinMaxControlDuration(1, 10);
 
-  si->setDirectedControlSamplerAllocator(allocCustomControlSampler);
+  
+  si->setDirectedControlSamplerAllocator(allocCustomDirectedControlSampler);
   
   si->setStateValidityChecker(isStateValid);
   si->setStateValidityCheckingResolution(GlobalParams::get_state_checker_resolution());    //this is for checking motions
@@ -146,7 +160,7 @@ void plan(){
   }
   
   
-  ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(30.0), ompl::base::exactSolnPlannerTerminationCondition(pdef));
+  ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(120.0), ompl::base::exactSolnPlannerTerminationCondition(pdef));
   ompl::base::PlannerStatus solved = planner.solve(ptc);
   
   if(solved){

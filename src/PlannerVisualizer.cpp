@@ -59,9 +59,8 @@ void PlannerVisualizer::setSolution(ompl::base::PlannerSolution *solution){
   
   JackalStatePropagator dynamic_model(sic_);
 
-  num_waypoints_ = controls.size() + 1;//1 + floorf(path->length() / GlobalParams::get_propagation_step_size());
-  waypoints_ = new float[num_waypoints_*2];
-  dynamic_model.getWaypoints(controls, durations, states, waypoints_);
+  //num_waypoints_ = (controls.size() + 1)*2;  //1 + floorf(path->length() / GlobalParams::get_propagation_step_size());
+  dynamic_model.getWaypoints(controls, durations, states, waypoints_, num_waypoints_);
 
   has_solution = 1;
 }

@@ -243,6 +243,42 @@ void test_state_propagator_divergence(){
 }
 
 
+//Conclusion: I don't actually need to use the get_base_velocity function. I'm an idiot
+void test_get_base_velocity(){
+  float model_state[21] = {0,0,0, 0,0,0, 0,0,0,0, 1, 0,0,0, 0,0,1, 0,0,0,0};
+  Vector3d vel = JackalStatePropagator::get_base_velocity(model_state);
+  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
+
+  model_state[0] = 1;
+  vel = JackalStatePropagator::get_base_velocity(model_state);
+  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
+
+  model_state[0] = 1;
+  model_state[11] = 1;  
+  vel = JackalStatePropagator::get_base_velocity(model_state);
+  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
+
+  model_state[0] = 1;
+  model_state[11] = 1;
+  model_state[12] = 1;  
+  vel = JackalStatePropagator::get_base_velocity(model_state);
+  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
+
+
+  model_state[0] = 12.3;
+  model_state[1] = -4.5;
+  
+  model_state[5] = sinf(.87);
+  model_state[10] = cosf(.87);
+  
+  model_state[11] = -3.3;
+  model_state[12] = 1;
+  model_state[16] = 2.7;  
+  vel = JackalStatePropagator::get_base_velocity(model_state);
+  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
+}
+
+
 
 
 
@@ -345,7 +381,8 @@ int main(int argc, char **argv){
   //test_vehicle_space();
   //test_quaternion_math();
   //test_state_propagator();
-  test_dynamic_model();
+  //test_dynamic_model();
+  test_get_base_velocity();
 
   del_ompl();
   

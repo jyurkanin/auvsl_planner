@@ -243,6 +243,7 @@ double ompl::base::VehicleStateSpace::distance(const State *state1, const State 
   double dist = 0.0;
   const double *s1 = static_cast<const StateType *>(state1)->values;
   const double *s2 = static_cast<const StateType *>(state2)->values;
+
   
   std::vector<float> weights = GlobalParams::get_distance_weights();
   double vec[2] = {s2[0] - s1[0], s2[1] - s1[1]};  

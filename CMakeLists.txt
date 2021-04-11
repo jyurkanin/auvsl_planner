@@ -174,6 +174,8 @@ add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
   src/utils.cpp
   src/VehicleStateSpace.cpp
   src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
   )
 
 
