@@ -10,12 +10,20 @@ float GlobalParams::planner_resolution;
 float GlobalParams::state_checker_resolution;
 float GlobalParams::propagation_step_size;
 float GlobalParams::visualize_planner;
+
 float GlobalParams::goal_bias;
+float GlobalParams::goal_bias2;
+
 int GlobalParams::seed;
 std::vector<float> GlobalParams::distance_weights;
 int GlobalParams::num_control_samples;
 bool GlobalParams::add_intermediate_states;
 
+float GlobalParams::heading_heuristic;
+float GlobalParams::angular_variance;
+float GlobalParams::forward_variance;
+
+float GlobalParams::p_gain;
 
 
 void GlobalParams::load_params(ros::NodeHandle *nh){
@@ -28,12 +36,21 @@ void GlobalParams::load_params(ros::NodeHandle *nh){
 
   nh->getParam("/propagation_step_size", propagation_step_size);
   nh->getParam("/visualize_planner", visualize_planner);
+  
   nh->getParam("/goal_bias", goal_bias);
+  nh->getParam("/goal_bias2", goal_bias2);
+  
   nh->getParam("/distance_weights", distance_weights);
   nh->getParam("/add_intermediate_states", add_intermediate_states);
   nh->getParam("/num_control_samples", num_control_samples);
 
   nh->getParam("/seed", seed);
+
+  nh->getParam("/heading_heuristic", heading_heuristic);
+  nh->getParam("/forward_variance", forward_variance);
+  nh->getParam("/angular_variance", angular_variance);
+
+  nh->getParam("/p_gain", p_gain);
 }
 
 
@@ -47,9 +64,19 @@ float GlobalParams::get_planner_resolution(){return GlobalParams::planner_resolu
 float GlobalParams::get_state_checker_resolution(){return GlobalParams::state_checker_resolution;}
 float GlobalParams::get_propagation_step_size(){return GlobalParams::propagation_step_size;}
 float GlobalParams::get_visualize_planner(){return GlobalParams::visualize_planner;}
+
 float GlobalParams::get_goal_bias(){return GlobalParams::goal_bias;}
+float GlobalParams::get_goal_bias2(){return GlobalParams::goal_bias2;}
+
+
 std::vector<float> GlobalParams::get_distance_weights(){return GlobalParams::distance_weights;}
 
 bool GlobalParams::get_add_intermediate_states(){return GlobalParams::add_intermediate_states;}
 int  GlobalParams::get_num_control_samples(){return GlobalParams::num_control_samples;}
 int  GlobalParams::get_seed(){return GlobalParams::seed;}
+
+float GlobalParams::get_heading_heuristic(){return GlobalParams::heading_heuristic;}
+float GlobalParams::get_angular_variance(){return GlobalParams::angular_variance;}
+float GlobalParams::get_forward_variance(){return GlobalParams::forward_variance;}
+
+float GlobalParams::get_p_gain(){return GlobalParams::p_gain;}

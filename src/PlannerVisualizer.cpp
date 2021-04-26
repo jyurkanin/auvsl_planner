@@ -7,6 +7,19 @@
 #include "JackalStatePropagator.h"
 
 
+
+
+float PlannerVisualizer::min_state_x_;
+float PlannerVisualizer::max_state_x_;
+float PlannerVisualizer::min_state_y_;
+float PlannerVisualizer::max_state_y_;
+
+
+
+
+
+
+
 void PlannerVisualizer::startMonitor(){
   dpy = XOpenDisplay(0);
   w = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0, 0, 0);
@@ -24,6 +37,16 @@ void PlannerVisualizer::startMonitor(){
   XSetBackground(dpy, gc, 0);
   
   has_solution = 0;
+
+  const ompl::base::RealVectorBounds &bounds = static_cast<const ompl::base::VehicleStateSpace*>(sic_->getStateSpace().get())->getBounds();
+  
+  min_state_x_ = bounds.low[0];
+  max_state_x_ = bounds.high[0];
+  min_state_y_ = bounds.low[1];
+  max_state_y_ = bounds.high[1];
+
+  //ROS_INFO("Bounds %f %f %f %f", min_state_x_, max_state_x_, min_state_y_, max_state_y_);
+  
   
   if (monitorThread_)
     return;
@@ -65,6 +88,9 @@ void PlannerVisualizer::setSolution(ompl::base::PlannerSolution *solution){
   has_solution = 1;
 }
 
+void PlannerVisualizer::setObstacles(const std::vector<Rectangle*> &obstacles){
+  obstacles_ = obstacles;
+}
 
 
   
@@ -111,32 +137,34 @@ void PlannerVisualizer::drawSolution(){
 }
 
 void PlannerVisualizer::drawGoal(){
-  float goal_x = -5;
-  float goal_y = -8;
+  float goal_x = -90;
+  float goal_y = -60;
   float temp_x, temp_y;
   scaleXY(goal_x, goal_y, temp_x, temp_y);
   
-  XSetForeground(dpy, gc, 0xFF0000);
-  XFillArc(dpy, w, gc, temp_x, temp_y, 11, 11, 0, 360*64);
+  XSetForeground(dpy, gc, 0xFFFFFF);
+  XFillArc(dpy, w, gc, temp_x-6, temp_y-6, 12, 12, 0, 360*64);
 }
 
-void PlannerVisualizer::drawObstacles(){
-  float obs_x = -3;
-  float obs_y = -3;
-  float top_right_x = 3;
-  float top_right_y = 3;
-  float temp_x, temp_y, tr_x, tr_y;
-  
-  scaleXY(obs_x, obs_y, temp_x, temp_y);
-  scaleXY(top_right_x, top_right_y, tr_x, tr_y);
-  
-  float temp_width = tr_x - temp_x;
-  float temp_height = -(tr_y - temp_y);
 
-  //ROS_INFO("width %f height %f blx %f bly %f\n", temp_width, temp_height, temp_x, temp_y);
-  
+
+void PlannerVisualizer::drawObstacles(){
   XSetForeground(dpy, gc, 0xFF0000);
-  XFillRectangle(dpy, w, gc, temp_x, temp_y - temp_height, temp_width, temp_height);
+  for(unsigned i = 0; i < obstacles_.size(); i++){
+    float bottom_left_x = obstacles_[i]->x;
+    float bottom_left_y = obstacles_[i]->y;
+    float top_right_x = obstacles_[i]->x + obstacles_[i]->width;
+    float top_right_y = obstacles_[i]->y + obstacles_[i]->height;
+    float bl_x, bl_y, tr_x, tr_y;
+    
+    scaleXY(bottom_left_x, bottom_left_y, bl_x, bl_y);
+    scaleXY(top_right_x, top_right_y, tr_x, tr_y);
+    
+    float temp_width = tr_x - bl_x;
+    float temp_height = -(tr_y - bl_y);
+    
+    XFillRectangle(dpy, w, gc, bl_x, bl_y - temp_height, temp_width, temp_height);
+  }
 }
 
 void PlannerVisualizer::drawTree(const ompl::base::PlannerData &planner_data){
@@ -179,15 +207,15 @@ void PlannerVisualizer::drawSubTree(const ompl::base::PlannerData &planner_data,
   
   if(planner_data.isGoalVertex(v_idx)){
     XSetForeground(dpy, gc, 0xFF0000);
-    XFillArc(dpy, w, gc, vertex_x, vertex_y, 11, 11, 0, 360*64);
+    XFillArc(dpy, w, gc, vertex_x-6, vertex_y-6, 12, 12, 0, 360*64);
   }
   else if(planner_data.isStartVertex(v_idx)){
     XSetForeground(dpy, gc, 0xFF00FF);
-    XFillArc(dpy, w, gc, vertex_x, vertex_y, 11, 11, 0, 360*64);
+    XFillArc(dpy, w, gc, vertex_x-6, vertex_y-6, 12, 12, 0, 360*64);
   }
   else{
     XSetForeground(dpy, gc, 0xFF);
-    XFillArc(dpy, w, gc, vertex_x, vertex_y, 3, 3, 0, 360*64);
+    XFillArc(dpy, w, gc, vertex_x-2, vertex_y-2, 4, 4, 0, 360*64);
   }
   
   
@@ -195,11 +223,6 @@ void PlannerVisualizer::drawSubTree(const ompl::base::PlannerData &planner_data,
 }
 
 void PlannerVisualizer::scaleXY(float state_x, float state_y, float &draw_x, float &draw_y){
-  float min_state_x = -10;
-  float min_state_y = -10;
-  float max_state_x = 10;
-  float max_state_y = 10; //hardcoding go brrrr
-  
-  draw_x = WINDOW_WIDTH*(state_x - min_state_x)/(max_state_x - min_state_x);
-  draw_y = WINDOW_HEIGHT*(1 - ((state_y - min_state_y)/(max_state_y - min_state_y)));
+  draw_x = WINDOW_WIDTH*(state_x - min_state_x_)/(max_state_x_ - min_state_x_);
+  draw_y = WINDOW_HEIGHT*(1 - ((state_y - min_state_y_)/(max_state_y_ - min_state_y_)));
 }

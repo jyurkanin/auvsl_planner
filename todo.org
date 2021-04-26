@@ -40,20 +40,31 @@
   It might be good to actually just leave it how it is. Probably not.
 
 
-* TODO Prevent Excessive Skidding
+* TODO Intelligent state sampling
+  Make the state space sampler more likely
+  to sample in a region around the node that
+  is closest to the goal. Prevent unnecessary
+  exploration of the state space.
+  
+* DONE Prevent Excessive Skidding
   This isn't Tokyo drift. Computing Vl and Vr from Vf and W using kinematic approx might be dumb.
   Perhaps a better idea is just to do Vl = Vf - W and Vr = Vf - W
   So that way the total difference between tire velocities is limited to prevent skidding.
   This is actually not really different from the current approach. Shit.
+  I fixed this problem be adding PID control for the tires. When you consider
+  the torque on the tires, everything works better for some reason.
+  Also added a simple heuristic for tire reaction torque based on slip. Its a hack. I don't care.
 
-* TODO Smarter Control Sampling
+* DONE Smarter Control Sampling
   Sample omega's such that (~omega*duration) + heading = heading towards target
   Sample forward velocities such that (~Vf*duration) + position = target_position
 
   Where ~omega is required omega + small random sampling
         ~Vf is required Vf + small random sampling
 
-* Smart Distance Function
+  Working on it.
+
+* DONE Smart Distance Function
   Only Penalize velocity if it is not in the direction towards
   the goal state. So do a dot product. Before I implement this, 
   I'm going to have to convert from RBDL velocity to world frame
@@ -73,7 +84,7 @@
 
   
 * Minimum Viable Product:
-** RRT Algorithm
+** DONE RRT Algorithm
    Do it with ompl
 
 ** Double D*
@@ -107,7 +118,7 @@
    Load URDF into rbdl instead of manually specifying
    vehicle description.
    So you can swap it out for other vehicle models.
-** Configuration file for all parameters. YAML format maybe. I think ROS has a way to do this.
+** DONE Configuration file for all parameters. YAML format maybe. I think ROS has a way to do this.
    Numerous parameters that could be adjusted between runs.
    Fuzzy constant speed.
    Max angular vel

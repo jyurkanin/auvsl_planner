@@ -176,6 +176,7 @@ add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
   src/VehicleStateProjections.cpp
   src/VehicleControlSampler.cpp
   src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
   )
 
 
@@ -198,6 +199,9 @@ add_executable(test_planner_node src/test_planner_node.cpp
   src/utils.cpp
   src/VehicleStateSpace.cpp
   src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
   )
 
 target_link_libraries(test_planner_node ${OCTOMAP_LIBRARIES})
@@ -207,6 +211,34 @@ target_link_libraries(test_planner_node rbdl)
 target_link_libraries(test_planner_node X11)
 
 set_target_properties(test_planner_node PROPERTIES COMPILE_FLAGS "-O3")
+
+
+
+
+
+
+
+add_executable(steerability_node src/test_steerability_node.cpp
+  src/GlobalParams.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/PlannerVisualizer.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
+  )
+
+target_link_libraries(steerability_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(steerability_node ${OMPL_LIBRARIES})
+target_link_libraries(steerability_node ${catkin_LIBRARIES})
+target_link_libraries(steerability_node rbdl)
+target_link_libraries(steerability_node X11)
+
+set_target_properties(steerability_node PROPERTIES COMPILE_FLAGS "-O3")
 
 #############
 ## Install ##

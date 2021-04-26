@@ -86,13 +86,18 @@ void ompl::base::VehicleStateSampler::sampleGaussian(State *state, const State *
   
 void ompl::base::VehicleStateSpace::registerProjections() {
   // compute a default random projection
+  std::vector<double> cell_sizes;
   
   if (dimension_ > 0)
     {
       if (dimension_ > 2)
         {
-          int p = std::max(2, (int)ceil(log((double)dimension_)));
-          registerDefaultProjection(std::make_shared<VehicleRandomLinearProjectionEvaluator>(this, p));
+          for(int i = 0; i < dimension_; i++){
+            cell_sizes.push_back(1.0);
+          }
+          registerDefaultProjection(std::make_shared<VehicleIdentityProjectionEvaluator>(this, cell_sizes));
+          //int p = std::max(2, (int)ceil(log((double)dimension_)));
+          //registerDefaultProjection(std::make_shared<VehicleRandomLinearProjectionEvaluator>(this, p));
         }
       else{
         registerDefaultProjection(std::make_shared<VehicleIdentityProjectionEvaluator>(this));

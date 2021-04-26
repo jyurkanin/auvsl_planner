@@ -3,7 +3,7 @@
 #
 
 fuzzy_constant_speed: 5 # m/s
-max_angular_vel: .1     # rad/s
+max_angular_vel: 1     # rad/s
 timestep: .001
 debug_level: 2
 planner_resolution: .01
@@ -11,7 +11,14 @@ state_checker_resolution: .01   # 1%
 propagation_step_size: .1
 visualize_planner: 1
 goal_bias: .1
-distance_weights: [1,1, 1,0]
-add_intermediate_states: true
-num_control_samples: 10
-seed: 13 #useful for debugging and getting deterministic results
+goal_bias2: .9
+distance_weights: [1,1,0,0]
+add_intermediate_states: false
+num_control_samples: 3
+seed: 10 #useful for debugging and getting deterministic results
+heading_heuristic: 0  # 0 -> 1, 1 is try to match heading, 0 is try to match position
+forward_variance: 1
+angular_variance: .2
+p_gain: 1
+
+    

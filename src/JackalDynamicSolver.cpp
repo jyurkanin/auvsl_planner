@@ -16,6 +16,33 @@ void break_on_me(){}
     
 
 
+PIDController::PIDController(float P, float I, float D, float step){
+  P_gain = P;
+  I_gain = I;
+  D_gain = D;
+
+  timestep = step;
+  
+  reset();
+}
+
+PIDController::~PIDController(){}
+
+void PIDController::reset(){
+  err_sum = 0;
+  prev_err = 0;
+}
+
+float PIDController::step(float err){
+  float d_err = (err - prev_err)/timestep;
+  float tau = (P_gain*err) - (D_gain*d_err);
+  prev_err = err;
+
+  return tau;
+}
+
+
+
 
 SpatialVector get_body_vel(SpatialVector world_vel, float *X){
     Quaternion quat(X[3], X[4], X[5], X[10]);
@@ -64,6 +91,13 @@ Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> JackalDynamicSolver:
 JackalDynamicSolver::JackalDynamicSolver(){
   stepsize = GlobalParams::get_timestep();
   tau = VectorNd::Zero(model->qdot_size);
+
+  
+  internal_controller[0] = PIDController(GlobalParams::get_p_gain(),0,0, stepsize);
+  internal_controller[1] = PIDController(GlobalParams::get_p_gain(),0,0, stepsize);
+  
+  
+  
   
   for(int i = 0; i < model->mBodies.size(); i++){
     f_ext.push_back(SpatialVector::Zero());
@@ -275,16 +309,17 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
 	
         //tire_wrench = SpatialVector(0,labels[3],0,labels[0],labels[1],labels[2]);
         //tire_wrench = SpatialVector(0,0,0,0,0,41.65);
-        tire_wrench = SpatialVector(0,0,0,labels[0],labels[1],labels[2]);
+        float Ty = .9*((tire_radius*X[17+i]) - tire_vels[i][0]);
+        tire_wrench = SpatialVector(0,Ty,0,labels[0],labels[1],labels[2]);
 	
         //Sign corrections.
         if(X[17+i] > 0){
             tire_wrench[3] = tire_wrench[3]*1;
-            tire_wrench[1] = tire_wrench[1]*1;
+            //tire_wrench[1] = tire_wrench[1]*1;
         }
         else{
             tire_wrench[3] = tire_wrench[3]*-1;
-            tire_wrench[1] = tire_wrench[1]*-1;
+            //tire_wrench[1] = tire_wrench[1]*-1;
         }
         
         if(tire_vels[i][1] > 0){
@@ -312,8 +347,8 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
 }
 
 void JackalDynamicSolver::reset(){
-//  internal_controller[0]->reset();
-//  internal_controller[1]->reset();
+  internal_controller[0].reset();
+  internal_controller[1].reset();
 }
 
 float JackalDynamicSolver::get_timestep(){
@@ -363,7 +398,7 @@ qd_init = [0 0 0 0];
   temp[10] = base_vel[3]; //Vx
   temp[11] = base_vel[4]; //Vy
   temp[12] = base_vel[5]; //Vz
-
+  
   /*
   temp[17] = Xout[6]; //q1
   temp[18] = Xout[7];
@@ -397,6 +432,8 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
   float Xout[21];
   float Xout_next[21];
   
+  reset();
+  
   // 0 1 2   3  4  5    6  7  8  9    10   11 12 13   14 15 16   17  18  19  20
   // x,y,z,  qx,qy,qz,  q1,q2,q3,q4,  qw,  vx,vy,vz,  ax,ay,az,  qd1,qd2,qd3,qd4        
   for(int i = 0; i < 21; i++){
@@ -404,6 +441,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
   }
   
   for(timestep = 0; (timestep) < sim_steps; timestep++){
+    //ROS_INFO("Herp %f %f %f %f", Xout[17], Xout[18], Xout[19], Xout[20]);
     step(Xout, Xout_next, vl, vr);
     
     if(debug_level == 2){
@@ -421,16 +459,14 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
 }
 
 void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
-  //float right_err = Vr - (X_now[17] + X_now[18])/2;
-  //float left_err = Vl - (X_now[19] + X_now[20])/2;
+  float right_err = vr - (X_now[17] + X_now[18])/2;
+  float left_err = vl - (X_now[19] + X_now[20])/2;
   
-  X_now[17] = X_now[18] = vr;
-  X_now[19] = X_now[20] = vl;
+  //X_now[17] = X_now[18] = vr;
+  //X_now[19] = X_now[20] = vl;
   
-  //tau[6] = std::min(std::max(internal_controller[0]->step(Vr - X_now[17])*.5f, -20.0f), 20.0f);
-  //tau[7] = std::min(std::max(internal_controller[1]->step(Vr - X_now[18])*.5f, -20.0f), 20.0f);
-  //tau[8] = std::min(std::max(internal_controller[2]->step(Vl - X_now[19])*.5f, -20.0f), 20.0f);
-  //tau[9] = std::min(std::max(internal_controller[3]->step(Vl - X_now[20])*.5f, -20.0f), 20.0f);
+  tau[6] = tau[7] = std::min(std::max(internal_controller[0].step(right_err), -20.0f), 20.0f);
+  tau[8] = tau[9] = std::min(std::max(internal_controller[1].step(left_err), -20.0f), 20.0f);
   
   euler_method(X_now, X_next);
   //runge_kutta_method(X_now, X_next); //runge kutta is fucked rn.

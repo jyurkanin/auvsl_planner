@@ -3,7 +3,7 @@
 #include <thread>
 #include <utility>
 
-
+#include "auvsl_planner_node.h"
 
 #include <ompl/base/Planner.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -43,7 +43,9 @@ class PlannerVisualizer{
 
   void drawTree(const ompl::base::PlannerData &planner_data);
   void drawSubTree(const ompl::base::PlannerData &planner_data, unsigned vertex);
-  void scaleXY(float state_x, float state_y, float &draw_x, float &draw_y);
+  static void scaleXY(float state_x, float state_y, float &draw_x, float &draw_y);
+
+  void setObstacles(const std::vector<Rectangle*> &obstacles);
   void drawObstacles();
   void drawGoal();
   
@@ -62,6 +64,14 @@ class PlannerVisualizer{
 
   unsigned num_waypoints_;
   std::vector<float> waypoints_;
+
+  std::vector<Rectangle*> obstacles_;
+
+  static float min_state_x_;
+  static float max_state_x_;
+  static float min_state_y_;
+  static float max_state_y_;
+  
   
   Display *dpy;
   Window w;

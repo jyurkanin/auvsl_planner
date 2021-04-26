@@ -17,6 +17,27 @@ using namespace RigidBodyDynamics::Math;
 
 
 
+class PIDController{
+public:
+  PIDController(float P, float I, float D, float step);
+  PIDController(){}
+  ~PIDController();
+  
+  void reset();
+  float step(float err);
+private:
+  float P_gain;
+  float I_gain;
+  float D_gain;
+
+  float timestep;
+  
+  float err_sum;
+  float prev_err;
+};
+
+
+
 
 class JackalDynamicSolver{
  public:
@@ -53,6 +74,9 @@ class JackalDynamicSolver{
   void log_xout(float *Xout);
   
   // private:
+
+  PIDController internal_controller[2];
+  
   static Vector3d base_size;
   static int debug_level;
   static Model *model;

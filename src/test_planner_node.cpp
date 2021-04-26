@@ -8,6 +8,8 @@
 #include <ompl/base/goals/GoalSpace.h>
 #include <ompl/control/SimpleDirectedControlSampler.h>
 
+#include <rbdl/rbdl.h>
+
 #include <stdlib.h>
 #include <climits>
 #include <math.h>
@@ -158,22 +160,38 @@ void test_state_propagator(){
   double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
   double *start_vector = static_cast<ompl::base::VehicleStateSpace::StateType *>(start_state)->values;
 
-  start_vector[0] = 0;
+  start_vector[0] = 8;
   start_vector[1] = 0;
   start_vector[2] = 0;
   start_vector[3] = 0;
   start_vector[4] = 0;
-  start_vector[5] = 1e-3;
+  start_vector[5] = 0;
+  start_vector[6] = 0;
+  start_vector[7] = 0;
+  start_vector[8] = 0;
+  start_vector[9] = 0;
 
-  control_vector[0] = 0;
-  control_vector[1] = 1;
-  model.propagate(start_state, control, 10, end_state);
-  si->copyState(start_state, end_state);  
+
   
   control_vector[0] = 1;
-  control_vector[1] = 1;
-  model.propagate(start_state, control, 10, end_state);
-  si->copyState(start_state, end_state);
+  control_vector[1] = 1.130731;
+  model.propagate(start_state, control, 1, end_state);
+  //si->copyState(start_state, end_state);  
+
+
+  std::vector<ompl::control::Control*> controls;
+  std::vector<double> durations;
+  std::vector<ompl::base::State*> states;
+  std::vector<float> waypoints;
+  unsigned num_waypoints;
+
+
+  controls.push_back(control);
+  durations.push_back(1);
+  states.push_back(start_state);
+
+  model.getWaypoints(controls, durations, states, waypoints, num_waypoints);
+  
   
   ROS_INFO("Done");
 }
@@ -207,11 +225,20 @@ void test_state_propagator_divergence(){
   start_vector1[3] = 0;
   start_vector1[4] = 0;
   start_vector1[5] = 0;
+  start_vector1[6] = 0;
+  start_vector1[7] = 0;
+  start_vector1[8] = 0;
+  start_vector1[9] = 0;
+  
   
   start_vector2[2] = 0;
   start_vector2[3] = 0;
   start_vector2[4] = 0;
   start_vector2[5] = 1e-3;
+  start_vector2[6] = 0;
+  start_vector2[7] = 0;
+  start_vector2[8] = 0;
+  start_vector2[9] = 0;
   
   for(int i = 0; i < 10; i++){
     control_sampler->sample(control);
@@ -220,7 +247,7 @@ void test_state_propagator_divergence(){
     //control_vector[1] = 1;
     
     model.propagate(start_state1, control, 1.0, end_state1);
-    //model.propagate(start_state2, control, 1.0, end_state2);
+    model.propagate(start_state2, control, 1.0, end_state2);
     
     start_vector1 = static_cast<ompl::base::VehicleStateSpace::StateType *>(start_state1)->values;
     start_vector2 = static_cast<ompl::base::VehicleStateSpace::StateType *>(start_state2)->values;
@@ -234,10 +261,10 @@ void test_state_propagator_divergence(){
       float temp = (start_vector1[j] - start_vector2[j]);
       dist += temp*temp;
     }
-    //ROS_INFO("Distance %f", sqrtf(dist));
+    ROS_INFO("Distance %f", sqrtf(dist));
     
     si->copyState(start_state1, end_state1);
-    //si->copyState(start_state2, end_state2);
+    si->copyState(start_state2, end_state2);
   }
   ROS_INFO("DONE");
 }
@@ -278,10 +305,81 @@ void test_get_base_velocity(){
   ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
 }
 
+//Make sure angle difference is the between [-pi,pi]
+void test_angle_math(){
+  ROS_INFO("Math Test");
+  
+  float source, dest, ang_disp;
+  
+  source = 0;
+  dest = .5;
+  ang_disp = source - dest;
+  if(ang_disp < -M_PI){
+    ang_disp += (2*M_PI);
+  }
+  else if(ang_disp > M_PI){
+    ang_disp -= (2*M_PI);
+  }
+  
+  ROS_INFO("%f - %f = %f", dest, source, ang_disp);
 
 
 
+  source = 0;
+  dest = 5.6;
+  ang_disp = source - dest;
+  if(ang_disp < -M_PI){
+    ang_disp += (2*M_PI);
+  }
+  else if(ang_disp > M_PI){
+    ang_disp -= (2*M_PI);
+  }
+  
+  ROS_INFO("%f - %f = %f", dest, source, ang_disp);
 
+
+
+  source = 5.5;
+  dest = .5;
+  ang_disp = source - dest;
+  if(ang_disp < -M_PI){
+    ang_disp += (2*M_PI);
+  }
+  else if(ang_disp > M_PI){
+    ang_disp -= (2*M_PI);
+  }
+  
+  ROS_INFO("%f - %f = %f", dest, source, ang_disp);
+  
+}
+
+
+void test_vehicle_control_sampler(){
+  ROS_INFO("test vehicl control sampler");
+  
+  float angle = M_PI/4.0f;
+  Eigen::Matrix3d rotz = RigidBodyDynamics::Math::rotz(angle);
+  Eigen::Vector3d dist = Eigen::Vector3d(1, 1, 2);
+  Eigen::Vector3d dist_body_frame = rotz*dist;
+  ROS_INFO("<%f %f %f>   |   <%f %f %f>", dist[0], dist[1], dist[2],    dist_body_frame[0], dist_body_frame[1], dist_body_frame[2]);
+
+
+  angle = M_PI/2.0f;
+  rotz = RigidBodyDynamics::Math::rotz(angle);
+  dist = Eigen::Vector3d(1, 1, 2);
+  dist_body_frame = rotz*dist;
+  ROS_INFO("<%f %f %f>   |   <%f %f %f>", dist[0], dist[1], dist[2],    dist_body_frame[0], dist_body_frame[1], dist_body_frame[2]);
+
+
+
+  angle = M_PI/2.0f;
+  rotz = RigidBodyDynamics::Math::rotz(angle);
+  dist = Eigen::Vector3d(1, 2, 2);
+  dist_body_frame = rotz*dist;
+  ROS_INFO("<%f %f %f>   |   <%f %f %f>", dist[0], dist[1], dist[2],    dist_body_frame[0], dist_body_frame[1], dist_body_frame[2]);
+
+  
+}
 
 
 
@@ -311,8 +409,8 @@ ompl::control::DirectedControlSamplerPtr allocCustomControlSampler(const ompl::c
 
 
 void init_ompl(){
-  space = new ompl::base::VehicleStateSpace(6);
-  ompl::base::RealVectorBounds bounds(6);
+  space = new ompl::base::VehicleStateSpace(10);
+  ompl::base::RealVectorBounds bounds(10);
   
   bounds.setLow(0, -10);
   bounds.setHigh(0, 10);
@@ -331,6 +429,18 @@ void init_ompl(){
 
   bounds.setLow(5, -100);
   bounds.setHigh(5, 100);
+
+  bounds.setLow(6, -100);
+  bounds.setHigh(6, 100);
+
+  bounds.setLow(7, -100);
+  bounds.setHigh(7, 100);
+
+  bounds.setLow(8, -100);
+  bounds.setHigh(8, 100);
+
+  bounds.setLow(9, -100);
+  bounds.setHigh(9, 100);
   space->setBounds(bounds);
   
   ompl::base::StateSpacePtr space_ptr = ompl::base::StateSpacePtr(space);
@@ -380,10 +490,13 @@ int main(int argc, char **argv){
   init_ompl();
   //test_vehicle_space();
   //test_quaternion_math();
+  test_state_propagator_divergence();
   //test_state_propagator();
   //test_dynamic_model();
-  test_get_base_velocity();
-
+  //test_get_base_velocity();
+  //test_angle_math();
+  //test_vehicle_control_sampler();
+  
   del_ompl();
   
   ros::spinOnce();

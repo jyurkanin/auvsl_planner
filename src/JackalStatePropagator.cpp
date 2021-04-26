@@ -20,6 +20,12 @@ void JackalStatePropagator::convert_to_vehicle_space(double *vehicle_space, cons
   vehicle_space[3] = model_space[11];
   vehicle_space[4] = model_space[12];
   vehicle_space[5] = model_space[16];
+  
+  vehicle_space[6] = model_space[17];
+  vehicle_space[7] = model_space[18];
+  vehicle_space[8] = model_space[19];
+  vehicle_space[9] = model_space[20];
+  
 }
 
 void JackalStatePropagator::convert_to_model_space(const double *vehicle_space, float *model_space){
@@ -30,6 +36,12 @@ void JackalStatePropagator::convert_to_model_space(const double *vehicle_space, 
   model_space[11] = (float) vehicle_space[3];
   model_space[12] = (float) vehicle_space[4];
   model_space[16] = (float) vehicle_space[5];
+
+  model_space[17] = (float) vehicle_space[6];
+  model_space[18] = (float) vehicle_space[7];
+  model_space[19] = (float) vehicle_space[8];
+  model_space[20] = (float) vehicle_space[9];
+  
 }
 
 Vector3d JackalStatePropagator::get_base_velocity(float *Xout){
@@ -74,14 +86,21 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
 
   convert_to_model_space(val, x_start);
   
-  
   float Vf = control_vector[1];//GlobalParams::get_fuzzy_constant_speed();
   float base_width = solver.base_size[0];
   float vl = (Vf - control_vector[0]*(base_width/2.0))/solver.tire_radius;
   float vr = (Vf + control_vector[0]*(base_width/2.0))/solver.tire_radius;
+
+  //ROS_INFO("Control Vf %f   Wz %f      vl %f   vr %f", Vf, control_vector[0], vl, vr);
+  //ROS_INFO("Vehicle State %f %f %f   %f %f %f   %f %f %f %f", val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9]);
+  //ROS_INFO("Duration %f", (float) duration);
+  //ROS_INFO("X_Start:");
+  //for(unsigned i = 0; i < vehicle_state_len; i++){
+    //ROS_INFO("        %f", x_start[i]);
+  //}
   
   solver.solve(x_start, x_end, vl, vr, (float) duration);
-  
+
   convert_to_vehicle_space(result_val, x_end);
   
   //ROS_INFO("Vl Vr %f %f", vl, vr);
@@ -110,6 +129,8 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
 void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &controls, std::vector<double> &durations, std::vector<ompl::base::State*> states, std::vector<float> &waypoints, unsigned &num_waypoints){
   const double* val = states[0]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
 
+  waypoints.clear();
+  
   JackalDynamicSolver::init_model(2);
   JackalDynamicSolver solver;
                            
@@ -134,37 +155,51 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
   float vl;
   float vr;
   float timestep = GlobalParams::get_propagation_step_size();
-  double result_val[6];
+  double result_val[10];
 
   unsigned idx = 1;
   float eps = 1e-5;
   for(unsigned i = 0; i < controls.size(); i++){
     const double *control_vector = controls[i]->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
-    const double* val = states[i+1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+    const double* val = states[i]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+    const double* expected_val = states[i+1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+    
+    convert_to_model_space(val, x_start);
     
     Vf = control_vector[1];
     W = control_vector[0];
     vl = (Vf - W*(base_width/2.0))/solver.tire_radius;
     vr = (Vf + W*(base_width/2.0))/solver.tire_radius;
 
+    
+    //ROS_INFO("vl vr %f %f", vl, vr);
+
+    ROS_INFO("Control Vf Wz   %f %f", Vf, W);
+    
     for(int k = 0; k*timestep < durations[i]; k++){
       solver.solve(x_start, x_end, vl, vr, timestep); //durations[i]);
     
       for(int j = 0; j < vehicle_state_len; j++){
         x_start[j] = x_end[j];
       }
-
+      
       waypoints.push_back(x_end[0]);
       waypoints.push_back(x_end[1]);      
     }
     
     convert_to_vehicle_space(result_val, x_end);
-        
+
+    /*
     for(int j = 0; j < 6; j++){
-      if(fabs(val[j] - result_val[j]) > 1e-5){
+      if(fabs(expected_val[j] - result_val[j]) > 1e-5){
+        ROS_INFO("Divergence after Control %d", i);
+        ROS_INFO("expected val\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f", expected_val[0], expected_val[1], expected_val[2], expected_val[3], expected_val[4], expected_val[5], expected_val[6], expected_val[7], expected_val[8], expected_val[9]);
+        ROS_INFO("actual   val\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f", result_val[0], result_val[1], result_val[2], result_val[3], result_val[4], result_val[5], result_val[6], result_val[7], result_val[8], result_val[9]);
+        ROS_INFO(" ");
         break;
       }
     }
+    */
   }
 
   num_waypoints = (waypoints.size())/2;

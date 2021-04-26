@@ -34,10 +34,14 @@
   /* Author: Ioan Sucan */
 
 #include "DirectedVehicleControlSampler.h"
+#include "GlobalParams.h"
 #include "ompl/control/SpaceInformation.h"
- 
-DirectedVehicleControlSampler::DirectedVehicleControlSampler(const ompl:control::SpaceInformation *si, unsigned int k)
-  : DirectedControlSampler(si), numControlSamples(k){}
+#include "ompl/control/spaces/RealVectorControlSpace.h"
+#include "ompl/base/spaces/RealVectorStateSpace.h"
+#include <rbdl/rbdl.h>
+
+DirectedVehicleControlSampler::DirectedVehicleControlSampler(const ompl::control::SpaceInformation *si, unsigned int k)
+  : DirectedControlSampler(si), cs_(si->allocControlSampler()), numControlSamples_(k){}
   
 DirectedVehicleControlSampler::~DirectedVehicleControlSampler() = default;
   
@@ -56,12 +60,14 @@ unsigned int DirectedVehicleControlSampler::getBestControl(ompl::control::Contro
   else
     cs_->sample(control, source);
   */
-  sampleControlHeuristic(control, source, dest, previous);
   
   const unsigned int minDuration = si_->getMinControlDuration();
   const unsigned int maxDuration = si_->getMaxControlDuration();
   
   unsigned int steps = cs_->sampleStepCount(minDuration, maxDuration);
+  
+  sampleControlHeuristic(control, source, dest, previous, steps);
+  
   // Propagate the first control, and find how far it is from the target state
   ompl::base::State *bestState = si_->allocState();
   steps = si_->propagateWhileValid(source, control, steps, bestState);
@@ -82,7 +88,7 @@ unsigned int DirectedVehicleControlSampler::getBestControl(ompl::control::Contro
           else
             cs_->sample(tempControl, source);
           */
-          sampleControlHeuristic(tempControl, source, dest, previous);
+          sampleControlHeuristic(tempControl, source, dest, previous, sampleSteps);
           
           sampleSteps = si_->propagateWhileValid(source, tempControl, sampleSteps, tempState);
           double tempDistance = si_->distance(tempState, dest);
@@ -109,10 +115,58 @@ unsigned int DirectedVehicleControlSampler::getBestControl(ompl::control::Contro
 
 
 
-void DirectedVehicleControlSampler::sampleControlHeuristic(ompl::control::Control *control, const ompl::base::State *source, ompl::base::State *dest, const ompl::control::Control *previous, double duration){
-  const double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
+void DirectedVehicleControlSampler::sampleControlHeuristic(ompl::control::Control *control, const ompl::base::State *source, ompl::base::State *dest, const ompl::control::Control *previous, unsigned steps){
+  double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
   const double* source_vector = source->as<ompl::base::RealVectorStateSpace::StateType>()->values;
   const double* dest_vector = dest->as<ompl::base::RealVectorStateSpace::StateType>()->values;
   
-  double Wz = (source_vector[2] - dest_vector[2]) / ;
+  //ROS_INFO("Source Vector %f %f", source_vector[0], source_vector[1]);
+  //ROS_INFO("Dest Vector %f %f", dest_vector[0], dest_vector[1]);
+  
+  double duration = steps * GlobalParams::get_propagation_step_size();
+
+  //subtraction over a ring is always stupid. Max angle between two vectors is going to be [-pi,pi]
+  double ang_disp = source_vector[2] - dest_vector[2];
+  if(ang_disp < -M_PI){
+    ang_disp += (2*M_PI);
+  }
+  else if(ang_disp > M_PI){
+    ang_disp -= (2*M_PI);
+  }
+    
+  float Wz1 = ang_disp / duration;
+  
+  Eigen::Matrix3d rotz = RigidBodyDynamics::Math::rotz(source_vector[2]);
+  Eigen::Vector3d dist(dest_vector[0] - source_vector[0], dest_vector[1] - source_vector[1], 0);
+  Eigen::Vector3d dist_body_frame = rotz*dist;
+  
+  double Vx = dist[0] / duration; //Velocity forward
+  double Vy = dist[1] / duration; //Velocity left
+  float Vf = Vx;//sqrtf(Vx*Vx + Vy*Vy); //Vx;
+  
+  float Wz2 = .25*atan2f(Vy, Vx) / duration;
+
+  float mix = GlobalParams::get_heading_heuristic();
+  float Wz_sum = Wz1*(mix) + Wz2*(1-mix);
+
+  if(fabs(Wz_sum) > .5){
+    Vf = Vf/2.0;
+  }
+  if(fabs(Wz_sum) > .7){
+    Vf = 1.0;//Vf/2.0;
+  }
+  
+  float Vf_var = GlobalParams::get_forward_variance();
+  float Wz_var = GlobalParams::get_angular_variance();
+  
+  const ompl::base::RealVectorBounds &bounds = static_cast<const ompl::control::RealVectorControlSpace*>(si_->getControlSpace().get())->getBounds();
+
+  //ROS_INFO("Wz unbounded %f", Wz_sum);
+  
+  control_vector[0] = fmax(bounds.low[0], fmin(bounds.high[0], Wz_sum + rng_.uniformReal(-Wz_var, Wz_var)));
+  control_vector[1] = fmax(bounds.low[1], fmin(bounds.high[1], Vf + rng_.uniformReal(-Vf_var, Vf_var)));
+  
+  //ROS_INFO("rng test %f   %f %f", rng_.uniformReal(-Vf_var, Vf_var), bounds.low[0], bounds.high[0]);
+  //ROS_INFO("Control Vector %f %f\n\n", control_vector[0], control_vector[1]);
+  
 }

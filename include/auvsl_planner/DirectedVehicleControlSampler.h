@@ -33,7 +33,9 @@
  *********************************************************************/
   
 /* Author: Ioan Sucan */
-    
+
+#pragma once
+
 #include "ompl/control/DirectedControlSampler.h"
 #include "ompl/control/ControlSampler.h"
 #include "ompl/util/RandomNumbers.h"
@@ -54,13 +56,16 @@ class DirectedVehicleControlSampler : public ompl::control::DirectedControlSampl
   
   unsigned int sampleTo(ompl::control::Control *control, const ompl::base::State *source, ompl::base::State *dest) override;  
   unsigned int sampleTo(ompl::control::Control *control, const ompl::control::Control *previous, const ompl::base::State *source, ompl::base::State *dest) override;
+
+
+  void sampleControlHeuristic(ompl::control::Control *control, const ompl::base::State *source, ompl::base::State *dest, const ompl::control::Control *previous, unsigned steps);
   
  protected:
-  void sampleControlHeuristic(ompl::control::Control *control, const ompl::base::State *source, ompl::base::State *dest, const ompl::control::Control *previous);
-  virtual unsigned int getBestControl(ompl::control::Control *control, const ompl::base::State *source, ompl::base::State *dest, const ompl::control::Control *previous, double duration);
+  virtual unsigned int getBestControl(ompl::control::Control *control, const ompl::base::State *source, ompl::base::State *dest, const ompl::control::Control *previous);
 
   unsigned int numControlSamples_;
   ompl::RNG rng_;
+  ompl::control::ControlSamplerPtr cs_;
 };
 
   

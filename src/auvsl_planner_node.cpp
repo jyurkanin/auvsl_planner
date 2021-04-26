@@ -1,11 +1,13 @@
 #include <iostream>
 #include <thread>
+#include <vector>
 
 #include "auvsl_planner_node.h"
 #include "JackalStatePropagator.h"
 #include "GlobalParams.h"
 #include "PlannerVisualizer.h"
 #include "VehicleControlSampler.h"
+#include "DirectedVehicleControlSampler.h"
 
 #include <ompl/util/RandomNumbers.h>
 #include <ompl/base/goals/GoalSpace.h>
@@ -26,22 +28,37 @@
  * 
  */
 
+float Xmax = 100;
+float Xmin = -100;
+
+float Ymax = 100;
+float Ymin = -100;
+
+std::vector<Rectangle*> obstacles;
+
+int isPosInBox(float x, float y, Rectangle *rect){
+  return (x > rect->x) && (x < (rect->x + rect->width)) &&
+         (y > rect->y) && (y < (rect->y + rect->height));
+}
+
 bool isStateValid(const ompl::base::State *state){
   const ompl::base::VehicleStateSpace::StateType& state_vector = *state->as<ompl::base::VehicleStateSpace::StateType>();
   
-  //ROS_INFO("States %f %f %f %f %f %f\n", state_vector[0], state_vector[1], state_vector[2], state_vector[3], state_vector[4], state_vector[5]);
-  // Square Obstacle at the origin
-  if((fabs(state_vector[0]) < 3 && fabs(state_vector[1]) < 3) ||
-     fabs(state_vector[0]) > 10 || fabs(state_vector[1]) > 10){
-    return false;
+  for(unsigned i = 0; i < obstacles.size(); i++){
+    if(isPosInBox(state_vector[0], state_vector[1], obstacles[i])){
+      return false;
+    }
   }
-  else{
-    return true;
-  }
+
+  return (state_vector[0] > Xmin) && (state_vector[0] < Xmax) &&
+         (state_vector[1] > Ymin) && (state_vector[1] < Ymax);
 }
 
+
+
+
 ompl::control::DirectedControlSamplerPtr allocCustomDirectedControlSampler(const ompl::control::SpaceInformation *si){
-  return std::make_shared<ompl::control::SimpleDirectedControlSampler>(si, GlobalParams::get_num_control_samples());
+  return std::make_shared<DirectedVehicleControlSampler>(si, GlobalParams::get_num_control_samples());
 }
 
 
@@ -55,19 +72,40 @@ ompl::control::ControlSamplerPtr allocCustomControlSampler(const ompl::control::
 
 
 
-void plan(){
-  ompl::RNG::setSeed(GlobalParams::get_seed());
+void generateObstacles(){
+  //Just going to try a couple seed until I get a good obstacle field.
+  //Not going to error check, i.e. if the starting point is inside an
+  //obstacle or whatever. Ill just check and try a different seed.
   
+  ompl::RNG rng;
+  const int max_obstacles = 10;
+
+  for(int i = 0; i < max_obstacles; i++){
+    Rectangle *rect = new Rectangle();
+
+    rect->width = rng.uniformReal(5, 10);
+    rect->height = rng.uniformReal(100, 140);
+    
+    rect->x = -80 + (160*i/(max_obstacles-1)); //rng.uniformReal(-100, 100);
+    rect->y = rng.uniformReal(-50, 50) - rect->height/2;
+    
+    
+    obstacles.push_back(rect);
+  }
+  
+}
+
+
+
+void plan(){  
   // construct the state space we are planning in
-  ompl::base::VehicleStateSpace space(6);
+  ompl::base::VehicleStateSpace space(10);  
+  ompl::base::RealVectorBounds bounds(10);
+  bounds.setLow(0, -100);
+  bounds.setHigh(0, 100);
   
-  // set the bounds
-  ompl::base::RealVectorBounds bounds(6);
-  bounds.setLow(0, -10);
-  bounds.setHigh(0, 10);
-  
-  bounds.setLow(1, -10);
-  bounds.setHigh(1, 10);
+  bounds.setLow(1, -100);
+  bounds.setHigh(1, 100);
   
   bounds.setLow(2, 0);
   bounds.setHigh(2, 2*M_PI);
@@ -80,20 +118,32 @@ void plan(){
 
   bounds.setLow(5, -100);
   bounds.setHigh(5, 100);
+
+  bounds.setLow(6, -100);
+  bounds.setHigh(6, 100);
+
+  bounds.setLow(7, -100);
+  bounds.setHigh(7, 100);
+
+  bounds.setLow(8, -100);
+  bounds.setHigh(8, 100);
+
+  bounds.setLow(9, -100);
+  bounds.setHigh(9, 100);
   space.setBounds(bounds);
   
 
   ompl::base::StateSpacePtr space_ptr = ompl::base::StateSpacePtr(&space);
   ompl::control::RealVectorControlSpace cspace(space_ptr, 2);
   
-  cspace.setControlSamplerAllocator(allocCustomControlSampler);
+  //cspace.setControlSamplerAllocator(allocCustomControlSampler);
   
   ompl::base::RealVectorBounds cbounds(2);
   
   cbounds.setLow(0, -GlobalParams::get_max_angular_vel());
   cbounds.setHigh(0, GlobalParams::get_max_angular_vel());
 
-  cbounds.setLow(1, -.1);
+  cbounds.setLow(1, 0);
   cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
   
   cspace.setBounds(cbounds);
@@ -103,8 +153,7 @@ void plan(){
   ompl::control::StatePropagatorPtr dynamic_model_ptr(new JackalStatePropagator(si));
   si->setStatePropagator(dynamic_model_ptr);
   si->setPropagationStepSize(GlobalParams::get_propagation_step_size());
-  si->setMinMaxControlDuration(1, 10);
-
+  si->setMinMaxControlDuration(5, 10);
   
   si->setDirectedControlSamplerAllocator(allocCustomDirectedControlSampler);
   
@@ -114,21 +163,26 @@ void plan(){
   
   ompl::base::ProblemDefinitionPtr pdef(new ompl::base::ProblemDefinition(si));
   ompl::base::ScopedState<> start(space_ptr);
-  start[0] = 8;
-  start[1] = 0;
+  start[0] = 90;
+  start[1] = 30;
   start[2] = 0;
   start[3] = 0;
   start[4] = 0;
   start[5] = 0;
   
-  ompl::base::GoalSpace goal(si);
-  ompl::base::VehicleStateSpace gspace(6);
-  ompl::base::RealVectorBounds gbounds(6);
-  gbounds.setLow(0, -5.1);
-  gbounds.setHigh(0, -4.9);
+  start[6] = 0;
+  start[7] = 0;
+  start[8] = 0;
+  start[9] = 0;
   
-  gbounds.setLow(1, -8.1);
-  gbounds.setHigh(1, -7.9);
+  ompl::base::GoalSpace goal(si);
+  ompl::base::VehicleStateSpace gspace(10);
+  ompl::base::RealVectorBounds gbounds(10);
+  gbounds.setLow(0, -90.5);
+  gbounds.setHigh(0, -89.5);
+  
+  gbounds.setLow(1, -60.5);
+  gbounds.setHigh(1, -59.5);
   
   gbounds.setLow(2, 0);
   gbounds.setHigh(2, 2*M_PI);
@@ -141,6 +195,19 @@ void plan(){
 
   gbounds.setLow(5, -10);
   gbounds.setHigh(5, 10);
+
+  gbounds.setLow(6, -100);
+  gbounds.setHigh(6, 100);
+
+  gbounds.setLow(7, -100);
+  gbounds.setHigh(7, 100);
+  
+  gbounds.setLow(8, -100);
+  gbounds.setHigh(8, 100);
+
+  gbounds.setLow(9, -100);
+  gbounds.setHigh(9, 100);
+
   
   gspace.setBounds(gbounds);
   goal.setSpace(ompl::base::StateSpacePtr(&gspace));
@@ -149,18 +216,20 @@ void plan(){
   pdef->setGoal((ompl::base::GoalPtr) &goal);
   
   
-  ompl::control::RRT planner(si);
+  ompl::control::VehicleRRT planner(si);
   planner.setProblemDefinition(pdef);
   planner.setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
   planner.setIntermediateStates(GlobalParams::get_add_intermediate_states());
-
+  
+  
   PlannerVisualizer planner_visualizer(si, (ompl::base::PlannerPtr) &planner, .5);
+  planner_visualizer.setObstacles(obstacles);
   if(GlobalParams::get_visualize_planner()){
     planner_visualizer.startMonitor();
   }
   
-  
-  ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(120.0), ompl::base::exactSolnPlannerTerminationCondition(pdef));
+  float max_runtime = 600; //seconds
+  ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(max_runtime), ompl::base::exactSolnPlannerTerminationCondition(pdef));
   ompl::base::PlannerStatus solved = planner.solve(ptc);
   
   if(solved){
@@ -192,7 +261,8 @@ int main(int argc, char **argv){
   ros::Rate loop_rate(10);
   
   //while(ros::ok()){
-
+  ompl::RNG::setSeed(GlobalParams::get_seed());
+  generateObstacles();
   plan();
     //pub.publish(msg);
     
