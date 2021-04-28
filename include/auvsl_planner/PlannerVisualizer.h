@@ -34,7 +34,11 @@ class PlannerVisualizer{
   
   PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr planner, double period = 0.5)
     : sic_(sic), planner_(std::move(planner)),  period_(period), shouldMonitor_(false){
-
+    const ompl::base::RealVectorBounds &bounds = static_cast<const ompl::base::VehicleStateSpace*>(sic_->getStateSpace().get())->getBounds();
+    min_state_x_ = bounds.low[0];
+    max_state_x_ = bounds.high[0];
+    min_state_y_ = bounds.low[1];
+    max_state_y_ = bounds.high[1];
   }
   
   ~PlannerVisualizer(){

@@ -259,8 +259,8 @@ double ompl::base::VehicleStateSpace::distance(const State *state1, const State 
   double velocity_dot = ((vec[0]*s1[3]) + (vec[1]*s1[4])) / (vel_magnitude*vec_magnitude); //1 means least error, -1 means going in the opposite direction (most error)
   double velocity_err = (vec_magnitude == 0)? 0: (1 - velocity_dot); 
   
-  float heading = fmod((2*M_PI) + atan2f(vec[1], vec[0]), 2*M_PI);
-  float heading_err = abs(heading - s1[2]);
+  //float heading = fmod((2*M_PI) + atan2f(vec[1], vec[0]), 2*M_PI);
+  //float heading_err = abs(heading - s1[2]);
   
   //ROS_INFO("From (%.2f %.2f)    To (%.2f %.2f)    Velocity (%.2f %.2f)     Velocity Err %.2f    Heading Err %.2f", s1[0], s1[1], s2[0], s2[1],  s1[3], s1[4], velocity_err, heading_err);
   
@@ -270,7 +270,7 @@ double ompl::base::VehicleStateSpace::distance(const State *state1, const State 
     dist += diff * diff * weights[i];
   }
 
-  dist = sqrt(dist) + fmin(100, weights[2]*velocity_err + weights[3]*heading_err); //this limit is for simplfiying getMaximumExtent function.
+  dist = sqrt(dist) + fmin(100, weights[2]*velocity_err); // + weights[3]*heading_err); //this limit is for simplfiying getMaximumExtent function.
   
   
   return dist;

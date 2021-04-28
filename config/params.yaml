@@ -11,14 +11,14 @@ state_checker_resolution: .01   # 1%
 propagation_step_size: .1
 visualize_planner: 1
 goal_bias: .1
-goal_bias2: .9
+goal_bias2: .5
 distance_weights: [1,1,0,0]
 add_intermediate_states: false
-num_control_samples: 3
+num_control_samples: 2
 seed: 10 #useful for debugging and getting deterministic results
 heading_heuristic: 0  # 0 -> 1, 1 is try to match heading, 0 is try to match position
 forward_variance: 1
-angular_variance: .2
+angular_variance: .3
 p_gain: 1
 
     

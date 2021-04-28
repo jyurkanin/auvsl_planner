@@ -3,6 +3,8 @@
 #include "JackalStatePropagator.h"
 #include <stdio.h>
 
+
+
 JackalStatePropagator::JackalStatePropagator(ompl::control::SpaceInformationPtr si) : StatePropagator(si){
   JackalDynamicSolver::init_model(0);
 }
@@ -12,37 +14,6 @@ JackalStatePropagator::~JackalStatePropagator(){
 }
 
 
-
-void JackalStatePropagator::convert_to_vehicle_space(double *vehicle_space, const float *model_space){
-  vehicle_space[0] = model_space[0];
-  vehicle_space[1] = model_space[1];
-  vehicle_space[2] = fmod((2*M_PI) + (2*atan2f(model_space[5], model_space[10])), 2*M_PI);
-  vehicle_space[3] = model_space[11];
-  vehicle_space[4] = model_space[12];
-  vehicle_space[5] = model_space[16];
-  
-  vehicle_space[6] = model_space[17];
-  vehicle_space[7] = model_space[18];
-  vehicle_space[8] = model_space[19];
-  vehicle_space[9] = model_space[20];
-  
-}
-
-void JackalStatePropagator::convert_to_model_space(const double *vehicle_space, float *model_space){
-  model_space[0] = (float) vehicle_space[0];            //x
-  model_space[1] = (float) vehicle_space[1];            //y
-  model_space[5] = sinf((float)vehicle_space[2]/2.0f);  //qz
-  model_space[10] = cosf((float)vehicle_space[2]/2.0f); //qw
-  model_space[11] = (float) vehicle_space[3];
-  model_space[12] = (float) vehicle_space[4];
-  model_space[16] = (float) vehicle_space[5];
-
-  model_space[17] = (float) vehicle_space[6];
-  model_space[18] = (float) vehicle_space[7];
-  model_space[19] = (float) vehicle_space[8];
-  model_space[20] = (float) vehicle_space[9];
-  
-}
 
 Vector3d JackalStatePropagator::get_base_velocity(float *Xout){
   Quaternion quat(Xout[3], Xout[4], Xout[5], Xout[10]);
@@ -61,7 +32,60 @@ Vector3d JackalStatePropagator::get_base_velocity(float *Xout){
 }
 
 
+void JackalStatePropagator::convert_to_model_space(const double *planner_state, float *model_state){
+  // 0 1 2   3  4  5    6  7  8  9    10   11 12 13   14 15 16   17  18  19  20
+  // x,y,z,  qx,qy,qz,  q1,q2,q3,q4,  qw,  vx,vy,vz,  ax,ay,az,  qd1,qd2,qd3,qd4
+  model_state[0] = planner_state[0];
+  model_state[1] = planner_state[1];
+  model_state[2] = planner_state[2];
+  
+  model_state[3] = planner_state[3];  //qx
+  model_state[4] = planner_state[4];  //qy
+  model_state[5] = planner_state[5];  //qz
+  model_state[10] = planner_state[6]; //qw
 
+  model_state[6] = 0;
+  model_state[7] = 0;
+  model_state[8] = 0;
+  model_state[9] = 0;
+  
+  model_state[11] = planner_state[7]; //vx
+  model_state[12] = planner_state[8]; //vy
+  model_state[13] = planner_state[9]; //vz
+
+  model_state[14] = planner_state[10]; //wx
+  model_state[15] = planner_state[11]; //wy
+  model_state[16] = planner_state[12]; //wz
+
+  model_state[17] = planner_state[13]; //qd1
+  model_state[18] = planner_state[14]; //qd2
+  model_state[19] = planner_state[15]; //qd3
+  model_state[20] = planner_state[16]; //qd4
+}
+
+void JackalStatePropagator::convert_to_planner_space(double *planner_state, const float *model_state){
+  planner_state[0] = model_state[0]; //x
+  planner_state[1] = model_state[1]; //y
+  planner_state[2] = model_state[2]; //z
+
+  planner_state[3] = model_state[3];  //qx
+  planner_state[4] = model_state[4];  //qy
+  planner_state[5] = model_state[5];  //qz
+  planner_state[6] = model_state[10]; //qw
+
+  planner_state[7] = model_state[11]; //vx
+  planner_state[8] = model_state[12]; //vy
+  planner_state[9] = model_state[13]; //vz
+  
+  planner_state[10] = model_state[14]; //wx
+  planner_state[11] = model_state[15]; //wy
+  planner_state[12] = model_state[16]; //wz
+  
+  planner_state[13] = model_state[17]; //qd1
+  planner_state[14] = model_state[18]; //qd2
+  planner_state[15] = model_state[19]; //qd3
+  planner_state[16] = model_state[20]; //qd4
+}
 
 
 
@@ -84,24 +108,18 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
     x_end[i] = 0;
   }
 
+  ROS_INFO("Before 13 %f", val[13]);
   convert_to_model_space(val, x_start);
   
   float Vf = control_vector[1];//GlobalParams::get_fuzzy_constant_speed();
   float base_width = solver.base_size[0];
   float vl = (Vf - control_vector[0]*(base_width/2.0))/solver.tire_radius;
   float vr = (Vf + control_vector[0]*(base_width/2.0))/solver.tire_radius;
-
-  //ROS_INFO("Control Vf %f   Wz %f      vl %f   vr %f", Vf, control_vector[0], vl, vr);
-  //ROS_INFO("Vehicle State %f %f %f   %f %f %f   %f %f %f %f", val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7], val[8], val[9]);
-  //ROS_INFO("Duration %f", (float) duration);
-  //ROS_INFO("X_Start:");
-  //for(unsigned i = 0; i < vehicle_state_len; i++){
-    //ROS_INFO("        %f", x_start[i]);
-  //}
   
   solver.solve(x_start, x_end, vl, vr, (float) duration);
 
-  convert_to_vehicle_space(result_val, x_end);
+  convert_to_planner_space(result_val, x_end);
+  ROS_INFO("Before 13 %f", val[13]);
   
   //ROS_INFO("Vl Vr %f %f", vl, vr);
 
@@ -155,7 +173,7 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
   float vl;
   float vr;
   float timestep = GlobalParams::get_propagation_step_size();
-  double result_val[10];
+  double result_val[17];
 
   unsigned idx = 1;
   float eps = 1e-5;
@@ -187,7 +205,7 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
       waypoints.push_back(x_end[1]);      
     }
     
-    convert_to_vehicle_space(result_val, x_end);
+    convert_to_planner_space(result_val, x_end);
 
     /*
     for(int j = 0; j < 6; j++){

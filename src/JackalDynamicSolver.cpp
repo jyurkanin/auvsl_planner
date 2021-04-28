@@ -254,7 +254,7 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         X_tire.r = r + quat.toMatrix().transpose() * model->GetJointFrame(3+i).r;
         X_tire.E = quat.toMatrix();
 	
-        features[0] = .0026; //sinkages[i]; //
+        features[0] = sinkages[i]; //.0026;        
         if(sinkages[i] <= 0){ //Tire is not in contact with the ground.
             f_ext[3+i] = X_tire.applyTranspose(SpatialVector(0,0,0,0,0,0));
             continue;
@@ -309,9 +309,10 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
 	
         //tire_wrench = SpatialVector(0,labels[3],0,labels[0],labels[1],labels[2]);
         //tire_wrench = SpatialVector(0,0,0,0,0,41.65);
-        float Ty = .9*((tire_radius*X[17+i]) - tire_vels[i][0]);
+        float Ty = -.9*((tire_radius*X[17+i]) - tire_vels[i][0]);
         tire_wrench = SpatialVector(0,Ty,0,labels[0],labels[1],labels[2]);
-	
+        ROS_INFO("Ty %f     qd %f    Vx %f", Ty, X[17+i], tire_vels[i][0]);
+        
         //Sign corrections.
         if(X[17+i] > 0){
             tire_wrench[3] = tire_wrench[3]*1;
@@ -435,7 +436,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
   reset();
   
   // 0 1 2   3  4  5    6  7  8  9    10   11 12 13   14 15 16   17  18  19  20
-  // x,y,z,  qx,qy,qz,  q1,q2,q3,q4,  qw,  vx,vy,vz,  ax,ay,az,  qd1,qd2,qd3,qd4        
+  // x,y,z,  qx,qy,qz,  q1,q2,q3,q4,  qw,  vx,vy,vz,  ax,ay,az,  qd1,qd2,qd3,qd4
   for(int i = 0; i < 21; i++){
     Xout[i] = x_init[i];
   }
@@ -467,6 +468,8 @@ void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
   
   tau[6] = tau[7] = std::min(std::max(internal_controller[0].step(right_err), -20.0f), 20.0f);
   tau[8] = tau[9] = std::min(std::max(internal_controller[1].step(left_err), -20.0f), 20.0f);
+
+  ROS_INFO("Tire Speed %f %f  %f %f   Torque %f %f", X_now[17], X_now[18], X_now[19], X_now[20], tau[6], tau[8]);
   
   euler_method(X_now, X_next);
   //runge_kutta_method(X_now, X_next); //runge kutta is fucked rn.
@@ -496,9 +499,9 @@ void JackalDynamicSolver::ode(float *X, float *Xd){
   ForwardDynamics(*model, Q, QDot, tau, QDDot, &f_ext);
 
   //2D simplification. Ignore Fz. Assume constant sinkage.
-  QDDot[2] = 0; // Corresponds to Z-acceleration
-  QDDot[3] = 0; // roll
-  QDDot[4] = 0; // pitch
+  //QDDot[2] = 0; // Corresponds to Z-acceleration
+  //QDDot[3] = 0; // roll
+  //QDDot[4] = 0; // pitch
 
   //for(int i = 6; i < 10; i++){
   //  printf("%f ", QDDot[i]);

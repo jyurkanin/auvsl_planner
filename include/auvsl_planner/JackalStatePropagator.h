@@ -17,8 +17,9 @@ class JackalStatePropagator : public ompl::control::StatePropagator{
   virtual bool steer(const ompl::base::State* from, const ompl::base::State* to, ompl::control::Control* result, double &duration) const override;
   virtual bool canSteer() const override;
 
-  static void convert_to_model_space(const double *vehicle_space, float *model_space);
-  static void convert_to_vehicle_space(double *vehicle_space, const float *model_space);
+  
+  static void convert_to_model_space(const double *planner_state, float *model_state);
+  static void convert_to_planner_space(double *planner_state, const float *model_state);
   static Vector3d get_base_velocity(float *Xout);
   
  private:

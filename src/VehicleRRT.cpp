@@ -143,7 +143,7 @@ ompl::base::PlannerStatus ompl::control::VehicleRRT::solve(const base::PlannerTe
           Motion *temp_motion = nn_->nearest(rmotion);
 
           const double* val = temp_motion->state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-          ROS_INFO("sampleUniformNear <%f %f %f %f %f %f>", val[0], val[1], val[2], val[3], val[4], val[5]);
+          //ROS_INFO("sampleUniformNear <%f %f %f %f %f %f>", val[0], val[1], val[2], val[3], val[4], val[5]);
           sampler_->sampleUniformNear(rstate, temp_motion->state, 10);
         }
         else{

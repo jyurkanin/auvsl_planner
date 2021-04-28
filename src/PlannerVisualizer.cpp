@@ -37,15 +37,6 @@ void PlannerVisualizer::startMonitor(){
   XSetBackground(dpy, gc, 0);
   
   has_solution = 0;
-
-  const ompl::base::RealVectorBounds &bounds = static_cast<const ompl::base::VehicleStateSpace*>(sic_->getStateSpace().get())->getBounds();
-  
-  min_state_x_ = bounds.low[0];
-  max_state_x_ = bounds.high[0];
-  min_state_y_ = bounds.low[1];
-  max_state_y_ = bounds.high[1];
-
-  //ROS_INFO("Bounds %f %f %f %f", min_state_x_, max_state_x_, min_state_y_, max_state_y_);
   
   
   if (monitorThread_)

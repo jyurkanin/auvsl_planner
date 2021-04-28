@@ -186,7 +186,7 @@ target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node rbdl)
 target_link_libraries(${PROJECT_NAME}_node X11)
 
-set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3")
+set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-g")
 
 
 
@@ -238,7 +238,7 @@ target_link_libraries(steerability_node ${catkin_LIBRARIES})
 target_link_libraries(steerability_node rbdl)
 target_link_libraries(steerability_node X11)
 
-set_target_properties(steerability_node PROPERTIES COMPILE_FLAGS "-O3")
+set_target_properties(steerability_node PROPERTIES COMPILE_FLAGS "-g")
 
 #############
 ## Install ##
