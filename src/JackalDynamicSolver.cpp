@@ -309,7 +309,7 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
 	
         //tire_wrench = SpatialVector(0,labels[3],0,labels[0],labels[1],labels[2]);
         //tire_wrench = SpatialVector(0,0,0,0,0,41.65);
-        float Ty = .9*((tire_radius*X[17+i]) - tire_vels[i][0]);
+        float Ty = -.9*((tire_radius*X[17+i]) - tire_vels[i][0]);
         tire_wrench = SpatialVector(0,Ty,0,labels[0],labels[1],labels[2]);
 	
         //Sign corrections.
