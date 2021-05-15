@@ -17,6 +17,8 @@ using namespace RigidBodyDynamics::Math;
 
 
 
+
+
 class PIDController{
 public:
   PIDController(float P, float I, float D, float step);
@@ -55,9 +57,9 @@ class JackalDynamicSolver{
   static void del_model();
   static void load_nn_gc_model();
   
-  void get_tire_sinkages(float *X, float *tire_sinkages); //in body frame.
+  void get_tire_sinkages_and_cpts(float *X, float *tire_sinkages, SpatialTransform *cpt_X); //in body frame.
   void get_tire_f_ext(float *X); //in body frame.
-  void get_tire_vels(float *X, Vector3d *tire_vels);
+  void get_tire_vels(float *X, Vector3d *tire_vels, SpatialTransform *cpt_X);
   
   static Eigen::Matrix<float,num_out_features,1> scale_output(Eigen::Matrix<float,num_out_features,1> labels);
   static Eigen::Matrix<float,num_in_features,1> scale_input(Eigen::Matrix<float,num_in_features,1> features);

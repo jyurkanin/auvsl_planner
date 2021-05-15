@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <rbdl/rbdl.h>
 #include "JackalStatePropagator.h"
+#include "auvsl_planner_node.h"
 #include <stdio.h>
 
 
@@ -96,7 +97,7 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
   const double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
   
   JackalDynamicSolver solver;
-
+  
   //ROS_INFO("Control %.2f %.2f", control_vector[0], control_vector[1]);
                            
   unsigned vehicle_state_len = 21;
@@ -107,8 +108,7 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
     x_start[i] = 0;
     x_end[i] = 0;
   }
-
-  ROS_INFO("Before 13 %f", val[13]);
+  
   convert_to_model_space(val, x_start);
   
   float Vf = control_vector[1];//GlobalParams::get_fuzzy_constant_speed();
@@ -117,12 +117,11 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
   float vr = (Vf + control_vector[0]*(base_width/2.0))/solver.tire_radius;
   
   solver.solve(x_start, x_end, vl, vr, (float) duration);
-
+  
   convert_to_planner_space(result_val, x_end);
-  ROS_INFO("Before 13 %f", val[13]);
   
   //ROS_INFO("Vl Vr %f %f", vl, vr);
-
+  
   /*
   float dt = .01;
   result_val[0] = val[0];
@@ -146,7 +145,7 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
 
 void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &controls, std::vector<double> &durations, std::vector<ompl::base::State*> states, std::vector<float> &waypoints, unsigned &num_waypoints){
   const double* val = states[0]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-
+  
   waypoints.clear();
   
   JackalDynamicSolver::init_model(2);
@@ -173,25 +172,45 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
   float vl;
   float vr;
   float timestep = GlobalParams::get_propagation_step_size();
-  double result_val[17];
 
+
+  ompl::base::State *temp_state = si_->allocState();
+  ompl::base::State *start_state = si_->allocState();
+  ompl::base::State *result_state = si_->allocState();
+
+  si_->copyState(start_state, states[0]);
+  
+  double *result_val = temp_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+
+  
+  
   unsigned idx = 1;
   float eps = 1e-5;
   for(unsigned i = 0; i < controls.size(); i++){
     const double *control_vector = controls[i]->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
-    const double* val = states[i]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-    const double* expected_val = states[i+1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+    //const double* val = states[i]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+    //const double* expected_val = states[i+1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
     
+    //printf("Control %d  %f %f", i, control_vector[0], control_vector[1]);
+    
+    propagate(start_state, controls[i], durations[i], result_state);
+    si_->copyState(start_state, result_state);
+
+    const double* val = result_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+    waypoints.push_back(val[0]);
+    waypoints.push_back(val[1]);
+    
+    /*
     convert_to_model_space(val, x_start);
     
-    Vf = control_vector[1];
+    Vf = control_vector[1] + 2;
     W = control_vector[0];
     vl = (Vf - W*(base_width/2.0))/solver.tire_radius;
     vr = (Vf + W*(base_width/2.0))/solver.tire_radius;
 
     
     //ROS_INFO("vl vr %f %f", vl, vr);
-
+    
     ROS_INFO("Control Vf Wz   %f %f", Vf, W);
     
     for(int k = 0; k*timestep < durations[i]; k++){
@@ -201,12 +220,17 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
         x_start[j] = x_end[j];
       }
       
+      convert_to_planner_space(result_val, x_end);
+
+      if(!isStateValid(temp_state))
+        break;
+      
       waypoints.push_back(x_end[0]);
       waypoints.push_back(x_end[1]);      
     }
     
     convert_to_planner_space(result_val, x_end);
-
+    */
     /*
     for(int j = 0; j < 6; j++){
       if(fabs(expected_val[j] - result_val[j]) > 1e-5){

@@ -37,6 +37,8 @@ float Ymax = 100;
 float Ymin = -100;
 
 std::vector<Rectangle*> obstacles;
+ompl::control::SpaceInformationPtr si;
+ompl::base::RealVectorBounds bounds(17);
 
 int isPosInBox(float x, float y, Rectangle *rect){
   return (x > rect->x) && (x < (rect->x + rect->width)) &&
@@ -49,7 +51,13 @@ bool isStateValid(const ompl::base::State *state){
   //test for roll over
   RigidBodyDynamics::Math::Quaternion quat(state_vector[3], state_vector[4], state_vector[5], state_vector[6]);
   RigidBodyDynamics::Math::Vector3d vec = quat.rotate(RigidBodyDynamics::Math::Vector3d(0,0,1));
+  float angle = acosf(vec[2]);
+  
+  //vec has magnitude 1. dot(vec, [0,0,1]) = vec[2]
+  //so angle between vec and z axis is acos(vec[2])
+  
   if(vec[2] < 0){ //you could put a number slightly greater than zero here. But I'll leave it as zero for now.
+    ROS_INFO("Roll Over Detected");
     return false; //if the vehicle has rotated so the z axis of the body frame is pointing down in the world frame, then it fucked up
   }
 
@@ -59,9 +67,13 @@ bool isStateValid(const ompl::base::State *state){
       return false;
     }
   }
-
-  return (state_vector[0] > Xmin) && (state_vector[0] < Xmax) &&
-         (state_vector[1] > Ymin) && (state_vector[1] < Ymax);
+  
+  if(!si->satisfiesBounds(state)){
+    ROS_INFO("OOB\n");
+    return false;
+  }
+  
+  return true;
 }
 
 
@@ -84,16 +96,16 @@ void generateObstacles(){
   //obstacle or whatever. Ill just check and try a different seed.
   
   ompl::RNG rng;
-  const int max_obstacles = 3;
+  const int max_obstacles = 10;
 
   for(int i = 0; i < max_obstacles; i++){
     Rectangle *rect = new Rectangle();
 
-    rect->width = rng.uniformReal(5, 10);
-    rect->height = rng.uniformReal(40, 80);
+    rect->width = rng.uniformReal(5, 20);
+    rect->height = rng.uniformReal(5, 20);
     
-    rect->x = -80 + (160*i/(max_obstacles-1)); //rng.uniformReal(-100, 100);
-    rect->y = rng.uniformReal(-50, 50) - rect->height/2;
+    rect->x = rng.uniformReal(-70, 70) - rect->width/2; // -80 + (160*i/(max_obstacles-1)); //
+    rect->y = rng.uniformReal(-70, 70) - rect->height/2;
     
     
     obstacles.push_back(rect);
@@ -102,20 +114,18 @@ void generateObstacles(){
 }
 
 
-
 void plan(){  
   // construct the state space we are planning in
   ompl::base::VehicleStateSpace space(17);  
-  ompl::base::RealVectorBounds bounds(17);
   
   bounds.setLow(0, -100); bounds.setHigh(0, 100); //x  
   bounds.setLow(1, -100); bounds.setHigh(1, 100); //y
   bounds.setLow(2, -100); bounds.setHigh(2, 100); //z
   
-  bounds.setLow(3, -1); bounds.setHigh(3, 1); //quaterion has to stay on the 4-ball, so its components max is 1, and min is -1
-  bounds.setLow(4, -1); bounds.setHigh(4, 1);
-  bounds.setLow(5, -1); bounds.setHigh(5, 1);
-  bounds.setLow(6, -1); bounds.setHigh(6, 1);
+  bounds.setLow(3, -10); bounds.setHigh(3, 10); //quaterion has to stay on the 4-ball, so its components max is 1, and min is -1
+  bounds.setLow(4, -10); bounds.setHigh(4, 10);
+  bounds.setLow(5, -10); bounds.setHigh(5, 10);
+  bounds.setLow(6, -10); bounds.setHigh(6, 10);
 
   bounds.setLow(7, -100); bounds.setHigh(7, 100); //vx
   bounds.setLow(8, -100); bounds.setHigh(8, 100);
@@ -125,10 +135,10 @@ void plan(){
   bounds.setLow(11, -100); bounds.setHigh(11, 100);
   bounds.setLow(12, -100); bounds.setHigh(12, 100);
 
-  bounds.setLow(13, -100); bounds.setHigh(13, 100); //qd1
-  bounds.setLow(14, -100); bounds.setHigh(14, 100);
-  bounds.setLow(15, -100); bounds.setHigh(15, 100);
-  bounds.setLow(16, -100); bounds.setHigh(16, 100);
+  bounds.setLow(13, -1000); bounds.setHigh(13, 1000); //qd1
+  bounds.setLow(14, -1000); bounds.setHigh(14, 1000);
+  bounds.setLow(15, -1000); bounds.setHigh(15, 1000);
+  bounds.setLow(16, -1000); bounds.setHigh(16, 1000);
   
   space.setBounds(bounds);
   
@@ -148,8 +158,9 @@ void plan(){
   cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
   
   cspace.setBounds(cbounds);
-
-  ompl::control::SpaceInformationPtr si(new ompl::control::SpaceInformation(space_ptr, ompl::control::ControlSpacePtr(&cspace)));
+  
+  //ompl::control::SpaceInformationPtr
+  si = ompl::control::SpaceInformationPtr(new ompl::control::SpaceInformation(space_ptr, ompl::control::ControlSpacePtr(&cspace)));
   
   ompl::control::StatePropagatorPtr dynamic_model_ptr(new JackalStatePropagator(si));
   si->setStatePropagator(dynamic_model_ptr);

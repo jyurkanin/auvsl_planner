@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <algorithm>
-
+#include <stdlib.h>
 
 using namespace RigidBodyDynamics;
 using namespace RigidBodyDynamics::Math;
@@ -192,74 +192,125 @@ Eigen::Matrix<float,JackalDynamicSolver::JackalDynamicSolver::num_out_features,1
 }
 
 
-void JackalDynamicSolver::get_tire_sinkages(float *X, float *tire_sinkages){
+/*
+ * This function checks for contact with the soil, and gets the maximum tire sinkage.
+ * It will have to discretize the tire into a bunch of points and check all of them
+ * For intersection with the soil. It's going to have to return the highest sinkage
+ * Found. It's not going to consider multiple contacts with the soil. Thats not
+ * What the bekker soil model is good at.
+ * cpt_X[i] is the spatial transform from the contact point to the base frame.
+ */
+void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinkages, SpatialTransform *cpt_X){
     Quaternion quat(X[3], X[4], X[5], X[10]);
     Vector3d r(X[0], X[1], X[2]);
-    Matrix3d rot = quat.toMatrix();
-    Vector3d temp;
+    
+    Matrix3d vehicle_rot = quat.toMatrix();
+    Matrix3d test_rot;
+    
+    Vector3d center_of_tire;
+    Vector3d radius_vec(0,0,tire_radius);
+    Vector3d cpt; //contact_point
+    
+    double theta_limit = -M_PI*.25;
+    int max_checks = 10;
+    float test_sinkage;
+
+    Vector3d z_unit(0,0,1);
+    Vector3d z_rot;
     
     for(int i = 0; i < 4; i++){
-      temp = r + (rot.transpose()*model->GetJointFrame(3+i).r); //3 is the front right tire.
-      tire_sinkages[i] = get_altitude(temp[0], temp[1]) - (temp[2] - tire_radius);
+      //3 is the front right tire.
+      center_of_tire = r + (vehicle_rot.transpose()*model->GetJointFrame(3+i).r);
+
+      tire_sinkages[i] = -1;
+      cpt_X[i].r = Vector3d(0,0,0);
+      cpt_X[i].E = Matrix3dIdentity;
+
+      
+      z_rot = cpt_X[0].E*z_unit;
+      //if(i==0)
+      //ROS_INFO("Center of Tire <%f %f %f>    E*z <%f %f %f>", center_of_tire[0], center_of_tire[1], center_of_tire[2],    z_rot[0], z_rot[1], z_rot[2]);
+      for(int j = 0; j < max_checks; j++){
+        test_rot = roty(theta_limit - (2*theta_limit*j/((float)(max_checks - 1))));
+        
+        Matrix3d temp_rot = (vehicle_rot*test_rot).transpose();     //Rot vector from cpt frame to world.
+        cpt = center_of_tire - (temp_rot*radius_vec); //Translate vector from cpt frame to world
+        test_sinkage = get_altitude(cpt[0], cpt[1]) - cpt[2];
+        //if(i==0)
+        //ROS_INFO("Tire Contact Point <%f %f %f>     Sinkage %f", cpt[0], cpt[1], cpt[2],    test_sinkage);
+        
+        if(test_sinkage > tire_sinkages[i]){
+          tire_sinkages[i] = test_sinkage;
+          cpt_X[i].E = temp_rot.transpose();
+          cpt_X[i].r = cpt;
+        }
+      }
+      
     }
     
+    z_rot = cpt_X[0].E*z_unit;
+    //ROS_INFO("best tire cpt  r <%f %f %f>  E*z <%f %f %f>   sinkage %f",  cpt_X[0].r[0], cpt_X[0].r[1], cpt_X[0].r[2],    z_rot[0], z_rot[1], z_rot[2],    tire_sinkages[0]);
 }
 
-void JackalDynamicSolver::get_tire_vels(float *X, Vector3d *tire_vels){
-    Quaternion quat(X[3], X[4], X[5], X[10]);
-    Vector3d r(X[0], X[1], X[2]);
+void JackalDynamicSolver::get_tire_vels(float *X, Vector3d *tire_vels, SpatialTransform *cpt_X){
+  Quaternion quat(X[3], X[4], X[5], X[10]);
+  Vector3d r(X[0], X[1], X[2]);
+  
+  SpatialTransform X_base1(Quaternion(0,0,0,1).toMatrix(), r);
+  SpatialTransform X_base2(quat.toMatrix(), r);
+  
+  SpatialVector body_vel_lin(0,0,0,X[11],X[12],X[13]);
+  SpatialVector body_vel_ang(X[14],X[15],X[16],0,0,0);
+  
+  SpatialVector sp_vel_world = X_base2.inverse().apply(body_vel_ang) + X_base1.inverse().apply(body_vel_lin);
+  
+  for(int i = 0; i < 4; i++){
+    SpatialVector sp_vel_cp = cpt_X[i].apply(sp_vel_world); 
+    Vector3d lin_vel(sp_vel_cp[3], sp_vel_cp[4], sp_vel_cp[5]);
+    //Vector3d ang_vel(sp_vel_cp[0], sp_vel_cp[1], sp_vel_cp[2]);
     
-    SpatialTransform X_base1(Quaternion(0,0,0,1).toMatrix(), r);
-    SpatialTransform X_base2(quat.toMatrix(), r);
-    
-    SpatialVector body_vel_lin(0,0,0,X[11],X[12],X[13]);
-    SpatialVector body_vel_ang(X[14],X[15],X[16],0,0,0);
-    
-    SpatialVector sp_vel_world = X_base2.inverse().apply(body_vel_ang) + X_base1.inverse().apply(body_vel_lin);
-    SpatialTransform X_base(quat.toMatrix(), r);
-    SpatialVector sp_vel_body = X_base.apply(sp_vel_world);
-    
-    Vector3d lin_vel(sp_vel_body[3], sp_vel_body[4], sp_vel_body[5]);
-    Vector3d ang_vel(sp_vel_body[0], sp_vel_body[1], sp_vel_body[2]);
-    for(int i = 0; i < 4; i++){
-        tire_vels[i] = lin_vel + VectorCrossMatrix(ang_vel)*model->GetJointFrame(3+i).r;
-    }
+    tire_vels[i] = lin_vel;// + VectorCrossMatrix(ang_vel)*cpt_X[i].r;
+  }
+
+  //ROS_INFO("Tire 0 Velocity Vector <%f, %f, %f>", tire_vels[0][0],tire_vels[0][1],tire_vels[0][2]);
 }
 
 void JackalDynamicSolver::get_tire_f_ext(float *X){
     SpatialVector tire_wrench;
-
+    
     Quaternion quat(X[3], X[4], X[5], X[10]);
     Vector3d r(X[0], X[1], X[2]);
     
     Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer0_out;
     Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer2_out;
-    //    Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer4_out;
+    //Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer4_out;
     Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> layer4_out;
     Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> labels;
     Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> scaled_features;
     Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> features;
     
-    
+    SpatialTransform cpt_X[4];
     float sinkages[4];
-    get_tire_sinkages(X, sinkages);
+    get_tire_sinkages_and_cpts(X, sinkages, cpt_X);
     
     Vector3d tire_vels[4];
-    get_tire_vels(X, tire_vels);
+    get_tire_vels(X, tire_vels, cpt_X);
     
     SpatialTransform X_tire;
     BekkerData ts_data;
     
+    //ROS_INFO("Sinkage %f %f %f %f\n", sinkages[0], sinkages[1], sinkages[2], sinkages[3]);
+    
     for(int i = 0; i < 4; i++){    
-        X_tire.r = r + quat.toMatrix().transpose() * model->GetJointFrame(3+i).r;
-        X_tire.E = quat.toMatrix();
-	
+      //cpt_X[i].r = r + quat.toMatrix().transpose() * model->GetJointFrame(3+i).r;
+      //cpt_X[i].E = quat.toMatrix();
+      
         features[0] = sinkages[i]; //.0026;        
         if(sinkages[i] <= 0){ //Tire is not in contact with the ground.
-            f_ext[3+i] = X_tire.applyTranspose(SpatialVector(0,0,0,0,0,0));
+            f_ext[3+i] = cpt_X[i].applyTranspose(SpatialVector(0,0,0,0,0,0));
             continue;
         }
-	
+        
         if(X[17+i] == 0){
             if(tire_vels[i][0] == 0){
                 features(1) = 0; //otherwise would be 1 - 0/0 = 1. Which would be wrong.
@@ -284,7 +335,7 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
             features(2) = atanf(tire_vels[i][1]/tire_vels[i][0]);
         }
         
-        ts_data = get_soil_data_at(X_tire.r[0], X_tire.r[1]);
+        ts_data = get_soil_data_at(cpt_X[i].r[0], cpt_X[i].r[1]);
         
         features(3) = ts_data.kc;
         features(4) = ts_data.kphi;
@@ -311,7 +362,6 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         //tire_wrench = SpatialVector(0,0,0,0,0,41.65);
         float Ty = -.9*((tire_radius*X[17+i]) - tire_vels[i][0]);
         tire_wrench = SpatialVector(0,Ty,0,labels[0],labels[1],labels[2]);
-        ROS_INFO("Ty %f     qd %f    Vx %f", Ty, X[17+i], tire_vels[i][0]);
         
         //Sign corrections.
         if(X[17+i] > 0){
@@ -331,18 +381,19 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         }
         
         if(tire_vels[i][2] > 0){ //prevent bouncing. If tire is moving upwards, no Fz. 
-            tire_wrench[5] = 0;
+            tire_wrench[5] *= .1;//fmin(tire_wrench[5], 10); //add code to artificially increase other forces when high sinkage is detected
         }
         if(tire_wrench[5] < 0){ //Fz should never point down. But the neural net might not know that.
             tire_wrench[5] = 0;
         }
 	
-        f_ext[3+i] = X_tire.applyTranspose(tire_wrench);
+        f_ext[3+i] = cpt_X[i].applyTranspose(tire_wrench);
     }
+
+    
     
     //int forgetme;
     //std::cin >> forgetme;
-
     //printf("\n");
     //wait_for_x();
 }
@@ -468,8 +519,7 @@ void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
   
   tau[6] = tau[7] = std::min(std::max(internal_controller[0].step(right_err), -20.0f), 20.0f);
   tau[8] = tau[9] = std::min(std::max(internal_controller[1].step(left_err), -20.0f), 20.0f);
-
-  ROS_INFO("Tire Speed %f %f  %f %f   Torque %f %f", X_now[17], X_now[18], X_now[19], X_now[20], tau[6], tau[8]);
+  
   
   euler_method(X_now, X_next);
   //runge_kutta_method(X_now, X_next); //runge kutta is fucked rn.
@@ -510,7 +560,7 @@ void JackalDynamicSolver::ode(float *X, float *Xd){
   
   Quaternion quat(Q[3],Q[4],Q[5],Q[10]);
   Vector3d omega(QDot[3], QDot[4], QDot[5]);
-  Vector4d qnd = quat.omegaToQDot(omega); //get quaternion derivative.
+  Eigen::Vector4d qnd = quat.omegaToQDot(omega); //get quaternion derivative.
 
   //qnd = get_qnd(quat, omega);
   

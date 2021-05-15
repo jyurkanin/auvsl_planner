@@ -37,11 +37,11 @@
 
 std::vector<Rectangle*> obstacles;
 
-float Xmax = 10;
-float Xmin = -10;
+float Xmax = 100;
+float Xmin = -100;
 
-float Ymax = 10;
-float Ymin = -10;
+float Ymax = 100;
+float Ymin = -100;
 
 int isPosInBox(float x, float y, Rectangle *rect){
   return (x > rect->x) && (x < (rect->x + rect->width)) &&
@@ -55,6 +55,7 @@ bool isStateValid(const ompl::base::State *state){
   RigidBodyDynamics::Math::Quaternion quat(state_vector[3], state_vector[4], state_vector[5], state_vector[6]);
   RigidBodyDynamics::Math::Vector3d vec = quat.rotate(RigidBodyDynamics::Math::Vector3d(0,0,1));
   if(vec[2] < 0){ //you could put a number slightly greater than zero here. But I'll leave it as zero for now.
+    ROS_INFO("Rollover detected");
     return false; //if the vehicle has rotated so the z axis of the body frame is pointing down in the world frame, then it fucked up
   }
   
@@ -121,6 +122,26 @@ void drawVertex(float vertex_x, float vertex_y){
 }
 
 
+void drawObstacles(){
+  XSetForeground(dpy, gc, 0xFF0000);
+  for(unsigned i = 0; i < obstacles.size(); i++){
+    float bottom_left_x = obstacles[i]->x;
+    float bottom_left_y = obstacles[i]->y;
+    float top_right_x = obstacles[i]->x + obstacles[i]->width;
+    float top_right_y = obstacles[i]->y + obstacles[i]->height;
+    float bl_x, bl_y, tr_x, tr_y;
+    
+    PlannerVisualizer::scaleXY(bottom_left_x, bottom_left_y, bl_x, bl_y);
+    PlannerVisualizer::scaleXY(top_right_x, top_right_y, tr_x, tr_y);
+    
+    float temp_width = tr_x - bl_x;
+    float temp_height = -(tr_y - bl_y);
+    
+    XFillRectangle(dpy, w, gc, bl_x, bl_y - temp_height, temp_width, temp_height);
+  }
+}
+
+
 
 void test_path(ompl::control::SpaceInformationPtr si, ompl::base::ScopedState<> start, ompl::base::ScopedState<> end){
 
@@ -143,20 +164,30 @@ void test_path(ompl::control::SpaceInformationPtr si, ompl::base::ScopedState<> 
   ompl::base::State* start_state = start.get();//->as<ompl::base::State*>();
   ompl::base::State* end_state = end.get();//->as<ompl::base::State*>();
   
-  durations.push_back(10*.1);
+  durations.push_back(100*.1);
   states.push_back(start_state);
   
   
   XSetForeground(dpy, gc, 0xFF0000);
   for(int i = 0; i < 1; i++){    
-    controlSampler.sampleControlHeuristic(control, start_state, end_state, nullptr, 10);
+    controlSampler.sampleControlHeuristic(control, start_state, end_state, nullptr, 100);
     states.push_back(end_state);
     
     controls.clear();
     controls.push_back(control);
     
+    /*
+    si->propagateWhileValid(states[0], control, 20, states, true);    
+    num_waypoints = states.size();
+    for(int j = 0; j < num_waypoints-1; j++){
+      const double* val = states[j]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+      waypoints.push_back(val[0]);
+      waypoints.push_back(val[1]);
+    }
+    */
+    
     statePropagator.getWaypoints(controls, durations, states, waypoints, num_waypoints);
-
+    
     for(int j = 0; j < num_waypoints-1; j++){
       //ROS_INFO("Waypoint %f %f", waypoints[(j*2)+0], waypoints[(j*2)+1]);
       
@@ -186,8 +217,8 @@ void test(){
   Rectangle *rect = new Rectangle();
   rect->width = 3;
   rect->height = 3;
-  rect->x = -1.5;
-  rect->y = -1.5;
+  rect->x = 8.5;
+  rect->y = 8.5;
   obstacles.push_back(rect);
 
   
@@ -196,9 +227,9 @@ void test(){
   ompl::base::VehicleStateSpace space(17);  
   ompl::base::RealVectorBounds bounds(17);
   
-  bounds.setLow(0, -10); bounds.setHigh(0, 10); //x  
-  bounds.setLow(1, -10); bounds.setHigh(1, 10); //y
-  bounds.setLow(2, -10); bounds.setHigh(2, 10); //z
+  bounds.setLow(0, -100); bounds.setHigh(0, 100); //x  
+  bounds.setLow(1, -100); bounds.setHigh(1, 100); //y
+  bounds.setLow(2, -100); bounds.setHigh(2, 100); //z
   
   bounds.setLow(3, -1); bounds.setHigh(3, 1); //quaterion has to stay on the 4-ball, so its components max is 1, and min is -1
   bounds.setLow(4, -1); bounds.setHigh(4, 1);
@@ -232,7 +263,7 @@ void test(){
   cbounds.setLow(0, -GlobalParams::get_max_angular_vel());
   cbounds.setHigh(0, GlobalParams::get_max_angular_vel());
 
-  cbounds.setLow(1, 0);
+  cbounds.setLow(1, -.2);
   cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
   
   cspace.setBounds(cbounds);
@@ -252,8 +283,8 @@ void test(){
   
   ompl::base::ProblemDefinitionPtr pdef(new ompl::base::ProblemDefinition(si));
   ompl::base::ScopedState<> start(space_ptr);
-  start[0] = -6;
-  start[1] = 4;
+  start[0] = -84;
+  start[1] = 0;
   start[2] = 0;
   
   start[3] = 0;
@@ -316,6 +347,7 @@ void test(){
   
   PlannerVisualizer planner_visualizer(si, (ompl::base::PlannerPtr) &planner, .5);
   planner_visualizer.setObstacles(obstacles);
+  drawObstacles();
   //if(GlobalParams::get_visualize_planner()){
   //  planner_visualizer.startMonitor();
   //}
@@ -324,8 +356,8 @@ void test(){
 
   ompl::base::ScopedState<> end(space_ptr);
   
-  end[0] = 6;
-  end[1] = 4;
+  end[0] = 9;
+  end[1] = 0;
   end[2] = 0;
   end[3] = 0;
   end[4] = 0;
@@ -362,6 +394,7 @@ int main(int argc, char **argv){
   ros::Rate loop_rate(10);
   
   //while(ros::ok()){
+  ompl::RNG::setSeed(GlobalParams::get_seed());
   init_window();
   
   test();

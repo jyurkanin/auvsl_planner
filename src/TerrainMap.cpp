@@ -23,6 +23,6 @@ BekkerData get_soil_data_at(float x, float y){
 
 
 float get_altitude(float x, float y){
-  return 0;
+  return fmax(0,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
 }
 
