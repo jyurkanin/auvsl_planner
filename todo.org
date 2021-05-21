@@ -5,7 +5,7 @@
   Moveit is designed to be used with robot arms and is mostly concerned with
   path planning of end effectors and not mobile robots. So, it would probably
   not work for my purposes.
-  
+
 
 * Plan:
   First, set up octomap.
@@ -17,35 +17,45 @@
   move_base/navigation.
   organize the code you have written a bit better into different files.
 
+* Dynamic planning
+  1. Clean up existing global planner code into a single class.
+  2. Create main file that includes both global and local planners. Integrate them.
+  3. Understand Jackal Gazebo Simulation.
+  4. Global Planner will need to operate on Empty_World map somehow.
+    a. Possibly use CERL's octomap implementation.
+  4. Create Dynamic Window Planner
+    a. This is going to have to work with sensors to update the map and stuff.
+    b. Will need a mapping software like Octomap. Talk to Matt Richards.
 
   
+
 * OMPL
   WTF why is it so hard. I guess I need to read the tutorial shit.
-  
+
   Done: 1. Create ODE based state propagator class. using jackal dynamic model.
   Dont: 2. Don't implement your own state sampler class. Use SteeredControlSampler.
                  I'm not sure steeredcontrolsampler is what I need. I think I should use SimpleDirectControlSampler
   Done: 2. Use SimpleDirectedControlSampler. This requires a controlsampler to be passed to si_.
-  Todo: 3. Implement a controlsampler. Iterate over possible control values.
+  Done: 3. Implement a controlsampler. Iterate over possible control values.
            (Currently using default random control sampler which is stupid)
-  Done 4. Do implement JackalStatePropagator. give JackalStatePropagator to SpaceInformation.
-  
-  
+  Done: 4. Do implement JackalStatePropagator. give JackalStatePropagator to SpaceInformation.
+
+
   !!!use control/* not geometric/*!!!
 
   Use realvectorstatespace as usual
-  
+
   Find out about distance function. Its L2 norm implemented in RealVectorStateSpace.
   Distance function gets used in the nearest neighbor calculations.
   It might be good to actually just leave it how it is. Probably not.
 
 
-* TODO Intelligent state sampling
+* DONE Intelligent state sampling
   Make the state space sampler more likely
   to sample in a region around the node that
   is closest to the goal. Prevent unnecessary
   exploration of the state space.
-  
+
 * DONE Prevent Excessive Skidding
   This isn't Tokyo drift. Computing Vl and Vr from Vf and W using kinematic approx might be dumb.
   Perhaps a better idea is just to do Vl = Vf - W and Vr = Vf - W
@@ -66,7 +76,7 @@
 
 * DONE Smart Distance Function
   Only Penalize velocity if it is not in the direction towards
-  the goal state. So do a dot product. Before I implement this, 
+  the goal state. So do a dot product. Before I implement this,
   I'm going to have to convert from RBDL velocity to world frame
   velocity. RBDL floating based velocity representation is painfully
   bad. Fortunately I figured it out long ago through trial and error
@@ -82,18 +92,18 @@
   Ask Norris about whether to use ros 1 or 2.
 
 
-  
+
 * Minimum Viable Product:
 ** DONE RRT Algorithm
    Do it with ompl
 
 ** Double D*
-   Do it with ompl?
+   Can't be done with ompl. Must implement from scratch.
 
 ** Occupancy grid generation
    octomap. Generate a basic grid with a few simple obstacles
    just for testing the planning algorithms.
-   
+
 ** Octomap ROS server
    Figure out how to use the octomap server node
 
@@ -125,4 +135,3 @@
    Planner goal bias
    Planner resolution
    Dynamic model ode time step
-   

@@ -15,14 +15,3 @@
 
 
 //    <!-- launch-prefix="gdb -ex run --args" -->
-
-
-
-typedef struct{
-  float x, y; //bottom left
-  float width, height;
-} Rectangle;
-
-
-bool isStateValid(const ompl::base::State *state);
-void plan();
