@@ -94,56 +94,21 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
   double* result_val = result->as<ompl::base::RealVectorStateSpace::StateType>()->values;
 
   const double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
-
-  JackalDynamicSolver solver;
   
-  //ROS_INFO("Control %.2f %.2f", control_vector[0], control_vector[1]);
-
-  unsigned vehicle_state_len = 21;
   float x_start[21];
   float x_end[21];
-
-  for(unsigned i = 0; i < vehicle_state_len; i++){
-    x_start[i] = 0;
-    x_end[i] = 0;
-  }
   
+  JackalDynamicSolver solver;
   convert_to_model_space(val, x_start);
-
+  
   float Vf = control_vector[1];//GlobalParams::get_fuzzy_constant_speed();
   float base_width = solver.base_size[0];
   float vl = (Vf - control_vector[0]*(base_width/2.0))/solver.tire_radius;
   float vr = (Vf + control_vector[0]*(base_width/2.0))/solver.tire_radius;
-
+  
   solver.solve(x_start, x_end, vl, vr, (float) duration);
   
   convert_to_planner_space(result_val, x_end);
-<<<<<<< HEAD
-  
-=======
-  ROS_INFO("Before 13 %f", val[13]);
-
->>>>>>> ac3cc7e77111b935e7d7271ca79eb8961092aca3
-  //ROS_INFO("Vl Vr %f %f", vl, vr);
-  
-  /*
-  float dt = .01;
-  result_val[0] = val[0];
-  result_val[1] = val[1];
-  result_val[2] = val[2];
-  for(unsigned i = 0; (i*dt) < duration; i++){
-    //Xd
-    result_val[3] = Vf*cosf(result_val[2]);
-    result_val[4] = Vf*sinf(result_val[2]);
-    result_val[5] = control_vector[0];
-    //X
-    result_val[0] += dt*result_val[3];
-    result_val[1] += dt*result_val[4];
-    result_val[2] += dt*result_val[5];
-  }
-  */
-
-
 }
 
 
@@ -191,7 +156,7 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
   float eps = 1e-5;
   for(unsigned i = 0; i < controls.size(); i++){
     const double *control_vector = controls[i]->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
-<<<<<<< HEAD
+
     //const double* val = states[i]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
     //const double* expected_val = states[i+1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
     
@@ -206,23 +171,16 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
     
     /*
     convert_to_model_space(val, x_start);
-    
-    Vf = control_vector[1] + 2;
-=======
+
     const double* val = states[i]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
     const double* expected_val = states[i+1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
 
     convert_to_model_space(val, x_start);
-
-    Vf = control_vector[1];
->>>>>>> ac3cc7e77111b935e7d7271ca79eb8961092aca3
     W = control_vector[0];
+    Vf = control_vector[1] + 2;
     vl = (Vf - W*(base_width/2.0))/solver.tire_radius;
     vr = (Vf + W*(base_width/2.0))/solver.tire_radius;
 
-
-    //ROS_INFO("vl vr %f %f", vl, vr);
-    
     ROS_INFO("Control Vf Wz   %f %f", Vf, W);
 
     for(int k = 0; k*timestep < durations[i]; k++){
@@ -231,21 +189,9 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
       for(int j = 0; j < vehicle_state_len; j++){
         x_start[j] = x_end[j];
       }
-<<<<<<< HEAD
-      
-      convert_to_planner_space(result_val, x_end);
-
-      if(!isStateValid(temp_state))
-        break;
-      
-      waypoints.push_back(x_end[0]);
-      waypoints.push_back(x_end[1]);      
-=======
 
       waypoints.push_back(Vector2d(x_end[0], x_end[1]));
->>>>>>> ac3cc7e77111b935e7d7271ca79eb8961092aca3
     }
-
     convert_to_planner_space(result_val, x_end);
     */
     /*

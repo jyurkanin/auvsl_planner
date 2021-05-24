@@ -43,13 +43,8 @@ BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y){
 }
 
 
-<<<<<<< HEAD
 float get_altitude(float x, float y){
   return fmax(0,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
-=======
-float SimpleTerrainMap::getAltitude(float x, float y){
-  return 0;
->>>>>>> ac3cc7e77111b935e7d7271ca79eb8961092aca3
 }
 
 void SimpleTerrainMap::generateObstacles(){
