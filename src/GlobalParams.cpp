@@ -24,6 +24,8 @@ float GlobalParams::angular_variance;
 float GlobalParams::forward_variance;
 
 float GlobalParams::p_gain;
+float GlobalParams::goal_tolerance;
+float GlobalParams::max_gp_runtime;
 
 
 void GlobalParams::load_params(ros::NodeHandle *nh){
@@ -36,10 +38,10 @@ void GlobalParams::load_params(ros::NodeHandle *nh){
 
   nh->getParam("/propagation_step_size", propagation_step_size);
   nh->getParam("/visualize_planner", visualize_planner);
-  
+
   nh->getParam("/goal_bias", goal_bias);
   nh->getParam("/goal_bias2", goal_bias2);
-  
+
   nh->getParam("/distance_weights", distance_weights);
   nh->getParam("/add_intermediate_states", add_intermediate_states);
   nh->getParam("/num_control_samples", num_control_samples);
@@ -51,6 +53,10 @@ void GlobalParams::load_params(ros::NodeHandle *nh){
   nh->getParam("/angular_variance", angular_variance);
 
   nh->getParam("/p_gain", p_gain);
+
+  nh->getParam("/goal_tolerance", goal_tolerance);
+  nh->getParam("/max_gp_runtime", max_gp_runtime);
+
 }
 
 
@@ -80,3 +86,5 @@ float GlobalParams::get_angular_variance(){return GlobalParams::angular_variance
 float GlobalParams::get_forward_variance(){return GlobalParams::forward_variance;}
 
 float GlobalParams::get_p_gain(){return GlobalParams::p_gain;}
+float GlobalParams::get_goal_tolerance(){return GlobalParams::goal_tolerance;}
+float GlobalParams::get_max_gp_runtime(){return GlobalParams::max_gp_runtime;}

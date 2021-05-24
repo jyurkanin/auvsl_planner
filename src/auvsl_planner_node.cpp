@@ -3,11 +3,10 @@
 #include <vector>
 
 #include "auvsl_planner_node.h"
-#include "JackalStatePropagator.h"
 #include "GlobalParams.h"
 #include "PlannerVisualizer.h"
-#include "VehicleControlSampler.h"
-#include "DirectedVehicleControlSampler.h"
+#include "LocalPlanner.h"
+#include "RRTGlobalPlanner.h"
 
 #include <ompl/util/RandomNumbers.h>
 #include <ompl/base/goals/GoalSpace.h>
@@ -17,6 +16,7 @@
 
 //launch-prefix="gdb -ex run --args
 
+<<<<<<< HEAD
   
 /*
  * State of dynamic vehicle is actually:
@@ -263,32 +263,31 @@ void plan(){
 
 
 
+=======
+>>>>>>> ac3cc7e77111b935e7d7271ca79eb8961092aca3
 
 
 
 int main(int argc, char **argv){
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
-  ros::Publisher pub = nh.advertise<std_msgs::String>("Global_Planner", 1); //buffer size is one. Only one global plan needed
-  
+  ros::Publisher g_planner_pub = nh.advertise<std_msgs::String>("Global_Planner", 1); //buffer size is one. Only one global plan needed
+  ros::Publisher l_planner_pub = nh.advertise<std_msgs::String>("Local_Planner", 1); //
+
   GlobalParams::load_params(&nh);
-  
   ros::Rate loop_rate(10);
-  
-  //while(ros::ok()){
-  ompl::RNG::setSeed(GlobalParams::get_seed());
-  generateObstacles();
-  plan();
+
+  SimpleTerrainMap terrain_map;
+  RRTGlobalPlanner g_planner(&terrain_map);
+  LocalPlanner local;
+
+  while(ros::ok()){
+    ompl::RNG::setSeed(GlobalParams::get_seed());
     //pub.publish(msg);
-    
-  ros::spinOnce();
-  loop_rate.sleep();
-    //}
-  
+
+    ros::spinOnce();
+    loop_rate.sleep();
+  }
+
   return 0;
 }
-
-
-
-
-

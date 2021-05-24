@@ -16,6 +16,7 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 
+#include <rbdl/rbdl.h>
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 640
@@ -31,7 +32,7 @@ class PlannerVisualizer{
   // non-copyright
   PlannerVisualizer(const PlannerVisualizer &) = delete;
   PlannerVisualizer &operator=(const PlannerVisualizer &) = delete;
-  
+
   PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr planner, double period = 0.5)
     : sic_(sic), planner_(std::move(planner)),  period_(period), shouldMonitor_(false){
     const ompl::base::RealVectorBounds &bounds = static_cast<const ompl::base::VehicleStateSpace*>(sic_->getStateSpace().get())->getBounds();
@@ -40,7 +41,7 @@ class PlannerVisualizer{
     min_state_y_ = bounds.low[1];
     max_state_y_ = bounds.high[1];
   }
-  
+
   ~PlannerVisualizer(){
       stopMonitor();
     }
@@ -52,22 +53,22 @@ class PlannerVisualizer{
   void setObstacles(const std::vector<Rectangle*> &obstacles);
   void drawObstacles();
   void drawGoal();
-  
+
   void startMonitor();
   void stopMonitor();
 
   void setSolution(ompl::base::PlannerSolution *solution);
   void drawSolution();
-  
+
  private:
   void threadFunction();
-  
+
   int has_solution;
   ompl::control::SpaceInformationPtr sic_;
   ompl::base::PlannerSolution *planner_solution;
 
   unsigned num_waypoints_;
-  std::vector<float> waypoints_;
+  std::vector<Vector2d> waypoints_;
 
   std::vector<Rectangle*> obstacles_;
 
@@ -75,18 +76,16 @@ class PlannerVisualizer{
   static float max_state_x_;
   static float min_state_y_;
   static float max_state_y_;
-  
-  
+
+
   Display *dpy;
   Window w;
   GC gc;
 
   unsigned num_nodes_counter;
-  
+
   ompl::base::PlannerPtr planner_;
   double period_;
   bool shouldMonitor_;
   boost::scoped_ptr<std::thread> monitorThread_;
 };
-
-
