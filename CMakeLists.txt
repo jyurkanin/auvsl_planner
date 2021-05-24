@@ -160,7 +160,6 @@ find_package(octomap REQUIRED)
 include_directories(${OCTOMAP_INCLUDE_DIRS})
 #link_directories(${OCTOMAP_LIBRARY_DIRS}
 
-
 find_package(ompl REQUIRED)
 include_directories(${OMPL_INCLUDE_DIRS})
 

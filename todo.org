@@ -40,7 +40,7 @@
   It might be good to actually just leave it how it is. Probably not.
 
 
-* TODO Intelligent state sampling
+* DONE Intelligent state sampling
   Make the state space sampler more likely
   to sample in a region around the node that
   is closest to the goal. Prevent unnecessary
@@ -77,6 +77,14 @@
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.
   It is cool.
 
+* <2021-05-15 Sat> Base code finished
+  Dynamic Planner with RRT is working in 3D
+
+* TODO Create ROS Interface for Navigation Stack
+  adapt auvsl_planner to read messages for requests
+  to create a new plan. Create plan if a request is recieved
+  Also, serialize plan somehow, and publish the plan to a topic.
+
 
 * More information required:
   Ask Norris about whether to use ros 1 or 2.
@@ -91,25 +99,12 @@
    Do it with ompl?
 
 ** Occupancy grid generation
-   octomap. Generate a basic grid with a few simple obstacles
-   just for testing the planning algorithms.
-   
-** Octomap ROS server
-   Figure out how to use the octomap server node
-
-
-** Implement custom OcTree inheriting from OcTreeDataNode class
-   So, the current default OcTreeNode only holds a single float that
-   represents occupancy. Thats not enough. We need an OcTree with Nodes
-   that contain the wealth of information available. Will need to implement
-   classes that inherit from the more abstract templated OcTree class.
-   Not a huge deal.
-
+   CERL implementation of Octomap.
 
 ** Implement custom motion validator class that uses octomap raycasting
 
 
-
+   
 * Nice To Have:
 ** Multithreading
    Use multiple threads to explore vehicle states faster
