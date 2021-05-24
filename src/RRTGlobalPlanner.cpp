@@ -33,14 +33,6 @@
  *
  */
 
-float Xmax = 100;
-float Xmin = -100;
-
-float Ymax = 100;
-float Ymin = -100;
-
-
-std::vector<Rectangle*> obstacles;
 
 
 ompl::control::DirectedControlSamplerPtr allocCustomDirectedControlSampler(const ompl::control::SpaceInformation *si){
@@ -53,36 +45,11 @@ ompl::control::ControlSamplerPtr allocCustomControlSampler(const ompl::control::
 }
 
 
-int isPosInBox(float x, float y, Rectangle *rect){
-  return (x > rect->x) && (x < (rect->x + rect->width)) &&
-         (y > rect->y) && (y < (rect->y + rect->height));
-}
 
 
-void generateObstacles(){
-  //Just going to try a couple seed until I get a good obstacle field.
-  //Not going to error check, i.e. if the starting point is inside an
-  //obstacle or whatever. Ill just check and try a different seed.
+RRTGlobalPlanner::RRTGlobalPlanner(const TerrainMap* terrain_map){
+  global_map_ = terrain_map;
 
-  ompl::RNG rng;
-  const int max_obstacles = 3;
-
-  for(int i = 0; i < max_obstacles; i++){
-    Rectangle *rect = new Rectangle();
-
-    rect->width = rng.uniformReal(5, 10);
-    rect->height = rng.uniformReal(40, 80);
-
-    rect->x = -80 + (160*i/(max_obstacles-1)); //rng.uniformReal(-100, 100);
-    rect->y = rng.uniformReal(-50, 50) - rect->height/2;
-
-
-    obstacles.push_back(rect);
-  }
-
-}
-
-RRTGlobalPlanner::RRTGlobalPlanner(){
   ompl::base::VehicleStateSpace space(17);
   ompl::base::RealVectorBounds bounds(17);
 
@@ -160,14 +127,7 @@ bool RRTGlobalPlanner::isStateValid(const ompl::base::State *state){
   }
 
 
-  for(unsigned i = 0; i < obstacles.size(); i++){
-    if(isPosInBox(state_vector[0], state_vector[1], obstacles[i])){
-      return false;
-    }
-  }
-
-  return (state_vector[0] > Xmin) && (state_vector[0] < Xmax) &&
-         (state_vector[1] > Ymin) && (state_vector[1] < Ymax);
+  return global_map_->isStateValid(state_vector[0], state_vector[1]);
 }
 
 

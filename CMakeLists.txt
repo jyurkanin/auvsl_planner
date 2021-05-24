@@ -161,8 +161,17 @@ include_directories(${OCTOMAP_INCLUDE_DIRS})
 #link_directories(${OCTOMAP_LIBRARY_DIRS}
 
 
-find_package(ompl REQUIRED)
-include_directories(${OMPL_INCLUDE_DIRS})
+#find_package(ompl REQUIRED)
+#include_directories(${OMPL_INCLUDE_DIRS})
+
+include_directories(/usr/local/include/ompl-1.5)
+include_directories(/usr/include/eigen3)
+
+
+add_executable(local_planner_node src/local_planner_node.cpp
+  
+)
+
 
 
 add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
@@ -181,7 +190,7 @@ add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
 
 
 target_link_libraries(${PROJECT_NAME}_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node ${OMPL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ompl)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node rbdl)
 target_link_libraries(${PROJECT_NAME}_node X11)
@@ -205,7 +214,7 @@ add_executable(test_planner_node src/test_planner_node.cpp
   )
 
 target_link_libraries(test_planner_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(test_planner_node ${OMPL_LIBRARIES})
+target_link_libraries(test_planner_node ompl)
 target_link_libraries(test_planner_node ${catkin_LIBRARIES})
 target_link_libraries(test_planner_node rbdl)
 target_link_libraries(test_planner_node X11)
@@ -233,7 +242,7 @@ add_executable(steerability_node src/test_steerability_node.cpp
   )
 
 target_link_libraries(steerability_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(steerability_node ${OMPL_LIBRARIES})
+target_link_libraries(steerability_node ompl)
 target_link_libraries(steerability_node ${catkin_LIBRARIES})
 target_link_libraries(steerability_node rbdl)
 target_link_libraries(steerability_node X11)
