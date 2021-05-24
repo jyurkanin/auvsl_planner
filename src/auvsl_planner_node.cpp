@@ -16,7 +16,6 @@
 
 //launch-prefix="gdb -ex run --args
 
-
 int main(int argc, char **argv){
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
