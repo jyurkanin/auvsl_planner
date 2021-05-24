@@ -20,7 +20,7 @@ int main(int argc, char **argv){
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
   ros::Publisher g_planner_pub = nh.advertise<std_msgs::String>("Global_Planner", 1); //buffer size is one. Only one global plan needed
-  ros::Publisher l_planner_pub = nh.advertise<std_msgs::String>("Local_Planner", 1); //
+  ros::Publisher l_planner_pub = nh.advertise<std_msgs::String>("Local_Planner", 1);  //
 
   GlobalParams::load_params(&nh);
   ros::Rate loop_rate(10);
