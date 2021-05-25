@@ -134,7 +134,7 @@ bool RRTGlobalPlanner::isStateValid(const ompl::base::State *state){
 
 
 
-int RRTGlobalPlanner::plan(std::vector<Vector2d> waypoints, float *vehicle_start_state, Vector2d goal_pos){
+int RRTGlobalPlanner::plan(std::vector<Vector2d> &waypoints, float *vehicle_start_state, Vector2d goal_pos, float goal_tol){
   // construct the state space we are planning in
 
   ompl::base::ScopedState<> start(space_ptr_);
@@ -145,11 +145,11 @@ int RRTGlobalPlanner::plan(std::vector<Vector2d> waypoints, float *vehicle_start
   ompl::base::GoalSpace goal(si_);
   ompl::base::VehicleStateSpace gspace(17);
   ompl::base::RealVectorBounds gbounds(17);
-  gbounds.setLow(0, goal_pos[0]-G_TOLERANCE_);
-  gbounds.setHigh(0, goal_pos[0]+G_TOLERANCE_);
+  gbounds.setLow(0, goal_pos[0] - goal_tol_);
+  gbounds.setHigh(0, goal_pos[0] + goal_tol_);
 
-  gbounds.setLow(1, goal_pos[1]-G_TOLERANCE);
-  gbounds.setHigh(1, goal_pos[1]+G_TOLERANCE);
+  gbounds.setLow(1, goal_pos[1] - goal_tol);
+  gbounds.setHigh(1, goal_pos[1] + goal_tol);
 
   for(int i = 2; i < 17; i++){ //Goal region is only in x and y. Unbounded in other state variables.
     gbounds.setLow(i, -1000); gbounds.setHigh(i, 1000);

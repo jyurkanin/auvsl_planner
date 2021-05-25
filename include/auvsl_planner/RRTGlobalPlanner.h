@@ -28,7 +28,7 @@ public:
   ~RRTGlobalPlanner();
 
   bool isStateValid(const ompl::base::State *state);
-  void plan(std::vector<Vector2d> waypoints, float *vehicle_start_state, Vector2d goal_pos);
+  void plan(std::vector<Vector2d> &waypoints, float *vehicle_start_state, Vector2d goal_pos, floa goal_tol);
 private:
   const TerrainMap *global_map_; //don't want to make changes to the terrain map in the global planner.
 
