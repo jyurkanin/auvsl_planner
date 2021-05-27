@@ -3,7 +3,7 @@
 #include <vector>
 #include <stdlib.h>
 
-#include "RRTGlobalPlanner.h"
+#include "GlobalPlanner.h"
 #include "JackalStatePropagator.h"
 #include "GlobalParams.h"
 #include "PlannerVisualizer.h"
@@ -47,7 +47,7 @@ ompl::control::ControlSamplerPtr allocCustomControlSampler(const ompl::control::
 
 
 
-RRTGlobalPlanner::RRTGlobalPlanner(const TerrainMap* terrain_map){
+GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
   global_map_ = terrain_map;
 
   ompl::base::VehicleStateSpace space(17);
@@ -116,7 +116,7 @@ RRTGlobalPlanner::RRTGlobalPlanner(const TerrainMap* terrain_map){
   ptc_ = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(max_runtime), ompl::base::exactSolnPlannerTerminationCondition(pdef_));
 }
 
-bool RRTGlobalPlanner::isStateValid(const ompl::base::State *state){
+bool GlobalPlanner::isStateValid(const ompl::base::State *state){
   const ompl::base::VehicleStateSpace::StateType& state_vector = *state->as<ompl::base::VehicleStateSpace::StateType>();
 
   //test for roll over
@@ -134,7 +134,7 @@ bool RRTGlobalPlanner::isStateValid(const ompl::base::State *state){
 
 
 
-int RRTGlobalPlanner::plan(std::vector<Vector2d> &waypoints, float *vehicle_start_state, Vector2d goal_pos, float goal_tol){
+int GlobalPlanner::plan(std::vector<Vector2d> &waypoints, float *vehicle_start_state, Vector2d goal_pos, float goal_tol){
   // construct the state space we are planning in
 
   ompl::base::ScopedState<> start(space_ptr_);

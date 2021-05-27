@@ -6,7 +6,7 @@
 #include "GlobalParams.h"
 #include "PlannerVisualizer.h"
 #include "LocalPlanner.h"
-#include "RRTGlobalPlanner.h"
+#include "GlobalPlanner.h"
 
 //msgs
 #include "LocalPathPlan.h"
@@ -60,6 +60,10 @@ int main(int argc, char **argv){
 
   GlobalParams::load_params(&nh);
   ros::Rate loop_rate(10);
+
+  terrain_map = new TerrainMap();
+  terrain_map->generateObstacles();
+  terrain_map->generateUnknownObstacles();
   
   g_planner = new RRTGlobalPlanner(terrain_map);
   l_planner = new LocalPlanner();

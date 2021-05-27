@@ -29,6 +29,13 @@
 
   
 
+* TODO Mapping
+  Wait for fancy maping software
+  In the mean time, dont bother with gazebo yet.
+  Just use a simple 3D height map. Generate some known obstacles. Generate some unknown obstacles.
+  
+  
+
 * OMPL
   WTF why is it so hard. I guess I need to read the tutorial shit.
 
@@ -86,7 +93,7 @@
 * <2021-03-18 Thu> Update
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.
   It is cool.
-
+  
 
 * More information required:
   Ask Norris about whether to use ros 1 or 2.

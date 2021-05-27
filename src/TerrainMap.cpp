@@ -1,5 +1,8 @@
 #include "TerrainMap.h"
+
 #include <math.h>
+#incldue <algorithm>
+
 #include <ompl/util/RandomNumbers.h>
 
 
@@ -71,6 +74,53 @@ void SimpleTerrainMap::generateObstacles(){
 }
 
 
+void SimpleTerrainMap::generateUnknownObstacles(){
+  ompl::RNG rng;
+  const int max_obstacles = 5;
+
+  for(int i = 0; i < max_obstacles; i++){
+    Rectangle *rect = new Rectangle();
+
+    rect->width = rng.uniformReal(10, 20);
+    rect->height = rng.uniformReal(10, 20);
+
+    rect->x = rng.uniformReal(-80, 80) - rect->width/2;
+    rect->y = rng.uniformReal(-80, 80) - rect->height/2;
+
+
+    unknown_obstacles.push_back(rect);
+  }
+
+}
+
+//"Detect" unknown obstacles that are within a certain distance.
+//arguments are the vehicles position.
+void SimpleTerrainMap::detectObstacles(float x, float y){
+  //https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
+
+  const float SENSOR_RANGE = 5; //Robot will detect any obstacles within 5 meters
+  for(unsigned i = 0; i < unknown_obstacles.size(); i++){
+    float rect_min_x = unknown_obstacles[i]->x;
+    float rect_max_x = unknown_obstacles[i]->x + unknown_obstacles[i]->width;
+
+    float rect_min_y = unknown_obstacles[i]->y;
+    float rect_max_y = unknown_obstacles[i]->y + unknown_obstacles[i]->height;
+    
+    float dx = std::max(std::max(rect_min_x - x, x - rect_max_x), 0);
+    float dy = std::max(std::max(rect_min_y - y, y - rect_max_y), 0);
+
+    //check if obstacle is in range of sensors.
+    if((dx*dx + dy*dy) < (SENSOR_RANGE*SENSOR_RANGE)){
+      obstacles.push_back(unknown_obstacles[i]);
+      unknown_obstacles.erase(unknown_obstacles + i);
+    }
+  }
+}
+
+
+//Is state valid based on known information. Does not include unknown obstacles.
+//Only checks if state is valid based on map information.
+//This function does not validate actual vehicle state. Just x y position.
 void SimpleTerrainMap::isStateValid(float x, float y){
   for(unsigned i = 0; i < obstacles.size(); i++){
     if(isPosInBox(x, y, obstacles[i])){

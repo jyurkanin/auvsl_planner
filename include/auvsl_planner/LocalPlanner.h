@@ -3,10 +3,10 @@
 
 class LocalPlanner {
 public:
-  LocalPlanner(); //list of waypoints from global path planner
+  LocalPlanner(); 
   ~LocalPlanner();
   
-  void setGlobalPath(const std::vector<Vector2d> &waypoints);
+  void setGlobalPath(const std::vector<Vector2d> &waypoints); //list of waypoints from global path planner
   
   virtual void initPlanner() = 0;
   virtual void stepPlanner() = 0;

@@ -25,7 +25,9 @@ class SimpleTerrainMap : TerrainMap{
   ~SimpleTerrainMap();
 
   void generateObstacles();
+  void generateUnknownObstacles();
 
+  void detectObstacles(float x, float y);
   BekkerData getSoilDataAt(float x, float y);
   float getAltitude(float x, float y);
   int isStateValid(float x, float y); //Only 2D obstacle collision checking for now.
@@ -36,5 +38,7 @@ private:
 
   float Ymax = 100;
   float Ymin = -100;
+  
   std::vector<Rectangle*> obstacles;
+  std::vector<Rectangle*> unknown_obstacles;
 };

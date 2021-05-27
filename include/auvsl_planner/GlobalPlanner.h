@@ -22,10 +22,10 @@
 
 
 
-class RRTGlobalPlanner{
+class GlobalPlanner{
 public:
-  RRTGlobalPlanner(const TerrainMap *map);
-  ~RRTGlobalPlanner();
+  GlobalPlanner(const TerrainMap *map);
+  ~GlobalPlanner();
 
   bool isStateValid(const ompl::base::State *state);
   void plan(std::vector<Vector2d> &waypoints, float *vehicle_start_state, Vector2d goal_pos, floa goal_tol);
