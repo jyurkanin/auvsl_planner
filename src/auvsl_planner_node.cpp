@@ -25,7 +25,7 @@
 using namespace auvsl_planner;
 
 SimpleTerrainMap *terrain_map;
-RRTGlobalPlanner *g_planner;
+GlobalPlanner *g_planner;
 LocalPlanner *l_planner;
 
 
@@ -65,16 +65,17 @@ int main(int argc, char **argv){
   terrain_map->generateObstacles();
   terrain_map->generateUnknownObstacles();
   
-  g_planner = new RRTGlobalPlanner(terrain_map);
+  g_planner = new GlobalPlanner(terrain_map);
   l_planner = new LocalPlanner();
+
+
+  std::vector<Vector2d> waypoints;
+  float start_state[17] = {0,0,0, 0,0,0,1, 0,0,0,0,0,0, 0,0,0,0};
+  Vector2d goal_pos(-90,-80);
+  g_planner->plan(waypoints, start_state, goal_pos, .01);
   
   while(ros::ok()){
-    ompl::RNG::setSeed(GlobalParams::get_seed());
-    
-    
-    
-    
-    
+    ompl::RNG::setSeed(GlobalParams::get_seed());    
     
     
     ros::spinOnce();

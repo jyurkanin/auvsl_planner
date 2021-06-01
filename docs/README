@@ -35,7 +35,7 @@ Source Files:
   This was a utility that works with the global planner to visualize the
   search tree. Its very simple and uses X11 drawing routines for graphics.
 
-8. RRTGlobalPlanner.cpp
+8. GlobalPlanner.cpp
   This contains the RRT global planner.
   Constructor takes a TerrainMap and calling plan will search for a path between
   the start and end points.

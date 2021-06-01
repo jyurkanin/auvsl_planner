@@ -1,3 +1,4 @@
+#include <vector>
 
 typedef struct {
     float kc,kphi,n0,n1,phi;
@@ -14,7 +15,7 @@ BekkerData lookup_soil_table(int index);
 
 
 class TerrainMap{
-    virtual BekkerSoilData getSoilDataAt(float x, float y) = 0;
+    virtual BekkerData getSoilDataAt(float x, float y) = 0;
     virtual float getAltitude(float x, float y) = 0;
     virtual int isStateValid(float x, float y) = 0;
 };
@@ -33,11 +34,11 @@ class SimpleTerrainMap : TerrainMap{
   int isStateValid(float x, float y); //Only 2D obstacle collision checking for now.
   
 private:
-  float Xmax = 100;
-  float Xmin = -100;
+  float Xmax;
+  float Xmin;
 
-  float Ymax = 100;
-  float Ymin = -100;
+  float Ymax;
+  float Ymin;
   
   std::vector<Rectangle*> obstacles;
   std::vector<Rectangle*> unknown_obstacles;

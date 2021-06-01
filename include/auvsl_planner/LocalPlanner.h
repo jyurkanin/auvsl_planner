@@ -1,4 +1,4 @@
-#include <rbdl/rbdl.h>
+#include "Eigen/Core"
 
 
 class LocalPlanner {

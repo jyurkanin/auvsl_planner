@@ -18,7 +18,10 @@ int isPosInBox(float x, float y, Rectangle *rect){
 
 
 SimpleTerrainMap::SimpleTerrainMap(){
-
+    Ymin = -100;
+    Ymax = 100;
+    Xmin = -100;
+    Xmax = 100;
 }
 
 SimpleTerrainMap::~SimpleTerrainMap(){
@@ -32,7 +35,7 @@ BekkerData soil_table[3] = {
     {30.08, 499.7, .7, 0, 14.0*M_PI/180.0, "Clay"}
 };
 
-BekkerData SimpleTerrainMap::lookup_soil_table(int index){
+BekkerData lookup_soil_table(int index){
     return soil_table[index];
 }
 
@@ -46,7 +49,7 @@ BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y){
 }
 
 
-float get_altitude(float x, float y){
+float SimpleTerrainMap::getAltitude(float x, float y){
   return fmax(0,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
 }
 

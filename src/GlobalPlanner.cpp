@@ -15,6 +15,7 @@
 #include <ompl/control/SimpleDirectedControlSampler.h>
 
 #include <rbdl/Quaternion.h>
+#include <rbdl/rbdl.h>
 
 
 
