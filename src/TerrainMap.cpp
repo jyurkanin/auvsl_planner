@@ -98,9 +98,10 @@ void SimpleTerrainMap::generateUnknownObstacles(){
 
 //"Detect" unknown obstacles that are within a certain distance.
 //arguments are the vehicles position.
-void SimpleTerrainMap::detectObstacles(float x, float y){
+int SimpleTerrainMap::detectObstacles(float x, float y){
   //https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
-
+  int got_new = 0;
+    
   const float SENSOR_RANGE = 5; //Robot will detect any obstacles within 5 meters
   for(unsigned i = 0; i < unknown_obstacles.size(); i++){
     float rect_min_x = unknown_obstacles[i]->x;
@@ -115,9 +116,12 @@ void SimpleTerrainMap::detectObstacles(float x, float y){
     //check if obstacle is in range of sensors.
     if((dx*dx + dy*dy) < (SENSOR_RANGE*SENSOR_RANGE)){
       obstacles.push_back(unknown_obstacles[i]);
-      unknown_obstacles.erase(unknown_obstacles + i);
+      unknown_obstacles.erase(unknown_obstacles.begin() + i);
+      got_new = 1;
     }
   }
+
+  return got_new;
 }
 
 

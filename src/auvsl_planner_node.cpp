@@ -17,7 +17,8 @@
 #include <ompl/base/goals/GoalSpace.h>
 #include <ompl/control/SimpleDirectedControlSampler.h>
 
-#include <rbdl/rbdl.h>
+#include <Eigen/Core>
+//#include <rbdl/rbdl.h>
 
 //launch-prefix="gdb -ex run --args
 
@@ -66,13 +67,16 @@ int main(int argc, char **argv){
   terrain_map->generateUnknownObstacles();
   
   g_planner = new GlobalPlanner(terrain_map);
-  l_planner = new LocalPlanner();
+  l_planner = new LocalPlanner(terrain_map);
 
 
   std::vector<Vector2d> waypoints;
   float start_state[17] = {0,0,0, 0,0,0,1, 0,0,0,0,0,0, 0,0,0,0};
   Vector2d goal_pos(-90,-80);
+
   g_planner->plan(waypoints, start_state, goal_pos, .01);
+  l_planner->setGlobalPath(waypoints);
+  l_planner->initPlanner();
   
   while(ros::ok()){
     ompl::RNG::setSeed(GlobalParams::get_seed());    
