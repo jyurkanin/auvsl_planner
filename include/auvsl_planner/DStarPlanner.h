@@ -4,7 +4,10 @@
 #include "Eigen/Core" //the eigen headers dont end in .h
 
 #include <vector>
-
+#include <X11/keysymdef.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#include <X11/Xlib.h>
 
 
 /*
@@ -19,14 +22,18 @@
 
 enum TAG {NEW, CLOSED, OPEN};
 enum OCCUPANCY {FREE=0, OBSTACLE=10000};
+enum STATE_TYPE {RAISE, LOWER, NORMAL};
 
 #define COSTMAP_HEIGHT 100
 #define COSTMAP_WIDTH 100
 
+//This is not efficient
 typedef struct{
     float min_cost;
     float curr_cost;
-    StateData* b_ptr;
+    StateData *b_ptr;
+    unsigned char x;
+    unsigned char y;
     TAG tag;
     OCCUPANCY occupancy;
 } StateData;
@@ -37,19 +44,27 @@ public:
     DStarPlanner(const TerrainMap *map);
     ~DStarPlanner();
     
-    void initPlanner(Vector2f start, Vector2f goal);
-    void runPlanner();
-    void stepPlanner();
-    
-    void getStateData(Vector2f X);
+    int initPlanner(Vector2f start, Vector2f goal);
+    int runPlanner();
+    void stepPlanner(unsigned &robot_x, unsigned &robot_y);
+    void replan(StateData* robot_state);
+
+
+    void initWindow();
+    void pressEnter();
+    void drawState(StateData *state, STATE_TYPE s_type);
+    void drawPath(StateData *start);
     
     float getEdgeCost(Vector2f X, Vector2f Y);    //c(X)
     float getPathCost(Vector2f X, Vector2f G);    //h(X)
     float getMinPathCost(Vector2f X, Vector2f G); //Min Path Cost since state was added to open list. This is the "key function"
     
-    void insertState(Vector2f X);
+    void insertState(Vector2f X, float path_cost);
+    void deleteState(StateData *state);
     
-    void processState();
+    int processState();
+    
+    StateData* getBPtr();
     
     StateData* readStateMap(Vector2f X); //will perform the necessary quantization to go from floating state to grid index
     Vector2f getRealPosition(unsigned x, unsigned y);
@@ -64,5 +79,9 @@ private:
     StateData state_map_[COSTMAP_WIDTH][COSTMAP_HEIGHT]; //states are 8 connected
     const TerrainMap *terrain_map_;
     std::vector<StateData*> open_list_; //This is going to be sorted by key function.
-    
+
+
+    Display *dpy;
+    Window w;
+    GC gc;
 };
