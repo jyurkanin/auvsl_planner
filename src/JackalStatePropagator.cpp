@@ -6,11 +6,11 @@
 
 
 JackalStatePropagator::JackalStatePropagator(ompl::control::SpaceInformationPtr si) : StatePropagator(si){
-  JackalDynamicSolver::init_model(0);
+      JackalDynamicSolver::init_model(0);
 }
 
 JackalStatePropagator::~JackalStatePropagator(){
-  JackalDynamicSolver::del_model();
+    JackalDynamicSolver::del_model();
 }
 
 
@@ -124,7 +124,7 @@ void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &c
   ompl::base::State *result_state = si_->allocState();
 
   si_->copyState(start_state, states[0]);
-  const double* start_val = start_states->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+  const double* start_val = start_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
   waypoints.push_back(Vector2d(start_val[0], start_val[1]));
   
   for(unsigned i = 0; i < controls.size(); i++){

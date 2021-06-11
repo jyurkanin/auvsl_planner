@@ -79,7 +79,7 @@ void PlannerVisualizer::setSolution(ompl::base::PlannerSolution *solution){
   has_solution = 1;
 }
 
-void PlannerVisualizer::setObstacles(const std::vector<Rectangle*> &obstacles){
+void PlannerVisualizer::setObstacles(std::vector<Rectangle*> obstacles){
   obstacles_ = obstacles;
 }
 

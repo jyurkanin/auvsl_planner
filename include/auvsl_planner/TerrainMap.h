@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 
 typedef struct {
@@ -15,13 +17,16 @@ BekkerData lookup_soil_table(int index);
 
 
 class TerrainMap{
-    virtual BekkerData getSoilDataAt(float x, float y) = 0;
-    virtual float getAltitude(float x, float y) = 0;
-    virtual int isStateValid(float x, float y) = 0;
+public:
+    virtual BekkerData getSoilDataAt(float x, float y) const = 0;
+    virtual float getAltitude(float x, float y) const = 0;
+    virtual int isStateValid(float x, float y) const = 0;
+    virtual std::vector<Rectangle*> getObstacles() const = 0;
 };
 
 
-class SimpleTerrainMap : TerrainMap{
+class SimpleTerrainMap : public TerrainMap{
+public:
   SimpleTerrainMap();
   ~SimpleTerrainMap();
 
@@ -29,17 +34,19 @@ class SimpleTerrainMap : TerrainMap{
   void generateUnknownObstacles();
 
   int detectObstacles(float x, float y);
-  BekkerData getSoilDataAt(float x, float y);
-  float getAltitude(float x, float y);
-  int isStateValid(float x, float y); //Only 2D obstacle collision checking for now.
-  
+
+  BekkerData getSoilDataAt(float x, float y) const override;
+  float getAltitude(float x, float y) const override;
+  int isStateValid(float x, float y) const override; //Only 2D obstacle collision checking for now.
+
+  std::vector<Rectangle*> getObstacles() const override;
 private:
   float Xmax;
   float Xmin;
 
   float Ymax;
   float Ymin;
-  
+
   std::vector<Rectangle*> obstacles;
   std::vector<Rectangle*> unknown_obstacles;
 };

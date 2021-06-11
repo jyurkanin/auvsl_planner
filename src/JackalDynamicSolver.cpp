@@ -62,6 +62,10 @@ SpatialVector get_world_force(SpatialVector f_ext_body, float *X){
 
 
 
+
+//static stuff
+
+
 std::ofstream JackalDynamicSolver::log_file;
 std::ofstream JackalDynamicSolver::temp_log;
 
@@ -72,6 +76,7 @@ Model* JackalDynamicSolver::model;
 float JackalDynamicSolver::stepsize;
 float JackalDynamicSolver::tire_radius;
 
+const TerrainMap* JackalDynamicSolver::terrain_map_;
 
 Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,JackalDynamicSolver::num_in_features> JackalDynamicSolver::weight0;
 Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> JackalDynamicSolver::bias0;
@@ -88,6 +93,8 @@ Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> JackalDynamicSolver
 Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> JackalDynamicSolver::in_mean;
 Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> JackalDynamicSolver::in_std;
 
+
+//actual class members
 
 JackalDynamicSolver::JackalDynamicSolver(){
   stepsize = GlobalParams::get_timestep();
@@ -163,6 +170,10 @@ void JackalDynamicSolver::init_model(int debug){
   
 }
 
+void JackalDynamicSolver::set_terrain_map(const TerrainMap *terrain_map){
+    terrain_map_ = terrain_map;
+}
+
 
 JackalDynamicSolver::~JackalDynamicSolver(){
 }
@@ -236,7 +247,7 @@ void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinka
         
         Matrix3d temp_rot = (vehicle_rot*test_rot).transpose();     //Rot vector from cpt frame to world.
         cpt = center_of_tire - (temp_rot*radius_vec); //Translate vector from cpt frame to world
-        test_sinkage = get_altitude(cpt[0], cpt[1]) - cpt[2];
+        test_sinkage = terrain_map_->getAltitude(cpt[0], cpt[1]) - cpt[2];
         //if(i==0)
         //ROS_INFO("Tire Contact Point <%f %f %f>     Sinkage %f", cpt[0], cpt[1], cpt[2],    test_sinkage);
         
@@ -336,7 +347,7 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
             features(2) = atanf(tire_vels[i][1]/tire_vels[i][0]);
         }
         
-        ts_data = get_soil_data_at(cpt_X[i].r[0], cpt_X[i].r[1]);
+        ts_data = terrain_map_->getSoilDataAt(cpt_X[i].r[0], cpt_X[i].r[1]);
         
         features(3) = ts_data.kc;
         features(4) = ts_data.kphi;

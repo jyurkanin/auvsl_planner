@@ -1,7 +1,7 @@
 #include "TerrainMap.h"
 
 #include <math.h>
-#incldue <algorithm>
+#include <algorithm>
 
 #include <ompl/util/RandomNumbers.h>
 
@@ -40,17 +40,17 @@ BekkerData lookup_soil_table(int index){
 }
 
 
-BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y){
+BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y) const{
   const int search_depth = 0;
   const float threshold = .5;
   //octomap::OcTreeNode* node = ocTree->search(val[0], val[1], 0, search_depth);
   //TODO. THis.
-  return lookupSoilTable(0);
+  return lookup_soil_table(0);
 }
 
 
-float SimpleTerrainMap::getAltitude(float x, float y){
-  return fmax(0,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
+float SimpleTerrainMap::getAltitude(float x, float y) const{
+  return fmax(0.0f,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
 }
 
 void SimpleTerrainMap::generateObstacles(){
@@ -110,8 +110,8 @@ int SimpleTerrainMap::detectObstacles(float x, float y){
     float rect_min_y = unknown_obstacles[i]->y;
     float rect_max_y = unknown_obstacles[i]->y + unknown_obstacles[i]->height;
     
-    float dx = std::max(std::max(rect_min_x - x, x - rect_max_x), 0);
-    float dy = std::max(std::max(rect_min_y - y, y - rect_max_y), 0);
+    float dx = std::max(std::max(rect_min_x - x, x - rect_max_x), 0.0f);
+    float dy = std::max(std::max(rect_min_y - y, y - rect_max_y), 0.0f);
 
     //check if obstacle is in range of sensors.
     if((dx*dx + dy*dy) < (SENSOR_RANGE*SENSOR_RANGE)){
@@ -124,14 +124,17 @@ int SimpleTerrainMap::detectObstacles(float x, float y){
   return got_new;
 }
 
+std::vector<Rectangle*> SimpleTerrainMap::getObstacles() const{
+    return obstacles;
+}
 
 //Is state valid based on known information. Does not include unknown obstacles.
 //Only checks if state is valid based on map information.
 //This function does not validate actual vehicle state. Just x y position.
-void SimpleTerrainMap::isStateValid(float x, float y){
+int SimpleTerrainMap::isStateValid(float x, float y) const{
   for(unsigned i = 0; i < obstacles.size(); i++){
     if(isPosInBox(x, y, obstacles[i])){
-      return false;
+      return 0;
     }
   }
 

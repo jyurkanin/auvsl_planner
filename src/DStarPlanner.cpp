@@ -1,22 +1,28 @@
 #include "DStarPlanner.h"
 
 #include <algorithm>
-#include <stdlib>
-
+#include <stdlib.h>
+#include <unistd.h>
 
 #define INIT_VALUE 0xDEADBEEF //A random value. Will be useful for debugging and detecting unitialized values
 #define DEBUG_WINDOW 1
 
 
-DStarPlanner::DStarPlanner(const TerrainMap *map) terrain_map_(map){
+DStarPlanner::DStarPlanner(SimpleTerrainMap *map) : terrain_map_(map){
     dpy = 0;
-    
+    curr_waypoint_ = 0;
 }
 
 DStarPlanner::~DStarPlanner(){
     if(dpy){
         XDestroyWindow(dpy, w);
         XCloseDisplay(dpy);
+    }
+}
+
+void DStarPlanner::setGlobalPath(const std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints){
+    for(unsigned i = 0; i < waypoints.size(); i++){
+        waypoints_.push_back(Vector2f(waypoints[i][0], waypoints[i][1]));
     }
 }
 
@@ -42,14 +48,15 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
 
             state_map_[i][j].min_cost = -1;
             state_map_[i][j].curr_cost = INIT_VALUE;
-            state_map_[i][j].b_ptr = INIT_VALUE;
+            state_map_[i][j].b_ptr = 0;
             state_map_[i][j].x = i;
             state_map_[i][j].y = j;
         }
     }
     
-    insertState(goal, 0);
+    
     StateData *goal_state = readStateMap(goal);
+    insertState(goal_state, 0);
     goal_state->b_ptr = 0;
     
     float k_min;
@@ -70,36 +77,30 @@ void DStarPlanner::replan(StateData* robot_state){
 }
 
 int DStarPlanner::runPlanner(){
-    //unsigned robot_x;
-    //unsigned robot_y; //position in the state map.
-    Vector2f X_robot;
-    StateData* x_state;
-
-    X_robot = waypoints_[0];
+    Vector2f X_pos;
+    StateData* X_state;
+    
+    X_pos = waypoints_[0];
     //idx is the current waypoint, idx+1 is the goal
     for(unsigned idx = 0; idx < (waypoints_.size()-1); idx++){
+        X_state = readStateMap(X_pos);
+        
         //This finds a solution. aka sets the backpointers from start to goal
-        if(initPlanner(X_robot, waypoints_[idx+1]) == -1){
-            return -1;
+        if(initPlanner(X_pos, waypoints_[idx+1]) == -1){
+            return 0;
         }
         
+        do{ //This scans for new obstacles, replans, and follows the backptr
+            stepPlanner(X_state, X_pos);
+        } while(readStateMap(waypoints_[idx+1]) != X_state);
         
-        do{
-            //This scans for new obstacles, replans, and follows the backptr
-            stepPlanner(robot_x, robot_y);
-            
-        } while(readStateMap(waypoints_[idx+1]) != readStateMap(X_robot));
-        
-        
-        X_robot = getRealPosition(robot_x, robot_y);
+        X_pos = getRealPosition(X_state->x, X_state->y);
     }
     
+    return 1;
 }
 
-void DStarPlanner::stepPlanner(unsigned &robot_x, unsigned &robot_y){
-    Vector2f X_robot = getRealPosition(robot_x, robot_y);
-    StateData *robot_state = state_map_[robot_x][robot_y];
-    
+void DStarPlanner::stepPlanner(StateData *robot_state, Vector2f X_robot){
     //This is going to scan the environment and update the node occupancy/graph edge costs
     //The following is going to be slow as hell. But this is just a demo.
     //Just go over all the nodes in state_map_
@@ -114,18 +115,14 @@ void DStarPlanner::stepPlanner(unsigned &robot_x, unsigned &robot_y){
                 Vector2f test_pos = getRealPosition(i, j);
                 if((state_map_[i][j].occupancy != OBSTACLE) && !terrain_map_->isStateValid(test_pos[0], test_pos[1])){
                     state_map_[i][j].occupancy = OBSTACLE;
-                    insertState(test_pos);
+                    insertState(&state_map_[i][j], state_map_[i][j].curr_cost);
                 }
             }
         }
     }
-
+    
     replan(robot_state); //pass current robot position.
-    
-    robot_x = robot_state->b_ptr->x;
-    robot_y = robot_state->b_ptr->y;
-    
-    
+    robot_state = robot_state->b_ptr;
 }
 
 int DStarPlanner::processState(){
@@ -218,8 +215,7 @@ int DStarPlanner::processState(){
         return open_list_[0]->min_cost;
 }
 
-void DStarPlanner::insertState(Vector2f X, float path_cost){
-    StateData* state = readStateMap(X);
+void DStarPlanner::insertState(StateData* state, float path_cost){
     
     switch(state->tag){
     case NEW:
@@ -229,7 +225,7 @@ void DStarPlanner::insertState(Vector2f X, float path_cost){
         //ensure no repeats in the open list.
         for(unsigned i = 0; i < open_list_.size(); i++){
             if(open_list_[i] == state){
-                open_list_.erase(open_list_.begin() + i, state);
+                open_list_.erase(open_list_.begin() + i);
                 break;
             }
         }
@@ -256,7 +252,7 @@ void DStarPlanner::insertState(Vector2f X, float path_cost){
 void DStarPlanner::deleteState(StateData *state){
     for(unsigned i = 0; i < open_list_.size(); i++){
         if(open_list_[i] == state){
-            open_list_.erase(open_list_.begin() + i, state);
+            open_list_.erase(open_list_.begin() + i);
             state->tag = CLOSED;
             return;
         }
@@ -264,16 +260,17 @@ void DStarPlanner::deleteState(StateData *state){
 }
 
 
-float DStarPlanner::getEdgeCost(Vector2f X, Vector2f Y){
-    StateData* state = readStateMap(Y);
-    switch(state->occupancy){
+float DStarPlanner::getEdgeCost(StateData* X, StateData* Y){
+    switch(Y->occupancy){
     case FREE:
         return 1;
     case OBSTACLE:
         return 100000;
+    default:
+        return 1;
     }
     //this is going to be a bit more involved
-    //No, this is just going to check if moving between states intercepts an obstacle. Thats all.
+    //No, this is just going to check if moving between states intercepts an obstacle. Thats all. For now.
 }
 
 float DStarPlanner::getPathCost(Vector2f X, Vector2f G){
@@ -290,8 +287,8 @@ void DStarPlanner::getMapIdx(Vector2f X, unsigned &x, unsigned &y){
     float x_scale = COSTMAP_WIDTH / x_range_;
     float y_scale = COSTMAP_HEIGHT / y_range_;
     
-    int x_int = floorf((X[0] - x_offset_)*x_scale_);
-    int y_int = floorf((X[1] - y_offset_)*y_scale_);
+    int x_int = floorf((X[0] - x_offset_)*x_scale);
+    int y_int = floorf((X[1] - y_offset_)*y_scale);
     
     x = std::min(std::max(x_int, 0), COSTMAP_WIDTH);
     y = std::min(std::max(y_int, 0), COSTMAP_HEIGHT);    
@@ -306,9 +303,12 @@ StateData* DStarPlanner::readStateMap(Vector2f X){
 }
 
 Vector2f DStarPlanner::getRealPosition(unsigned x, unsigned y){
+    float x_scale = COSTMAP_WIDTH / x_range_;
+    float y_scale = COSTMAP_HEIGHT / y_range_;
     Vector2f X;
-    X[0] = ((float)x/x_scale_) + x_offset_;
-    X[1] = ((float)y/y_scale_) + y_offset_;
+    
+    X[0] = ((float)x/x_scale) + x_offset_;
+    X[1] = ((float)y/y_scale) + y_offset_;
     return X;
 }
 
@@ -377,9 +377,9 @@ void DStarPlanner::drawState(StateData *state, STATE_TYPE s_type){
         break;
     }
     
-    scalar = std::min(1, std::max(0, 1.0f / X->curr_cost));
+    scalar = std::min(1.0f, std::max(0.0f, 1.0f / state->curr_cost));
     
-    color = color & ((unsigned) color * scalar); //This is pretty clever. Hopefully it works
+    color = color & (unsigned) (color * scalar); //This is pretty clever. Hopefully it works
     XSetForeground(dpy, gc, color);
     
     unsigned x = state->x * 4;
@@ -392,7 +392,7 @@ void DStarPlanner::drawState(StateData *state, STATE_TYPE s_type){
 
 
 void DStarPlanner::drawPath(StateData *state){
-    XSetForeground(0xFFFFFF);
+    XSetForeground(dpy, gc, 0xFFFFFF);
     while(state->b_ptr){
         XDrawLine(dpy, w, gc, (state->x*4) + 2, (state->y*4) + 2,  (state->b_ptr->x*4) + 2, (state->b_ptr->y*4) + 2);
         state = state->b_ptr;

@@ -1,4 +1,8 @@
-#include <Eigen/Core>
+#include <rbdl/rbdl.h>
+#include <vector>
+#include <Eigen/Dense>
+
+using namespace Eigen;
 
 class LocalPlanner {
 public:
@@ -6,9 +10,9 @@ public:
   ~LocalPlanner();
 
   //list of waypoints from global path planner
-  void setGlobalPath(const std::vector<Vector2f> &waypoints);
+  void setGlobalPath(const std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints);
   
-  virtual void initPlanner() = 0;
+  virtual void initPlanner(Vector2f start, Vector2f goal) = 0;
   virtual void stepPlanner() = 0;
   
 protected:

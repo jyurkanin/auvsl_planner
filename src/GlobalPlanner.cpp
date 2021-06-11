@@ -1,7 +1,7 @@
 #include <iostream>
 #include <thread>
-#include <vector>
 #include <stdlib.h>
+#include <memory>
 
 #include "GlobalPlanner.h"
 #include "JackalStatePropagator.h"
@@ -13,9 +13,6 @@
 #include <ompl/util/RandomNumbers.h>
 #include <ompl/base/goals/GoalSpace.h>
 #include <ompl/control/SimpleDirectedControlSampler.h>
-
-#include <rbdl/Quaternion.h>
-#include <rbdl/rbdl.h>
 
 
 
@@ -34,6 +31,8 @@
  *
  */
 
+//statics
+const TerrainMap *GlobalPlanner::global_map_;
 
 
 ompl::control::DirectedControlSamplerPtr allocCustomDirectedControlSampler(const ompl::control::SpaceInformation *si){
@@ -51,7 +50,7 @@ ompl::control::ControlSamplerPtr allocCustomControlSampler(const ompl::control::
 GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
   global_map_ = terrain_map;
 
-  ompl::base::VehicleStateSpace space(17);
+  ompl::base::VehicleStateSpace *space = new ompl::base::VehicleStateSpace(17);
   ompl::base::RealVectorBounds bounds(17);
 
   bounds.setLow(0, -100); bounds.setHigh(0, 100); //x
@@ -76,10 +75,11 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
   bounds.setLow(15, -100); bounds.setHigh(15, 100);
   bounds.setLow(16, -100); bounds.setHigh(16, 100);
 
-  space.setBounds(bounds);
+  space->setBounds(bounds);
 
-  space_ptr_ = ompl::base::StateSpacePtr(&space);
-  ompl::control::RealVectorControlSpace cspace(space_ptr_, 2);
+  space_ptr_.reset(space); //no me gusta shared ptrs
+  
+  ompl::control::RealVectorControlSpace *cspace = new ompl::control::RealVectorControlSpace(space_ptr_, 2);
 
   //cspace.setControlSamplerAllocator(allocCustomControlSampler);
 
@@ -91,9 +91,9 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
   cbounds.setLow(1, 0);
   cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
 
-  cspace.setBounds(cbounds);
+  cspace->setBounds(cbounds);
 
-  si_ = ompl::control::SpaceInformationPtr(new ompl::control::SpaceInformation(space_ptr_, ompl::control::ControlSpacePtr(&cspace)));
+  si_ = ompl::control::SpaceInformationPtr(new ompl::control::SpaceInformation(space_ptr_, ompl::control::ControlSpacePtr(cspace)));
 
   ompl::control::StatePropagatorPtr dynamic_model_ptr(new JackalStatePropagator(si_));
   si_->setStatePropagator(dynamic_model_ptr);
@@ -102,19 +102,17 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
 
   si_->setDirectedControlSamplerAllocator(allocCustomDirectedControlSampler);
 
-  si_->setStateValidityChecker(isStateValid);
+  si_->setStateValidityChecker(GlobalPlanner::isStateValid);
   si_->setStateValidityCheckingResolution(GlobalParams::get_state_checker_resolution());    //this is for checking motions
   si_->setup();
 
   pdef_ = ompl::base::ProblemDefinitionPtr(new ompl::base::ProblemDefinition(si_));
 
-  planner_ = ompl::control::VehicleRRT(si_);
-  planner_.setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
-  planner_.setIntermediateStates(GlobalParams::get_add_intermediate_states());
+  planner_ = new ompl::control::VehicleRRT(si_);
+  planner_->setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
+  planner_->setIntermediateStates(GlobalParams::get_add_intermediate_states());
 
-  G_TOLERANCE_ = GlobalParams::get_goal_tolerance();
-  float max_runtime = GlobalParams::get_max_runtime();
-  ptc_ = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(max_runtime), ompl::base::exactSolnPlannerTerminationCondition(pdef_));
+  //G_TOLERANCE_ = GlobalParams::get_goal_tolerance();
 }
 
 bool GlobalPlanner::isStateValid(const ompl::base::State *state){
@@ -132,10 +130,14 @@ bool GlobalPlanner::isStateValid(const ompl::base::State *state){
 }
 
 
+GlobalPlanner::~GlobalPlanner(){
+    delete planner_;
+}
 
 
 
-int GlobalPlanner::plan(std::vector<Vector2d> &waypoints, float *vehicle_start_state, Vector2d goal_pos, float goal_tol){
+
+int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints, float *vehicle_start_state, RigidBodyDynamics::Math::Vector2d goal_pos, float goal_tol){
   // construct the state space we are planning in
 
   ompl::base::ScopedState<> start(space_ptr_);
@@ -146,8 +148,8 @@ int GlobalPlanner::plan(std::vector<Vector2d> &waypoints, float *vehicle_start_s
   ompl::base::GoalSpace goal(si_);
   ompl::base::VehicleStateSpace gspace(17);
   ompl::base::RealVectorBounds gbounds(17);
-  gbounds.setLow(0, goal_pos[0] - goal_tol_);
-  gbounds.setHigh(0, goal_pos[0] + goal_tol_);
+  gbounds.setLow(0, goal_pos[0] - goal_tol);
+  gbounds.setHigh(0, goal_pos[0] + goal_tol);
 
   gbounds.setLow(1, goal_pos[1] - goal_tol);
   gbounds.setHigh(1, goal_pos[1] + goal_tol);
@@ -161,18 +163,21 @@ int GlobalPlanner::plan(std::vector<Vector2d> &waypoints, float *vehicle_start_s
   pdef_->addStartState(start);
   pdef_->setGoal((ompl::base::GoalPtr) &goal);
 
-  planner_.setProblemDefinition(pdef_);
+  planner_->setProblemDefinition(pdef_);
 
-  /*
-  PlannerVisualizer planner_visualizer(si_, (ompl::base::PlannerPtr) &planner, .5);
-  planner_visualizer.setObstacles(obstacles);
+  
+  PlannerVisualizer planner_visualizer(si_, (ompl::base::PlannerPtr) planner_, .5);
+  planner_visualizer.setObstacles(global_map_->getObstacles());
   if(GlobalParams::get_visualize_planner()){
     planner_visualizer.startMonitor();
   }
-  */
+  
 
   //float max_runtime = 600; //seconds
-  ompl::base::PlannerStatus solved = planner_.solve(ptc_);
+  float max_runtime = GlobalParams::get_max_gp_runtime();
+  ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(max_runtime), ompl::base::exactSolnPlannerTerminationCondition(pdef_));
+
+  ompl::base::PlannerStatus solved = planner_->solve(ptc);
 
   if(solved){
     ompl::base::PlannerSolution soln = pdef_->getSolutions()[0];
@@ -182,9 +187,9 @@ int GlobalPlanner::plan(std::vector<Vector2d> &waypoints, float *vehicle_start_s
     std::vector<ompl::control::Control*> controls = path->getControls();
     std::vector<double> durations = path->getControlDurations();
 
-    JackalStatePropagator dynamic_model(sic_);
+    JackalStatePropagator dynamic_model(si_);
 
-    int num_waypoints;
+    unsigned num_waypoints;
     dynamic_model.getWaypoints(controls, durations, states, waypoints, num_waypoints);
     return EXIT_SUCCESS;
   }

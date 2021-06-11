@@ -1,20 +1,24 @@
-#include <rbdl/rbdl.h>
-
 #pragma once
 
-using namespace RigidBodyDynamics;
-using namespace RigidBodyDynamics::Math;
+#include <rbdl/rbdl.h>
+
+namespace rbd = RigidBodyDynamics;
+namespace rbdm = RigidBodyDynamics::Math;
+
+using namespace rbd;
+using namespace rbdm;
 
 typedef struct {
   float roll,pitch,yaw;
 } EulerAngles;
 
-float get_q_norm(Quaternion q);
-float get_yaw(Vector4d q);
-EulerAngles get_rpy(Vector4d q);
 
-Matrix3d get_box_inertia(float mass, Vector3d v_size);
-Matrix3d get_tire_inertia(float mass, float radius, float height);
+float get_q_norm(rbdm::Quaternion q);
+float get_yaw(rbdm::Vector4d q);
+EulerAngles get_rpy(rbdm::Vector4d q);
 
-SpatialVector get_body_vel(SpatialVector base_vel, VectorNd X);
-Vector4d get_qnd(Quaternion q, Vector3d w);
+rbdm::Matrix3d get_box_inertia(float mass, rbdm::Vector3d v_size);
+rbdm::Matrix3d get_tire_inertia(float mass, float radius, float height);
+
+rbdm::SpatialVector get_body_vel(rbdm::SpatialVector base_vel, rbdm::VectorNd X);
+rbdm::Vector4d get_qnd(rbdm::Quaternion q, rbdm::Vector3d w);

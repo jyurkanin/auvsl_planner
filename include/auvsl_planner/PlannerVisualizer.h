@@ -3,8 +3,6 @@
 #include <thread>
 #include <utility>
 
-#include "auvsl_planner_node.h"
-
 #include <ompl/base/Planner.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/base/ProblemDefinition.h>
@@ -17,6 +15,9 @@
 #include <X11/Xlib.h>
 
 #include <rbdl/rbdl.h>
+
+#include "TerrainMap.h"
+#include "VehicleStateSpace.h"
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 640
@@ -50,7 +51,7 @@ class PlannerVisualizer{
   void drawSubTree(const ompl::base::PlannerData &planner_data, unsigned vertex);
   static void scaleXY(float state_x, float state_y, float &draw_x, float &draw_y);
 
-  void setObstacles(const std::vector<Rectangle*> &obstacles);
+  void setObstacles(std::vector<Rectangle*> obstacles);
   void drawObstacles();
   void drawGoal();
 
@@ -68,7 +69,7 @@ class PlannerVisualizer{
   ompl::base::PlannerSolution *planner_solution;
 
   unsigned num_waypoints_;
-  std::vector<Vector2d> waypoints_;
+  std::vector<RigidBodyDynamics::Math::Vector2d> waypoints_;
 
   std::vector<Rectangle*> obstacles_;
 

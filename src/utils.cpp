@@ -46,12 +46,12 @@ EulerAngles get_rpy(Vector4d q){
   return ret;
 }
 
-float get_q_norm(Quaternion q){
+float get_q_norm(RigidBodyDynamics::Math::Quaternion q){
   return sqrtf((q[0]*q[0]) + (q[1]*q[1]) + (q[2]*q[2]) + (q[3]*q[3]));
 }
 
 SpatialVector get_body_vel(SpatialVector base_vel, VectorNd X){
-    Quaternion quat(X[3], X[4], X[5], X[10]);
+    RigidBodyDynamics::Math::Quaternion quat(X[3], X[4], X[5], X[10]);
     Vector3d r(X[0], X[1], X[2]);
     SpatialTransform X_base(quat.toMatrix(), r);
     return X_base.apply(base_vel); //transform from world to body coordinates.    
@@ -59,7 +59,7 @@ SpatialVector get_body_vel(SpatialVector base_vel, VectorNd X){
 
 
 //calculate quaternion derivative
-Vector4d get_qnd(Quaternion q, Vector3d w){
+Vector4d get_qnd(RigidBodyDynamics::Math::Quaternion q, Vector3d w){
   float Kstab = .1; //magic number from spatialv2 source. lol.
   Vector4d temp;
   Eigen::Matrix4d Q;

@@ -33,9 +33,11 @@
  *********************************************************************/
   
  /* Author: Ioan Sucan */
-  
- #include "ompl/control/planners/PlannerIncludes.h"
- #include "ompl/datastructures/NearestNeighbors.h"
+
+#pragma once
+
+#include "ompl/control/planners/PlannerIncludes.h"
+#include "ompl/datastructures/NearestNeighbors.h"
   
  namespace ompl
  {

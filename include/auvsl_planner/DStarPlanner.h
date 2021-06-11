@@ -1,7 +1,8 @@
 #include "LocalPlanner.h"
 #include "TerrainMap.h"
 
-#include "Eigen/Core" //the eigen headers dont end in .h
+#include <Eigen/Dense> //the eigen headers dont end in .h
+#include <rbdl/rbdl.h>
 
 #include <vector>
 #include <X11/keysymdef.h>
@@ -20,6 +21,8 @@
  * understand.
  */
 
+using namespace Eigen;
+
 enum TAG {NEW, CLOSED, OPEN};
 enum OCCUPANCY {FREE=0, OBSTACLE=10000};
 enum STATE_TYPE {RAISE, LOWER, NORMAL};
@@ -28,44 +31,47 @@ enum STATE_TYPE {RAISE, LOWER, NORMAL};
 #define COSTMAP_WIDTH 100
 
 //This is not efficient
-typedef struct{
+struct StateData{
     float min_cost;
     float curr_cost;
-    StateData *b_ptr;
+    struct StateData *b_ptr;
     unsigned char x;
     unsigned char y;
     TAG tag;
     OCCUPANCY occupancy;
-} StateData;
+};
 
+typedef struct StateData StateData;
 
-class DStarPlanner : public LocalPlanner {
+class DStarPlanner {
 public:
-    DStarPlanner(const TerrainMap *map);
+    DStarPlanner(SimpleTerrainMap *map);
     ~DStarPlanner();
     
     int initPlanner(Vector2f start, Vector2f goal);
     int runPlanner();
-    void stepPlanner(unsigned &robot_x, unsigned &robot_y);
+    void stepPlanner(StateData *robot_state, Vector2f robot_pos);
     void replan(StateData* robot_state);
 
-
+    void setGlobalPath(const std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints);
+    
     void initWindow();
     void pressEnter();
     void drawState(StateData *state, STATE_TYPE s_type);
     void drawPath(StateData *start);
     
-    float getEdgeCost(Vector2f X, Vector2f Y);    //c(X)
+    float getEdgeCost(StateData* X, StateData* Y);    //c(X)
     float getPathCost(Vector2f X, Vector2f G);    //h(X)
     float getMinPathCost(Vector2f X, Vector2f G); //Min Path Cost since state was added to open list. This is the "key function"
     
-    void insertState(Vector2f X, float path_cost);
+    void insertState(StateData* X, float path_cost);
     void deleteState(StateData *state);
     
     int processState();
     
     StateData* getBPtr();
-    
+
+    void getMapIdx(Vector2f X, unsigned &x, unsigned &y);
     StateData* readStateMap(Vector2f X); //will perform the necessary quantization to go from floating state to grid index
     Vector2f getRealPosition(unsigned x, unsigned y);
     
@@ -77,9 +83,11 @@ private:
     float y_offset_;
     
     StateData state_map_[COSTMAP_WIDTH][COSTMAP_HEIGHT]; //states are 8 connected
-    const TerrainMap *terrain_map_;
+    SimpleTerrainMap *terrain_map_;
     std::vector<StateData*> open_list_; //This is going to be sorted by key function.
 
+    unsigned curr_waypoint_;
+    std::vector<Vector2f> waypoints_;
 
     Display *dpy;
     Window w;
