@@ -1,7 +1,7 @@
 <launch>
     <!-- <include file="$(find jackal_gazebo)/launch/empty_world.launch"> -->
     <rosparam file="$(find auvsl_planner)/config/params.yaml" />
-    <node pkg="auvsl_planner" type="auvsl_planner_node" name="auvsl_global_planner" output="screen" launch-prefix="gdb -ex run --args"/>
+    <node pkg="auvsl_planner" type="auvsl_planner_node" name="auvsl_global_planner" output="screen" launch-prefix="valgrind "/>
 
     
 </launch>

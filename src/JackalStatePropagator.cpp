@@ -7,6 +7,7 @@
 
 JackalStatePropagator::JackalStatePropagator(ompl::control::SpaceInformationPtr si) : StatePropagator(si){
       JackalDynamicSolver::init_model(0);
+      ROS_INFO("Jackal state prop constructor\n");
 }
 
 JackalStatePropagator::~JackalStatePropagator(){

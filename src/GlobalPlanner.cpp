@@ -33,7 +33,7 @@
 
 //statics
 const TerrainMap *GlobalPlanner::global_map_;
-
+ompl::base::StateSpacePtr GlobalPlanner::space_ptr_;
 
 ompl::control::DirectedControlSamplerPtr allocCustomDirectedControlSampler(const ompl::control::SpaceInformation *si){
   return std::make_shared<DirectedVehicleControlSampler>(si, GlobalParams::get_num_control_samples());
@@ -57,23 +57,15 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
   bounds.setLow(1, -100); bounds.setHigh(1, 100); //y
   bounds.setLow(2, -100); bounds.setHigh(2, 100); //z
 
-  bounds.setLow(3, -1); bounds.setHigh(3, 1); //quaterion has to stay on the 4-ball, so its components max is 1, and min is -1
-  bounds.setLow(4, -1); bounds.setHigh(4, 1);
-  bounds.setLow(5, -1); bounds.setHigh(5, 1);
-  bounds.setLow(6, -1); bounds.setHigh(6, 1);
+  bounds.setLow(3, -1.01); bounds.setHigh(3, 1.01); //quaterion has to stay on the unit 4-ball, so its components max is 1, and min is -1
+  bounds.setLow(4, -1.01); bounds.setHigh(4, 1.01); //The .01 is like an epsilon.
+  bounds.setLow(5, -1.01); bounds.setHigh(5, 1.01);
+  bounds.setLow(6, -1.01); bounds.setHigh(6, 1.01);
 
-  bounds.setLow(7, -100); bounds.setHigh(7, 100); //vx
-  bounds.setLow(8, -100); bounds.setHigh(8, 100);
-  bounds.setLow(9, -100); bounds.setHigh(9, 100);
-
-  bounds.setLow(10, -100); bounds.setHigh(10, 100); //wx
-  bounds.setLow(11, -100); bounds.setHigh(11, 100);
-  bounds.setLow(12, -100); bounds.setHigh(12, 100);
-
-  bounds.setLow(13, -100); bounds.setHigh(13, 100); //qd1
-  bounds.setLow(14, -100); bounds.setHigh(14, 100);
-  bounds.setLow(15, -100); bounds.setHigh(15, 100);
-  bounds.setLow(16, -100); bounds.setHigh(16, 100);
+  for(unsigned i = 7; i < 17; i++){
+      bounds.setLow(i, -2000);
+      bounds.setHigh(i, 2000); //vx    
+  }
 
   space->setBounds(bounds);
 
@@ -117,15 +109,20 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
 
 bool GlobalPlanner::isStateValid(const ompl::base::State *state){
   const ompl::base::VehicleStateSpace::StateType& state_vector = *state->as<ompl::base::VehicleStateSpace::StateType>();
-
+  
   //test for roll over
   RigidBodyDynamics::Math::Quaternion quat(state_vector[3], state_vector[4], state_vector[5], state_vector[6]);
   RigidBodyDynamics::Math::Vector3d vec = quat.rotate(RigidBodyDynamics::Math::Vector3d(0,0,1));
   if(vec[2] < 0){ //you could put a number slightly greater than zero here. But I'll leave it as zero for now.
     return false; //if the vehicle has rotated so the z axis of the body frame is pointing down in the world frame, then it fucked up
   }
-
-
+  
+  if(!space_ptr_->satisfiesBounds(state)){
+      ROS_INFO("state auto check");
+      return false;
+  }
+  
+  
   return global_map_->isStateValid(state_vector[0], state_vector[1]);
 }
 
@@ -197,4 +194,7 @@ int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoint
     return EXIT_FAILURE;
   }
 
+  ROS_INFO("Press Enter\n");
+  char getchar;
+  std::cin >> getchar;
 }

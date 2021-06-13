@@ -61,6 +61,9 @@ bool globalPlannerCallback(GlobalPathPlan::Request &req, GlobalPathPlan::Respons
 //1. Solve Global Path Plan
 //2. Run Local Path Planner and try to follow global path plan
 int main(int argc, char **argv){
+  ROS_INFO("Starting up auvsl_planner_node\n");
+  ompl::RNG::setSeed(GlobalParams::get_seed());
+  
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
   ros::ServiceServer g_planner_client = nh.advertiseService<GlobalPathPlan::Request, GlobalPathPlan::Response>("global_planner", globalPlannerCallback);
@@ -80,15 +83,17 @@ int main(int argc, char **argv){
 
 
   std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
-  float start_state[17] = {0,0,0, 0,0,0,1, 0,0,0,0,0,0, 0,0,0,0};
+  float start_state[17] = {50,0,0, 0,0,0,1,  0,0,0,0,0,0,  0,0,0,0};
   RigidBodyDynamics::Math::Vector2d goal_pos(-90,-80);
 
-  g_planner->plan(waypoints, start_state, goal_pos, .01);
+  ROS_INFO("Starting global planner.\n");
+  g_planner->plan(waypoints, start_state, goal_pos, .5);
+
+  ROS_INFO("Done global planning. On to Local planning.\n");
   l_planner->setGlobalPath(waypoints);
   l_planner->runPlanner();
   
   while(ros::ok()){
-    ompl::RNG::setSeed(GlobalParams::get_seed());    
     
     
     ros::spinOnce();

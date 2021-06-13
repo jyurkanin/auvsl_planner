@@ -77,6 +77,8 @@ void PlannerVisualizer::setSolution(ompl::base::PlannerSolution *solution){
   dynamic_model.getWaypoints(controls, durations, states, waypoints_, num_waypoints_);
 
   has_solution = 1;
+
+  ROS_INFO("Got a solution.\n");
 }
 
 void PlannerVisualizer::setObstacles(std::vector<Rectangle*> obstacles){
