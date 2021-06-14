@@ -32,7 +32,7 @@ using namespace auvsl_planner;
 
 SimpleTerrainMap *terrain_map;
 GlobalPlanner *g_planner;
-DStarPlanner *l_planner;
+//DStarPlanner *l_planner;
 
 
 //This function is for later on when other nodes may want to request a global path plan
@@ -79,7 +79,7 @@ int main(int argc, char **argv){
   JackalDynamicSolver::set_terrain_map(terrain_map);
   
   g_planner = new GlobalPlanner(terrain_map);
-  l_planner = new DStarPlanner(terrain_map);
+  //l_planner = new DStarPlanner(terrain_map);
 
 
   std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
@@ -90,8 +90,8 @@ int main(int argc, char **argv){
   g_planner->plan(waypoints, start_state, goal_pos, .5);
   
   ROS_INFO("Done global planning. On to Local planning.\n");
-  l_planner->setGlobalPath(waypoints);
-  l_planner->runPlanner();
+  //l_planner->setGlobalPath(waypoints);
+  //l_planner->runPlanner();
   
   while(ros::ok()){
     
