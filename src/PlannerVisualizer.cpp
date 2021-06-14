@@ -37,8 +37,7 @@ void PlannerVisualizer::startMonitor(){
   XSetBackground(dpy, gc, 0);
 
   has_solution = 0;
-
-
+  
   if (monitorThread_)
     return;
   shouldMonitor_ = true;
@@ -61,25 +60,12 @@ void PlannerVisualizer::stopMonitor(){
 }
 
 
-
-void PlannerVisualizer::setSolution(ompl::base::PlannerSolution *solution){
-  planner_solution = solution;
-
-  ompl::control::PathControl *path = planner_solution->path_->as<ompl::control::PathControl>();
-
-  std::vector<ompl::base::State*> states = path->getStates();
-  std::vector<ompl::control::Control*> controls = path->getControls();
-  std::vector<double> durations = path->getControlDurations();
-
-  JackalStatePropagator dynamic_model(sic_);
-
-  //num_waypoints_ = (controls.size() + 1)*2;  //1 + floorf(path->length() / GlobalParams::get_propagation_step_size());
-  dynamic_model.getWaypoints(controls, durations, states, waypoints_, num_waypoints_);
-
+void PlannerVisualizer::setSolution(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints, unsigned num_waypoints){
+  waypoints_ = waypoints;
+  num_waypoints_ = num_waypoints;
   has_solution = 1;
-
-  ROS_INFO("Got a solution.\n");
 }
+
 
 void PlannerVisualizer::setObstacles(std::vector<Rectangle*> obstacles){
   obstacles_ = obstacles;
@@ -129,9 +115,13 @@ void PlannerVisualizer::drawSolution(){
   }
 }
 
+void PlannerVisualizer::setGoal(RigidBodyDynamics::Math::Vector2d goal){
+  goal_ = goal;
+}
+
 void PlannerVisualizer::drawGoal(){
-  float goal_x = -90;
-  float goal_y = -60;
+  float goal_x = goal_[0];
+  float goal_y = goal_[1];
   float temp_x, temp_y;
   scaleXY(goal_x, goal_y, temp_x, temp_y);
 

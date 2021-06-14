@@ -113,35 +113,6 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
 }
 
 
-void JackalStatePropagator::getWaypoints(std::vector<ompl::control::Control*> &controls, std::vector<double> &durations, std::vector<ompl::base::State*> states, std::vector<Vector2d> &waypoints, unsigned &num_waypoints){
-  waypoints.clear();
-
-  JackalDynamicSolver::init_model(2);
-  JackalDynamicSolver solver;
-
-  unsigned vehicle_state_len = 21;
-  
-  ompl::base::State *start_state = si_->allocState();
-  ompl::base::State *result_state = si_->allocState();
-
-  si_->copyState(start_state, states[0]);
-  const double* start_val = start_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-  waypoints.push_back(Vector2d(start_val[0], start_val[1]));
-  
-  for(unsigned i = 0; i < controls.size(); i++){
-    const double *control_vector = controls[i]->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
-    
-    propagate(start_state, controls[i], durations[i], result_state);
-    si_->copyState(start_state, result_state);
-
-    const double* result_val = result_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-    waypoints.push_back(Vector2d(result_val[0], result_val[1]));
-  }
-  
-  num_waypoints = waypoints.size();
-}
-
-
 
 bool JackalStatePropagator::steer(const ompl::base::State *from, const ompl::base::State *to, ompl::control::Control *result, double &duration) const{
   printf("Steer Function Not Implemented\n"); //Should never happen.

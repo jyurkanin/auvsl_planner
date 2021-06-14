@@ -24,6 +24,7 @@
 
 
 
+
 /*
  * This class header was mostly copy and pasted from PlannerMonitor.h from OMPL
  */
@@ -53,12 +54,14 @@ class PlannerVisualizer{
 
   void setObstacles(std::vector<Rectangle*> obstacles);
   void drawObstacles();
+
+  void setGoal(RigidBodyDynamics::Math::Vector2d);
   void drawGoal();
 
   void startMonitor();
   void stopMonitor();
 
-  void setSolution(ompl::base::PlannerSolution *solution);
+  void setSolution(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints, unsigned num_waypoints);
   void drawSolution();
 
  private:
@@ -71,6 +74,8 @@ class PlannerVisualizer{
   unsigned num_waypoints_;
   std::vector<RigidBodyDynamics::Math::Vector2d> waypoints_;
 
+  RigidBodyDynamics::Math::Vector2d goal_;
+  
   std::vector<Rectangle*> obstacles_;
 
   static float min_state_x_;

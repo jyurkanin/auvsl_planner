@@ -33,6 +33,7 @@ public:
 
   static bool isStateValid(const ompl::base::State *state);
   int plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints, float *vehicle_start_state, RigidBodyDynamics::Math::Vector2d goal_pos, float goal_tol);
+  void getWaypoints(std::vector<ompl::control::Control*> &controls, std::vector<double> &durations, std::vector<ompl::base::State*> states, std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints, unsigned &num_waypoints);
 private:
   static const TerrainMap *global_map_; //don't want to make changes to the terrain map in the global planner.
 

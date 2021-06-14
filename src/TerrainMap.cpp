@@ -3,6 +3,7 @@
 #include <math.h>
 #include <algorithm>
 
+#include <ros/ros.h>
 #include <ompl/util/RandomNumbers.h>
 
 
@@ -134,10 +135,18 @@ std::vector<Rectangle*> SimpleTerrainMap::getObstacles() const{
 int SimpleTerrainMap::isStateValid(float x, float y) const{
   for(unsigned i = 0; i < obstacles.size(); i++){
     if(isPosInBox(x, y, obstacles[i])){
+      ROS_INFO("INVALID STATE: OBSTACLE");
       return 0;
     }
   }
 
-  return (x > Xmin) && (x < Xmax) &&
-         (y > Ymin) && (y < Ymax);
+  if((x > Xmin) && (x < Xmax) &&
+     (y > Ymin) && (y < Ymax)){
+    return 1;
+  }
+  else{
+    ROS_INFO("INVALID STATE: OFF MAP");
+    return 0;
+  }
+  
 }

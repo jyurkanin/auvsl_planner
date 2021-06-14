@@ -85,10 +85,10 @@ int main(int argc, char **argv){
   std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
   float start_state[17] = {50,0,0, 0,0,0,1,  0,0,0,0,0,0,  0,0,0,0};
   RigidBodyDynamics::Math::Vector2d goal_pos(-90,-80);
-
+  
   ROS_INFO("Starting global planner.\n");
   g_planner->plan(waypoints, start_state, goal_pos, .5);
-
+  
   ROS_INFO("Done global planning. On to Local planning.\n");
   l_planner->setGlobalPath(waypoints);
   l_planner->runPlanner();

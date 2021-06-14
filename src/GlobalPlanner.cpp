@@ -2,6 +2,7 @@
 #include <thread>
 #include <stdlib.h>
 #include <memory>
+#include <math.h>
 
 #include "GlobalPlanner.h"
 #include "JackalStatePropagator.h"
@@ -56,7 +57,7 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
   bounds.setLow(0, -100); bounds.setHigh(0, 100); //x
   bounds.setLow(1, -100); bounds.setHigh(1, 100); //y
   bounds.setLow(2, -100); bounds.setHigh(2, 100); //z
-
+  
   bounds.setLow(3, -1.01); bounds.setHigh(3, 1.01); //quaterion has to stay on the unit 4-ball, so its components max is 1, and min is -1
   bounds.setLow(4, -1.01); bounds.setHigh(4, 1.01); //The .01 is like an epsilon.
   bounds.setLow(5, -1.01); bounds.setHigh(5, 1.01);
@@ -66,17 +67,16 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
       bounds.setLow(i, -2000);
       bounds.setHigh(i, 2000); //vx    
   }
-
+  
   space->setBounds(bounds);
-
   space_ptr_.reset(space); //no me gusta shared ptrs
   
   ompl::control::RealVectorControlSpace *cspace = new ompl::control::RealVectorControlSpace(space_ptr_, 2);
-
+  
   //cspace.setControlSamplerAllocator(allocCustomControlSampler);
-
+  
   ompl::base::RealVectorBounds cbounds(2);
-
+  
   cbounds.setLow(0, -GlobalParams::get_max_angular_vel());
   cbounds.setHigh(0, GlobalParams::get_max_angular_vel());
 
@@ -114,11 +114,12 @@ bool GlobalPlanner::isStateValid(const ompl::base::State *state){
   RigidBodyDynamics::Math::Quaternion quat(state_vector[3], state_vector[4], state_vector[5], state_vector[6]);
   RigidBodyDynamics::Math::Vector3d vec = quat.rotate(RigidBodyDynamics::Math::Vector3d(0,0,1));
   if(vec[2] < 0){ //you could put a number slightly greater than zero here. But I'll leave it as zero for now.
+    ROS_INFO("INVALID STATE: ROllOVER");
     return false; //if the vehicle has rotated so the z axis of the body frame is pointing down in the world frame, then it fucked up
   }
   
   if(!space_ptr_->satisfiesBounds(state)){
-      ROS_INFO("state auto check");
+      ROS_INFO("INVALID STATE: OOB");
       return false;
   }
   
@@ -136,15 +137,16 @@ GlobalPlanner::~GlobalPlanner(){
 
 int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints, float *vehicle_start_state, RigidBodyDynamics::Math::Vector2d goal_pos, float goal_tol){
   // construct the state space we are planning in
-
+  
   ompl::base::ScopedState<> start(space_ptr_);
   for(int i = 0; i < 17; i++){
     start[i] = vehicle_start_state[i];
   }
-
+  
   ompl::base::GoalSpace goal(si_);
   ompl::base::VehicleStateSpace gspace(17);
   ompl::base::RealVectorBounds gbounds(17);
+  
   gbounds.setLow(0, goal_pos[0] - goal_tol);
   gbounds.setHigh(0, goal_pos[0] + goal_tol);
 
@@ -156,15 +158,18 @@ int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoint
   }
   gspace.setBounds(gbounds);
   goal.setSpace(ompl::base::StateSpacePtr(&gspace));
-
+  
+  
+  
   pdef_->addStartState(start);
   pdef_->setGoal((ompl::base::GoalPtr) &goal);
-
+  
   planner_->setProblemDefinition(pdef_);
 
   
   PlannerVisualizer planner_visualizer(si_, (ompl::base::PlannerPtr) planner_, .5);
   planner_visualizer.setObstacles(global_map_->getObstacles());
+  planner_visualizer.setGoal(goal_pos);
   if(GlobalParams::get_visualize_planner()){
     planner_visualizer.startMonitor();
   }
@@ -177,6 +182,7 @@ int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoint
   ompl::base::PlannerStatus solved = planner_->solve(ptc);
 
   if(solved){
+    ROS_INFO("\n\nHAS SOLUTION\n\n");
     ompl::base::PlannerSolution soln = pdef_->getSolutions()[0];
     ompl::control::PathControl *path = soln.path_->as<ompl::control::PathControl>();
 
@@ -184,17 +190,61 @@ int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoint
     std::vector<ompl::control::Control*> controls = path->getControls();
     std::vector<double> durations = path->getControlDurations();
 
-    JackalStatePropagator dynamic_model(si_);
-
     unsigned num_waypoints;
-    dynamic_model.getWaypoints(controls, durations, states, waypoints, num_waypoints);
+    getWaypoints(controls, durations, states, waypoints, num_waypoints);
+    planner_visualizer.setSolution(waypoints, num_waypoints);
+    
+    ROS_INFO("Press Enter\n");
+    char getchar;
+    std::cin >> getchar;
+    
     return EXIT_SUCCESS;
   }
   else{
+
+
+    ROS_INFO("Press Enter\n");
+    char getchar;
+    std::cin >> getchar;
+    
     return EXIT_FAILURE;
   }
 
-  ROS_INFO("Press Enter\n");
-  char getchar;
-  std::cin >> getchar;
+
+}
+
+
+void GlobalPlanner::getWaypoints(std::vector<ompl::control::Control*> &controls, std::vector<double> &durations, std::vector<ompl::base::State*> states, std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints, unsigned &num_waypoints){
+  waypoints.clear();
+
+  JackalDynamicSolver::init_model(2);
+
+  unsigned vehicle_state_len = 21;
+  
+  ompl::base::State *start_state = si_->allocState();
+  ompl::base::State *result_state = si_->allocState();
+  
+  
+  //initialize with start state
+  si_->copyState(start_state, states[0]);
+  const double* start_val = start_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+  waypoints.push_back(Vector2d(start_val[0], start_val[1]));
+  
+  
+  ROS_INFO("Num controls %ld     num durations %ld    num states %ld", controls.size(), durations.size(), states.size()); //Sanity check.
+  
+  
+  //Iterate through the controls.
+  for(unsigned i = 0; i < controls.size(); i++){
+    const double *control_vector = controls[i]->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
+    
+    si_->propagateWhileValid(start_state, controls[i], round(durations[i]/si_->getPropagationStepSize()), result_state);
+    si_->copyState(start_state, result_state);
+
+    const double* result_val = result_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+    ROS_INFO("Waypoint %d  %f %f", i, result_val[0], result_val[1]);
+    waypoints.push_back(Vector2d(result_val[0], result_val[1]));
+  }
+  
+  num_waypoints = waypoints.size();
 }

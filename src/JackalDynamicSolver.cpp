@@ -120,8 +120,6 @@ void JackalDynamicSolver::init_model(int debug){
       ROS_INFO("DEBUG LEVEL 2");
       log_file.open("/home/justin/code/AUVSL_ROS/log_file.csv", std::ofstream::out);
   }
-  
-  printf("INIT model\n");
     
   model = NULL;
   Vector3d initial_pos(0,0,0);
