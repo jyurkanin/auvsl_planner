@@ -60,7 +60,7 @@ void SimpleTerrainMap::generateObstacles(){
   //obstacle or whatever. Ill just check and try a different seed.
 
   ompl::RNG rng;
-  const int max_obstacles = 3;
+  const int max_obstacles = 8;
 
   for(int i = 0; i < max_obstacles; i++){
     Rectangle *rect = new Rectangle();
@@ -80,13 +80,20 @@ void SimpleTerrainMap::generateObstacles(){
 
 void SimpleTerrainMap::generateUnknownObstacles(){
   ompl::RNG rng;
-  const int max_obstacles = 5;
+  const int max_obstacles = 100;
 
   for(int i = 0; i < max_obstacles; i++){
     Rectangle *rect = new Rectangle();
 
-    rect->width = rng.uniformReal(10, 20);
-    rect->height = rng.uniformReal(10, 20);
+    if(rng.uniformBool()){
+      rect->width = rng.uniformReal(.1, 2);
+      rect->height = .1;
+    }
+    else{
+      rect->width = .1;
+      rect->height = rng.uniformReal(.1, 2);
+    }
+
 
     rect->x = rng.uniformReal(-80, 80) - rect->width/2;
     rect->y = rng.uniformReal(-80, 80) - rect->height/2;
@@ -97,12 +104,20 @@ void SimpleTerrainMap::generateUnknownObstacles(){
 
 }
 
+
+void SimpleTerrainMap::detectAllObstacles(){
+  for(unsigned i = 0; i < unknown_obstacles.size(); i++){
+    obstacles.push_back(unknown_obstacles[i]);
+  }
+}
+
+
 //"Detect" unknown obstacles that are within a certain distance.
 //arguments are the vehicles position.
 int SimpleTerrainMap::detectObstacles(float x, float y){
   //https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
   int got_new = 0;
-    
+  
   const float SENSOR_RANGE = 5; //Robot will detect any obstacles within 5 meters
   for(unsigned i = 0; i < unknown_obstacles.size(); i++){
     float rect_min_x = unknown_obstacles[i]->x;
@@ -135,17 +150,26 @@ std::vector<Rectangle*> SimpleTerrainMap::getObstacles() const{
 int SimpleTerrainMap::isStateValid(float x, float y) const{
   for(unsigned i = 0; i < obstacles.size(); i++){
     if(isPosInBox(x, y, obstacles[i])){
-      ROS_INFO("INVALID STATE: OBSTACLE");
+      //ROS_INFO("INVALID STATE: OBSTACLE %f %f", x, y);
       return 0;
     }
   }
+
+  /*
+  for(unsigned i = 0; i < unknown_obstacles.size(); i++){
+    if(isPosInBox(x, y, unknown_obstacles[i])){
+      //ROS_INFO("INVALID STATE: OBSTACLE %f %f", x, y);
+      return 0;
+    }
+  }
+  */
 
   if((x > Xmin) && (x < Xmax) &&
      (y > Ymin) && (y < Ymax)){
     return 1;
   }
   else{
-    ROS_INFO("INVALID STATE: OFF MAP");
+    //ROS_INFO("INVALID STATE: OFF MAP %f %f", x, y);
     return 0;
   }
   

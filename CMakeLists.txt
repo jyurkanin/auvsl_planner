@@ -188,7 +188,7 @@ target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node rbdl)
 target_link_libraries(${PROJECT_NAME}_node X11)
 
-set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "")
 
 
 

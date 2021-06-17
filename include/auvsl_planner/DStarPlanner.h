@@ -29,6 +29,7 @@ enum STATE_TYPE {RAISE, LOWER, NORMAL};
 
 #define COSTMAP_HEIGHT 100
 #define COSTMAP_WIDTH 100
+#define EPSILON 1e-4
 
 //This is not efficient
 struct StateData{
@@ -50,16 +51,20 @@ public:
     
     int initPlanner(Vector2f start, Vector2f goal);
     int runPlanner();
-    void stepPlanner(StateData *robot_state, Vector2f robot_pos);
-    void replan(StateData* robot_state);
+    int stepPlanner(StateData*& robot_state, Vector2f &robot_pos);
+    int replan(StateData* robot_state);
 
     void setGlobalPath(const std::vector<RigidBodyDynamics::Math::Vector2d> &waypoints);
     
     void initWindow();
     void pressEnter();
-    void drawState(StateData *state, STATE_TYPE s_type);
+    void drawStateType(StateData *state, STATE_TYPE s_type);
+    void drawStateTag(StateData *state);
+    void drawStateBPtr(StateData *state);
     void drawPath(StateData *start);
-    
+    void drawGoal(StateData *state);
+    void drawFinishedGraph(StateData *state, std::vector<StateData*> &actual_path);
+  
     float getEdgeCost(StateData* X, StateData* Y);    //c(X)
     float getPathCost(Vector2f X, Vector2f G);    //h(X)
     float getMinPathCost(Vector2f X, Vector2f G); //Min Path Cost since state was added to open list. This is the "key function"
@@ -67,9 +72,8 @@ public:
     void insertState(StateData* X, float path_cost);
     void deleteState(StateData *state);
     
-    int processState();
+    float processState();
     
-    StateData* getBPtr();
 
     void getMapIdx(Vector2f X, unsigned &x, unsigned &y);
     StateData* readStateMap(Vector2f X); //will perform the necessary quantization to go from floating state to grid index

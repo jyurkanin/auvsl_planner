@@ -32,7 +32,7 @@ using namespace auvsl_planner;
 
 SimpleTerrainMap *terrain_map;
 GlobalPlanner *g_planner;
-//DStarPlanner *l_planner;
+DStarPlanner *l_planner;
 
 
 //This function is for later on when other nodes may want to request a global path plan
@@ -75,13 +75,12 @@ int main(int argc, char **argv){
   terrain_map = new SimpleTerrainMap();
   terrain_map->generateObstacles();
   terrain_map->generateUnknownObstacles();
-
+  
   JackalDynamicSolver::set_terrain_map(terrain_map);
   
   g_planner = new GlobalPlanner(terrain_map);
-  //l_planner = new DStarPlanner(terrain_map);
-
-
+  l_planner = new DStarPlanner(terrain_map);
+  
   std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
   float start_state[17] = {50,0,0, 0,0,0,1,  0,0,0,0,0,0,  0,0,0,0};
   RigidBodyDynamics::Math::Vector2d goal_pos(-90,-80);
@@ -89,16 +88,22 @@ int main(int argc, char **argv){
   ROS_INFO("Starting global planner.\n");
   g_planner->plan(waypoints, start_state, goal_pos, .5);
   
-  ROS_INFO("Done global planning. On to Local planning.\n");
-  //l_planner->setGlobalPath(waypoints);
-  //l_planner->runPlanner();
   
-  while(ros::ok()){
-    
-    
-    ros::spinOnce();
-    loop_rate.sleep();
-  }
+  ROS_INFO("Done global planning. On to Local planning.\n");
+  
+  //waypoints.push_back(RigidBodyDynamics::Math::Vector2d(-95,-95));
+  //waypoints.push_back(RigidBodyDynamics::Math::Vector2d(95,95));
+
+  l_planner->initWindow();
+  l_planner->setGlobalPath(waypoints);
+  l_planner->runPlanner();
+
+  ROS_INFO("Local Planner Done");
+  
+  //while(ros::ok()){
+  //ros::spinOnce();
+  //loop_rate.sleep();
+  //}
   
   JackalDynamicSolver::del_model();
   

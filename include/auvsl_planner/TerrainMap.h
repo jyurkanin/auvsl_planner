@@ -34,7 +34,8 @@ public:
   void generateUnknownObstacles();
 
   int detectObstacles(float x, float y);
-
+  void detectAllObstacles();
+  
   BekkerData getSoilDataAt(float x, float y) const override;
   float getAltitude(float x, float y) const override;
   int isStateValid(float x, float y) const override; //Only 2D obstacle collision checking for now.
