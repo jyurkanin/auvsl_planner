@@ -15,6 +15,7 @@
 #include <ompl/base/goals/GoalSpace.h>
 #include <ompl/control/SimpleDirectedControlSampler.h>
 
+#include <assert.h>
 
 
 //launch-prefix="gdb -ex run --args
@@ -100,10 +101,11 @@ GlobalPlanner::GlobalPlanner(const TerrainMap* terrain_map){
 
   pdef_ = ompl::base::ProblemDefinitionPtr(new ompl::base::ProblemDefinition(si_));
 
-  planner_ = new ompl::control::VehicleRRT(si_);
-  planner_->setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
-  planner_->setIntermediateStates(GlobalParams::get_add_intermediate_states());
+  ompl::control::VehicleRRT *rrt_planner = new ompl::control::VehicleRRT(si_);
+  rrt_planner->setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
+  rrt_planner->setIntermediateStates(GlobalParams::get_add_intermediate_states());
 
+  planner_ = ompl::base::PlannerPtr(rrt_planner);
   //G_TOLERANCE_ = GlobalParams::get_goal_tolerance();
 }
 
@@ -129,7 +131,8 @@ bool GlobalPlanner::isStateValid(const ompl::base::State *state){
 
 
 GlobalPlanner::~GlobalPlanner(){
-    delete planner_;
+  //delete planner_; //PlannerVisualizer actually deletes this because of shared ptr bs.
+    
 }
 
 
@@ -143,8 +146,8 @@ int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoint
     start[i] = vehicle_start_state[i];
   }
   
-  ompl::base::GoalSpace goal(si_);
-  ompl::base::VehicleStateSpace gspace(17);
+  ompl::base::GoalSpace *goal = new ompl::base::GoalSpace(si_);
+  ompl::base::VehicleStateSpace *gspace = new ompl::base::VehicleStateSpace(17);
   ompl::base::RealVectorBounds gbounds(17);
   
   gbounds.setLow(0, goal_pos[0] - goal_tol);
@@ -156,18 +159,21 @@ int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoint
   for(int i = 2; i < 17; i++){ //Goal region is only in x and y. Unbounded in other state variables.
     gbounds.setLow(i, -1000); gbounds.setHigh(i, 1000);
   }
-  gspace.setBounds(gbounds);
-  goal.setSpace(ompl::base::StateSpacePtr(&gspace));
+  gspace->setBounds(gbounds);
   
   
+  ompl::base::StateSpacePtr gspace_ptr(gspace);
+  goal->setSpace(gspace_ptr);
   
   pdef_->addStartState(start);
-  pdef_->setGoal((ompl::base::GoalPtr) &goal);
+
+  ompl::base::GoalPtr goal_ptr(goal);
+  pdef_->setGoal(goal_ptr);
   
   planner_->setProblemDefinition(pdef_);
 
   
-  PlannerVisualizer planner_visualizer(si_, (ompl::base::PlannerPtr) planner_, .5);
+  PlannerVisualizer planner_visualizer(si_, planner_, .5);
   planner_visualizer.setObstacles(global_map_->getObstacles());
   planner_visualizer.setGoal(goal_pos);
   if(GlobalParams::get_visualize_planner()){
@@ -197,6 +203,8 @@ int GlobalPlanner::plan(std::vector<RigidBodyDynamics::Math::Vector2d> &waypoint
     ROS_INFO("Press Enter\n");
     char getchar;
     std::cin >> getchar;
+    
+    planner_visualizer.stopMonitor();
     
     return EXIT_SUCCESS;
   }

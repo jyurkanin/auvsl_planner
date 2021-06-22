@@ -5,6 +5,10 @@
 #include "GlobalParams.h"
 #include "JackalStatePropagator.h"
 #include "PlannerVisualizer.h"
+#include "TerrainMap.h"
+#include "GlobalPlanner.h"
+#include "DStarPlanner.h"
+
 #include <ompl/base/goals/GoalSpace.h>
 #include <ompl/control/SimpleDirectedControlSampler.h>
 
@@ -109,9 +113,16 @@ void test_quaternion_math(){
 //Compare the dynamic model to state propagator (which uses the dynamic model)
 //Just to make sure everything is doing what I expect
 void test_dynamic_model(){
-  JackalDynamicSolver::init_model(2);
+  JackalDynamicSolver::init_model(0);
   JackalDynamicSolver solver;
+  
+  SimpleTerrainMap *terrain_map = new SimpleTerrainMap();
+  terrain_map->generateObstacles();
+  terrain_map->generateUnknownObstacles();
+  
+  JackalDynamicSolver::set_terrain_map(terrain_map);
 
+  
   int vehicle_state_len = 21;
   
   float x_start[vehicle_state_len];
@@ -133,68 +144,21 @@ void test_dynamic_model(){
   float vl = 1.417517; //  
   float vr = 0.060885;
   float duration = .5;
+
+
+  //solver.get_tire_sinkages_and_cpts(x_start, sinkages, cpt_X);
   solver.solve(x_start, x_end, vl, vr, duration);
   
   for(unsigned i = 0; i < vehicle_state_len; i++){
     x_start[i] = x_end[i];
   }
-  
-  //vl = 0.248812;
-  //vr = 0.544700;
-  //solver.solve(x_start, x_end, vl, vr, duration);
-  
+
+
+  delete terrain_map;
+  JackalDynamicSolver::del_model();
 }
 
 
-
-
-void test_state_propagator(){
-  ROS_INFO("State Propagator Test");
-
-  JackalStatePropagator model(si);
-  ompl::base::State *start_state = si->allocState();
-  ompl::base::State *end_state = si->allocState();
-
-  ompl::control::Control *control = si->allocControl();
-  
-  double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
-  double *start_vector = static_cast<ompl::base::VehicleStateSpace::StateType *>(start_state)->values;
-
-  start_vector[0] = 8;
-  start_vector[1] = 0;
-  start_vector[2] = 0;
-  start_vector[3] = 0;
-  start_vector[4] = 0;
-  start_vector[5] = 0;
-  start_vector[6] = 0;
-  start_vector[7] = 0;
-  start_vector[8] = 0;
-  start_vector[9] = 0;
-
-
-  
-  control_vector[0] = 1;
-  control_vector[1] = 1.130731;
-  model.propagate(start_state, control, 1, end_state);
-  //si->copyState(start_state, end_state);  
-
-
-  std::vector<ompl::control::Control*> controls;
-  std::vector<double> durations;
-  std::vector<ompl::base::State*> states;
-  std::vector<float> waypoints;
-  unsigned num_waypoints;
-
-
-  controls.push_back(control);
-  durations.push_back(1);
-  states.push_back(start_state);
-
-  model.getWaypoints(controls, durations, states, waypoints, num_waypoints);
-  
-  
-  ROS_INFO("Done");
-}
 
 
 // Will two trajectories with slightly different
@@ -270,40 +234,6 @@ void test_state_propagator_divergence(){
 }
 
 
-//Conclusion: I don't actually need to use the get_base_velocity function. I'm an idiot
-void test_get_base_velocity(){
-  float model_state[21] = {0,0,0, 0,0,0, 0,0,0,0, 1, 0,0,0, 0,0,1, 0,0,0,0};
-  Vector3d vel = JackalStatePropagator::get_base_velocity(model_state);
-  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
-
-  model_state[0] = 1;
-  vel = JackalStatePropagator::get_base_velocity(model_state);
-  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
-
-  model_state[0] = 1;
-  model_state[11] = 1;  
-  vel = JackalStatePropagator::get_base_velocity(model_state);
-  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
-
-  model_state[0] = 1;
-  model_state[11] = 1;
-  model_state[12] = 1;  
-  vel = JackalStatePropagator::get_base_velocity(model_state);
-  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
-
-
-  model_state[0] = 12.3;
-  model_state[1] = -4.5;
-  
-  model_state[5] = sinf(.87);
-  model_state[10] = cosf(.87);
-  
-  model_state[11] = -3.3;
-  model_state[12] = 1;
-  model_state[16] = 2.7;  
-  vel = JackalStatePropagator::get_base_velocity(model_state);
-  ROS_INFO("%f %f   %f %f %f\n", model_state[0], model_state[1],  vel[0], vel[1], vel[2]);
-}
 
 //Make sure angle difference is the between [-pi,pi]
 void test_angle_math(){
@@ -477,6 +407,71 @@ void del_ompl(){
   
 }
 
+
+void test_g_planner(){
+  SimpleTerrainMap terrain_map;
+  terrain_map.generateObstacles();
+  terrain_map.generateUnknownObstacles();
+  
+  JackalDynamicSolver::set_terrain_map(&terrain_map);
+  
+  GlobalPlanner g_planner(&terrain_map);
+  
+
+  std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
+  float start_state[17] = {50,30,0, 0,0,0,1,  0,0,0,0,0,0,  0,0,0,0};
+  RigidBodyDynamics::Math::Vector2d goal_pos(51,30);
+
+  g_planner.plan(waypoints, start_state, goal_pos, .5);
+  
+  
+}
+
+
+void test_l_planner(){
+  SimpleTerrainMap terrain_map;
+  terrain_map.generateObstacles();
+  terrain_map.generateUnknownObstacles();
+  
+  DStarPlanner l_planner(&terrain_map);
+  
+  std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
+  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(-95,-95));
+  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(95,95));
+  
+  l_planner.initWindow();
+  l_planner.setGlobalPath(waypoints);
+  l_planner.runPlanner();
+}
+
+void test_obstacle_detection(){
+  SimpleTerrainMap terrain_map;
+  Rectangle *rect = new Rectangle();
+  
+  rect->x = 5;
+  rect->y = 0;
+  rect->width = 5;
+  rect->height = 5;
+    
+  terrain_map.unknown_obstacles.push_back(rect);
+
+  ROS_INFO("4.9 0 is valid:%d", terrain_map.isStateValid(4.9,0));
+  ROS_INFO("5 0 is valid:%d", terrain_map.isStateValid(5,0));
+  ROS_INFO("5.1 0 is valid:%d", terrain_map.isStateValid(5.1,0));
+  ROS_INFO("5.1 .1 is valid:%d", terrain_map.isStateValid(5.1,.1));
+  
+  ROS_INFO("0 0 is detected:%d", terrain_map.detectObstacles(0,0));
+  terrain_map.unknown_obstacles.push_back(rect);
+  ROS_INFO("0 5 is detected:%d", terrain_map.detectObstacles(0,5));
+
+  terrain_map.unknown_obstacles.push_back(rect);
+  ROS_INFO("10 0 is detected:%d", terrain_map.detectObstacles(10,0));
+  terrain_map.unknown_obstacles.push_back(rect);
+  ROS_INFO("0 10 is detected:%d", terrain_map.detectObstacles(0,10));
+  terrain_map.unknown_obstacles.push_back(rect);
+  ROS_INFO("5.1 .1 is detected:%d", terrain_map.detectObstacles(5.1,.1));
+}
+
 int main(int argc, char **argv){
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
@@ -487,20 +482,22 @@ int main(int argc, char **argv){
   ros::Rate loop_rate(10);
   
 
-  init_ompl();
+  //init_ompl();
   //test_vehicle_space();
   //test_quaternion_math();
-  test_state_propagator_divergence();
-  //test_state_propagator();
+  //test_state_propagator_divergence();
   //test_dynamic_model();
+  //test_l_planner();
+  test_obstacle_detection();
   //test_get_base_velocity();
   //test_angle_math();
   //test_vehicle_control_sampler();
   
-  del_ompl();
+  //del_ompl();
   
   ros::spinOnce();
   loop_rate.sleep();
-  
+
+  ros::shutdown();
   return 0;
 }

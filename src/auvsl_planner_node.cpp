@@ -78,22 +78,23 @@ int main(int argc, char **argv){
   
   JackalDynamicSolver::set_terrain_map(terrain_map);
   
-  g_planner = new GlobalPlanner(terrain_map);
+  //g_planner = new GlobalPlanner(terrain_map);
   l_planner = new DStarPlanner(terrain_map);
   
   std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
-  float start_state[17] = {50,0,0, 0,0,0,1,  0,0,0,0,0,0,  0,0,0,0};
-  RigidBodyDynamics::Math::Vector2d goal_pos(-90,-80);
+  float start_state[17] = {50,30,0, 0,0,0,1,  0,0,0,0,0,0,  0,0,0,0};
+  RigidBodyDynamics::Math::Vector2d goal_pos(-53 ,30);
   
   ROS_INFO("Starting global planner.\n");
-  g_planner->plan(waypoints, start_state, goal_pos, .5);
-  
+  //g_planner->plan(waypoints, start_state, goal_pos, .5);
   
   ROS_INFO("Done global planning. On to Local planning.\n");
-  
-  //waypoints.push_back(RigidBodyDynamics::Math::Vector2d(-95,-95));
-  //waypoints.push_back(RigidBodyDynamics::Math::Vector2d(95,95));
 
+  
+  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(-90,-90));
+  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(90,90));
+  
+  
   l_planner->initWindow();
   l_planner->setGlobalPath(waypoints);
   l_planner->runPlanner();
@@ -105,7 +106,11 @@ int main(int argc, char **argv){
   //loop_rate.sleep();
   //}
   
-  JackalDynamicSolver::del_model();
+  //JackalDynamicSolver::del_model();
+  
+  delete terrain_map;
+  delete l_planner;
+  delete g_planner;
   
   return 0;
 }

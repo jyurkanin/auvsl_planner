@@ -26,7 +26,15 @@ SimpleTerrainMap::SimpleTerrainMap(){
 }
 
 SimpleTerrainMap::~SimpleTerrainMap(){
+  for(unsigned i = 0; i < obstacles.size(); i++){
+    delete obstacles[i];
+  }
+  for(unsigned i = 0; i < unknown_obstacles.size(); i++){
+    delete unknown_obstacles[i];
+  }
 
+  unknown_obstacles.clear();
+  obstacles.clear();
 }
 
 
@@ -86,12 +94,12 @@ void SimpleTerrainMap::generateUnknownObstacles(){
     Rectangle *rect = new Rectangle();
 
     if(rng.uniformBool()){
-      rect->width = rng.uniformReal(.1, 2);
-      rect->height = .1;
+      rect->width = rng.uniformReal(4, 20);
+      rect->height = 2;
     }
     else{
-      rect->width = .1;
-      rect->height = rng.uniformReal(.1, 2);
+      rect->width = 2;
+      rect->height = rng.uniformReal(4, 20);
     }
 
 
@@ -109,6 +117,7 @@ void SimpleTerrainMap::detectAllObstacles(){
   for(unsigned i = 0; i < unknown_obstacles.size(); i++){
     obstacles.push_back(unknown_obstacles[i]);
   }
+  unknown_obstacles.clear();
 }
 
 
@@ -118,7 +127,7 @@ int SimpleTerrainMap::detectObstacles(float x, float y){
   //https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
   int got_new = 0;
   
-  const float SENSOR_RANGE = 5; //Robot will detect any obstacles within 5 meters
+  const float SENSOR_RANGE = 10; //Robot will detect any obstacles within 10 meters
   for(unsigned i = 0; i < unknown_obstacles.size(); i++){
     float rect_min_x = unknown_obstacles[i]->x;
     float rect_max_x = unknown_obstacles[i]->x + unknown_obstacles[i]->width;
@@ -142,6 +151,16 @@ int SimpleTerrainMap::detectObstacles(float x, float y){
 
 std::vector<Rectangle*> SimpleTerrainMap::getObstacles() const{
     return obstacles;
+}
+
+int SimpleTerrainMap::isRealStateValid(float x, float y){
+  for(unsigned i = 0; i < unknown_obstacles.size(); i++){
+    if(isPosInBox(x, y, unknown_obstacles[i])){
+      return 0;
+    }
+  }
+
+  return isStateValid(x,y);
 }
 
 //Is state valid based on known information. Does not include unknown obstacles.

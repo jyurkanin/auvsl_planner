@@ -47,16 +47,15 @@ void PlannerVisualizer::startMonitor(){
                                        }));
 }
 
-void PlannerVisualizer::stopMonitor(){
-  XDestroyWindow(dpy, w);
-  XCloseDisplay(dpy);
-
-
+void PlannerVisualizer::stopMonitor(){  
   if (!monitorThread_)
     return;
   shouldMonitor_ = false;
   monitorThread_->join();
   monitorThread_.reset();
+  
+  XDestroyWindow(dpy, w);
+  XCloseDisplay(dpy);
 }
 
 

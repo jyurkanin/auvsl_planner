@@ -39,7 +39,7 @@ private:
 
   ompl::control::SpaceInformationPtr si_;
   ompl::base::ProblemDefinitionPtr pdef_;
-  ompl::control::VehicleRRT *planner_;
+  ompl::base::PlannerPtr planner_;
   static ompl::base::StateSpacePtr space_ptr_; //needed in isStateValid
   //float G_TOLERANCE_;
 };

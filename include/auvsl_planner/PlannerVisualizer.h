@@ -35,8 +35,8 @@ class PlannerVisualizer{
   PlannerVisualizer(const PlannerVisualizer &) = delete;
   PlannerVisualizer &operator=(const PlannerVisualizer &) = delete;
 
-  PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr planner, double period = 0.5)
-    : sic_(sic), planner_(std::move(planner)),  period_(period), shouldMonitor_(false){
+  PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr &planner, double period = 0.5)
+    : sic_(sic), planner_(planner),  period_(period), shouldMonitor_(false){
     const ompl::base::RealVectorBounds &bounds = static_cast<const ompl::base::VehicleStateSpace*>(sic_->getStateSpace().get())->getBounds();
     min_state_x_ = bounds.low[0];
     max_state_x_ = bounds.high[0];
@@ -44,9 +44,7 @@ class PlannerVisualizer{
     max_state_y_ = bounds.high[1];
   }
 
-  ~PlannerVisualizer(){
-      stopMonitor();
-    }
+  ~PlannerVisualizer(){}
 
   void drawTree(const ompl::base::PlannerData &planner_data);
   void drawSubTree(const ompl::base::PlannerData &planner_data, unsigned vertex);

@@ -29,15 +29,15 @@ enum STATE_TYPE {RAISE, LOWER, NORMAL};
 
 #define COSTMAP_HEIGHT 100
 #define COSTMAP_WIDTH 100
-#define EPSILON 1e-4
+#define EPSILON 1e-5
 
 //This is not efficient
 struct StateData{
     float min_cost;
     float curr_cost;
     struct StateData *b_ptr;
-    unsigned char x;
-    unsigned char y;
+    char x;
+    char y;
     TAG tag;
     OCCUPANCY occupancy;
 };
@@ -64,20 +64,23 @@ public:
     void drawPath(StateData *start);
     void drawGoal(StateData *state);
     void drawFinishedGraph(StateData *state, std::vector<StateData*> &actual_path);
+    void drawObstacle(StateData *state);
+    void drawRobotPos(StateData* state);
   
     float getEdgeCost(StateData* X, StateData* Y);    //c(X)
     float getPathCost(Vector2f X, Vector2f G);    //h(X)
     float getMinPathCost(Vector2f X, Vector2f G); //Min Path Cost since state was added to open list. This is the "key function"
-    
+    void getNeighbors(std::vector<StateData*> &neighbors, StateData* X, int replan);
+  
     void insertState(StateData* X, float path_cost);
     void deleteState(StateData *state);
     
-    float processState();
+    float processState(int replan);
     
 
     void getMapIdx(Vector2f X, unsigned &x, unsigned &y);
     StateData* readStateMap(Vector2f X); //will perform the necessary quantization to go from floating state to grid index
-    Vector2f getRealPosition(unsigned x, unsigned y);
+    Vector2f getRealPosition(int x, int y);
     
 private:
     float x_range_;

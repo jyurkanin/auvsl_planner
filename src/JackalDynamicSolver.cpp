@@ -72,7 +72,7 @@ std::ofstream JackalDynamicSolver::temp_log;
 
 Vector3d JackalDynamicSolver::base_size;
 int JackalDynamicSolver::debug_level;
-Model* JackalDynamicSolver::model;
+Model* JackalDynamicSolver::model = 0;
 float JackalDynamicSolver::stepsize;
 float JackalDynamicSolver::tire_radius;
 
@@ -121,7 +121,7 @@ void JackalDynamicSolver::init_model(int debug){
       log_file.open("/home/justin/code/AUVSL_ROS/log_file.csv", std::ofstream::out);
   }
     
-  model = NULL;
+  //model = NULL;
   Vector3d initial_pos(0,0,0);
   
   unsigned int base_id;
@@ -132,8 +132,14 @@ void JackalDynamicSolver::init_model(int debug){
   
   Joint tire_joints[4];
   Joint floating_joint;
+
+  if(model){
+    return;
+  }
   
   model = new Model();
+  
+  
   model->gravity = Vector3d(0., 0., -9.8); //gravity off. lmao
   
   float base_mass = 13; //kg
@@ -177,6 +183,14 @@ JackalDynamicSolver::~JackalDynamicSolver(){
 }
 
 void JackalDynamicSolver::del_model(){
+  //This is probably not a really smart thing to be doing.
+  if(model){
+    delete model;
+    model = 0;
+  }
+  else{
+    return;
+  }
   if(debug_level == 2){
     log_file.close();
   }
@@ -224,9 +238,6 @@ void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinka
     double theta_limit = -M_PI*.25;
     int max_checks = 10;
     float test_sinkage;
-
-    Vector3d z_unit(0,0,1);
-    Vector3d z_rot;
     
     for(int i = 0; i < 4; i++){
       //3 is the front right tire.
@@ -236,18 +247,17 @@ void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinka
       cpt_X[i].r = Vector3d(0,0,0);
       cpt_X[i].E = Matrix3dIdentity;
 
-      
-      z_rot = cpt_X[0].E*z_unit;
       //if(i==0)
-      //ROS_INFO("Center of Tire <%f %f %f>    E*z <%f %f %f>", center_of_tire[0], center_of_tire[1], center_of_tire[2],    z_rot[0], z_rot[1], z_rot[2]);
+      
       for(int j = 0; j < max_checks; j++){
         test_rot = roty(theta_limit - (2*theta_limit*j/((float)(max_checks - 1))));
         
         Matrix3d temp_rot = (vehicle_rot*test_rot).transpose();     //Rot vector from cpt frame to world.
         cpt = center_of_tire - (temp_rot*radius_vec); //Translate vector from cpt frame to world
+        //ROS_INFO("Tire Contact Point <%f %f %f>     Sinkage %f", cpt[0], cpt[1], cpt[2],    test_sinkage);
         test_sinkage = terrain_map_->getAltitude(cpt[0], cpt[1]) - cpt[2];
         //if(i==0)
-        //ROS_INFO("Tire Contact Point <%f %f %f>     Sinkage %f", cpt[0], cpt[1], cpt[2],    test_sinkage);
+        
         
         if(test_sinkage > tire_sinkages[i]){
           tire_sinkages[i] = test_sinkage;
@@ -258,7 +268,6 @@ void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinka
       
     }
     
-    z_rot = cpt_X[0].E*z_unit;
     //ROS_INFO("best tire cpt  r <%f %f %f>  E*z <%f %f %f>   sinkage %f",  cpt_X[0].r[0], cpt_X[0].r[1], cpt_X[0].r[2],    z_rot[0], z_rot[1], z_rot[2],    tire_sinkages[0]);
 }
 

@@ -39,9 +39,10 @@ public:
   BekkerData getSoilDataAt(float x, float y) const override;
   float getAltitude(float x, float y) const override;
   int isStateValid(float x, float y) const override; //Only 2D obstacle collision checking for now.
-
+  int isRealStateValid(float x, float y);
+  
   std::vector<Rectangle*> getObstacles() const override;
-private:
+  //private:
   float Xmax;
   float Xmin;
 
