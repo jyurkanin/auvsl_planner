@@ -44,9 +44,9 @@ bool globalPlannerCallback(GlobalPathPlan::Request &req, GlobalPathPlan::Respons
   }
 
   RigidBodyDynamics::Math::Vector2d goal_pos(req.goal_pos[0], req.goal_pos[1]);
-  
+
   g_planner->plan(waypoints, start_state, goal_pos, req.goal_tol);
-  
+
   for(unsigned i = 0; i < waypoints.size(); i++){
     resp.waypoint_x[i] = waypoints[i][0];
     resp.waypoint_y[i] = waypoints[i][1];
@@ -63,7 +63,7 @@ bool globalPlannerCallback(GlobalPathPlan::Request &req, GlobalPathPlan::Respons
 int main(int argc, char **argv){
   ROS_INFO("Starting up auvsl_planner_node\n");
   ompl::RNG::setSeed(GlobalParams::get_seed());
-  
+
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
   ros::ServiceServer g_planner_client = nh.advertiseService<GlobalPathPlan::Request, GlobalPathPlan::Response>("global_planner", globalPlannerCallback);
@@ -71,46 +71,46 @@ int main(int argc, char **argv){
 
   GlobalParams::load_params(&nh);
   ros::Rate loop_rate(10);
-  
+
   terrain_map = new SimpleTerrainMap();
   terrain_map->generateObstacles();
   terrain_map->generateUnknownObstacles();
-  
+
   JackalDynamicSolver::set_terrain_map(terrain_map);
-  
-  //g_planner = new GlobalPlanner(terrain_map);
-  l_planner = new DStarPlanner(terrain_map);
-  
+
+  g_planner = new GlobalPlanner(terrain_map);
+  //l_planner = new DStarPlanner(terrain_map);
+
   std::vector<RigidBodyDynamics::Math::Vector2d> waypoints;
   float start_state[17] = {50,30,0, 0,0,0,1,  0,0,0,0,0,0,  0,0,0,0};
   RigidBodyDynamics::Math::Vector2d goal_pos(-53 ,30);
-  
+
   ROS_INFO("Starting global planner.\n");
-  //g_planner->plan(waypoints, start_state, goal_pos, .5);
-  
+  g_planner->plan(waypoints, start_state, goal_pos, .5);
+
   ROS_INFO("Done global planning. On to Local planning.\n");
 
-  
-  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(-90,-90));
-  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(90,90));
-  
-  
-  l_planner->initWindow();
-  l_planner->setGlobalPath(waypoints);
-  l_planner->runPlanner();
+
+  //waypoints.push_back(RigidBodyDynamics::Math::Vector2d(-90,-90));
+  //waypoints.push_back(RigidBodyDynamics::Math::Vector2d(90,90));
+
+
+  //l_planner->initWindow();
+  //l_planner->setGlobalPath(waypoints);
+  //l_planner->runPlanner();
 
   ROS_INFO("Local Planner Done");
-  
+
   //while(ros::ok()){
   //ros::spinOnce();
   //loop_rate.sleep();
   //}
-  
+
   //JackalDynamicSolver::del_model();
-  
+
   delete terrain_map;
   delete l_planner;
   delete g_planner;
-  
+
   return 0;
 }

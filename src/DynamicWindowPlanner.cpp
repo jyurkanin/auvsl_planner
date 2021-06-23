@@ -3,7 +3,8 @@
 
 
 DynamicWindowPlanner::DynamicWindowPlanner(){
-
+  dynamic_model = std::make_shared(new JackalStatePropagator(si_));
+  
 }
 
 DynamicWindowPlanner::~DynamicWindowPlanner(){
