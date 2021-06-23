@@ -129,7 +129,6 @@ int DStarPlanner::replan(StateData* robot_state){
     ROS_INFO(" ");
     do{
         k_min = processState(1);
-        ROS_INFO("REEEEplanning kmin=%f", k_min);
     } while(!(k_min >= robot_state->curr_cost) && (k_min != -1));
     
     return k_min;
@@ -210,15 +209,26 @@ int DStarPlanner::stepPlanner(StateData*& robot_state, Vector2f &X_robot){
     
     //ROS_INFO("stepPlanner %f %f", X_robot[0], X_robot[1]);
     
+    std::vector<StateData*> neighbors;
+    
     if(terrain_map_->detectObstacles(X_robot[0], X_robot[1])){
         ROS_INFO("New Obstacles Detected");
         for(unsigned i = 0; i < COSTMAP_WIDTH; i++){
             for(unsigned j = 0; j < COSTMAP_HEIGHT; j++){
                 Vector2f test_pos = getRealPosition(i, j);
                 if((state_map_[i][j].occupancy != OBSTACLE) && !terrain_map_->isStateValid(test_pos[0], test_pos[1])){
-                    ROS_INFO("obstacle at idx %d %d", i, j);
+                    getNeighbors(neighbors, &state_map_[i][j], 1);
+                    
                     state_map_[i][j].occupancy = OBSTACLE;
-                    insertState(&state_map_[i][j], state_map_[i][j].curr_cost);
+                    if(state_map_[i][j].tag == CLOSED){
+                      insertState(&state_map_[i][j], state_map_[i][j].curr_cost);
+                    }
+                    
+                    for(unsigned k = 0; k < neighbors.size(); k++){
+                      if(neighbors[k]->tag == CLOSED){
+                        insertState(neighbors[k], neighbors[k]->curr_cost);
+                      } 
+                    }
                 }
             }
         }
@@ -234,6 +244,7 @@ int DStarPlanner::stepPlanner(StateData*& robot_state, Vector2f &X_robot){
 }
 
 void DStarPlanner::getNeighbors(std::vector<StateData*> &neighbors, StateData* X, int replan){
+  neighbors.clear();
   // each state has 8 Neighbors, top left, top, top right, left, right, etc...
   const char dxdy[8][2] = {
                            {-1,-1},
@@ -328,8 +339,7 @@ float DStarPlanner::processState(int replan){
     //Lower bluh
     // k_old == X->curr_cost but for floats.
     if(fabs(k_old - X->curr_cost) < EPSILON){
-        drawStateType(X, LOWER);
-        
+        drawStateType(X, LOWER);        
         for(unsigned i = 0; i < neighbors.size(); i++){
             Y = neighbors[i];
             //ROS_INFO("Neighbor %u %u", Y->x, Y->y);
