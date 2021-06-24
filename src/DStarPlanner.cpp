@@ -53,16 +53,18 @@ void DStarPlanner::setGlobalPath(const std::vector<RigidBodyDynamics::Math::Vect
   */
   
   Vector2f prev_wp(waypoints[0][0], waypoints[0][0]);
-  const float dist = 5;
+  const float dist = 10;
 
   waypoints_.push_back(prev_wp); 
   
   for(unsigned i = 1; i < waypoints.size(); i++){
     float dx = prev_wp[0] - waypoints[i][0];
-    float dy = prev_wp[0] - waypoints[i][0];
+    float dy = prev_wp[1] - waypoints[i][1];
     
     if(sqrtf((dx*dx) + (dy*dy)) > dist){
-      waypoints_.push_back(Vector2f(waypoints[i][0], waypoints[i][1])); 
+      waypoints_.push_back(Vector2f(waypoints[i][0], waypoints[i][1]));
+      prev_wp[0] = waypoints[i][0];
+      prev_wp[1] = waypoints[i][1];
     }
   }
 
@@ -126,7 +128,6 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
 int DStarPlanner::replan(StateData* robot_state){
     float k_min;
 
-    ROS_INFO(" ");
     do{
         k_min = processState(1);
     } while(!(k_min >= robot_state->curr_cost) && (k_min != -1));
@@ -157,7 +158,7 @@ int DStarPlanner::runPlanner(){
         
         if(initPlanner(X_pos, waypoints_[idx+1]) == -1){   //This finds a solution. aka sets the backpointers from start to goal
             ROS_INFO("Couldn't find an initial path");
-            pressEnter();
+            //pressEnter();
             return 0;
         }
         
@@ -174,6 +175,7 @@ int DStarPlanner::runPlanner(){
         
         do{ //This scans for new obstacles, replans, and follows the backptr
           stepPlanner(X_state, X_pos);
+          usleep(10000);
           if(!X_state){ //could not find a path to goal.
             ROS_INFO("Couldn't find a new path");
             return 0;
@@ -183,7 +185,7 @@ int DStarPlanner::runPlanner(){
           
           drawRobotPos(X_state);
           XFlush(dpy);
-          pressEnter();
+          //pressEnter();
         } while(readStateMap(waypoints_[idx+1]) != X_state);
 
         ROS_INFO("Reached goal");
@@ -256,11 +258,12 @@ void DStarPlanner::getNeighbors(std::vector<StateData*> &neighbors, StateData* X
                            {1,  0},
                            {1,  1}
   };
-  
+
+  /*
   if(X->occupancy == OBSTACLE){
     drawObstacle(&state_map_[X->x][X->y]);
   }
-
+  */
   
   Vector2f pos;
   for(int i = 0; i < 8; i++){
@@ -274,11 +277,13 @@ void DStarPlanner::getNeighbors(std::vector<StateData*> &neighbors, StateData* X
       //This if is important. If during replanning, a state that was discovered to be an obstacle
       //is not expanded, then the b_ptrs will not be updated correctly.
       //But during the initial planning phase it's not necessary to expand states that have
-      //obstacles.
+      //obstacles. I think.
       neighbors.push_back(&state_map_[nx][ny]);
+      /*
       if(state_map_[nx][ny].occupancy == OBSTACLE){
         drawObstacle(&state_map_[nx][ny]);
       }
+      */
       /*
       if(replan){
         neighbors.push_back(&state_map_[nx][ny]);
@@ -719,7 +724,7 @@ void DStarPlanner::drawFinishedGraph(StateData *start, std::vector<StateData*> &
   XSetForeground(dpy, gc, 0xFF);
   StateData *state;
   for(unsigned i = 0 ; i < actual_path.size(); i++){
-    pressEnter();
+    //pressEnter();
     
     state = actual_path[i];
     XFillRectangle(dpy, w, gc, state->x*8, state->y*8, 8, 8);

@@ -86,14 +86,11 @@ int main(int argc, char **argv){
   RigidBodyDynamics::Math::Vector2d goal_pos(-53 ,30);
 
   ROS_INFO("Starting global planner.\n");
-  //g_planner->plan(waypoints, start_state, goal_pos, .5);
+  g_planner->plan(waypoints, start_state, goal_pos, .5);
 
   ROS_INFO("Done global planning. On to Local planning.\n");
 
-
-  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(-90,-90));
-  waypoints.push_back(RigidBodyDynamics::Math::Vector2d(90,90));
-
+  
 
   l_planner->initWindow();
   l_planner->setGlobalPath(waypoints);
