@@ -118,7 +118,7 @@ void JackalDynamicSolver::init_model(int debug){
   debug_level = debug;//;GlobalParams::get_debug_level();
   if(debug_level == 2 && !log_file.is_open()){
       ROS_INFO("DEBUG LEVEL 2");
-      log_file.open("/home/justin/code/AUVSL_ROS/log_file.csv", std::ofstream::out);
+      log_file.open("log_file.csv", std::ofstream::out);
   }
     
   //model = NULL;
@@ -417,6 +417,8 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     //wait_for_x();
 }
 
+//This doesn't actually do anything because the PID controllers are actually PD controllers
+//and don't have anything to reset.
 void JackalDynamicSolver::reset(){
   internal_controller[0].reset();
   internal_controller[1].reset();
@@ -462,26 +464,36 @@ qd_init = [0 0 0 0];
   SpatialVector body_vel_ang(Xout[14],Xout[15],Xout[16],0,0,0);
   
   SpatialVector base_vel = X_base2.inverse().apply(body_vel_ang) + X_base1.inverse().apply(body_vel_lin);
+
+  temp[7] = body_vel_lin[3];
+  temp[8] = body_vel_lin[4];
+  temp[9] = body_vel_lin[5];
+
+  temp[10] = body_vel_ang[0];
+  temp[11] = body_vel_ang[1];
+  temp[12] = body_vel_ang[2];
   
+  /*
   temp[7] = base_vel[0]; //Wx
   temp[8] = base_vel[1]; //Wy
   temp[9] = base_vel[2]; //Wz
   temp[10] = base_vel[3]; //Vx
   temp[11] = base_vel[4]; //Vy
   temp[12] = base_vel[5]; //Vz
-  
+  */  
+
   /*
   temp[17] = Xout[6]; //q1
   temp[18] = Xout[7];
   temp[19] = Xout[8];
   temp[20] = Xout[9];
-
+  
   temp[13] = Xout[17]; //qd1
   temp[14] = Xout[18];
   temp[15] = Xout[19];
   temp[16] = Xout[20];
   */
-
+  
   temp[13] = Xout[6]; //q1
   temp[14] = Xout[7];
   temp[15] = Xout[8];
@@ -515,7 +527,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
     //ROS_INFO("Herp %f %f %f %f", Xout[17], Xout[18], Xout[19], Xout[20]);
     step(Xout, Xout_next, vl, vr);
     
-    if(debug_level == 2){
+    if(debug_level == 2 && (timestep % 10 == 0)){
         log_xout(Xout);
     }
     
