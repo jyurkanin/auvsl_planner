@@ -477,16 +477,24 @@ void gen_path_data(){
     float xnext[21];
         
     JackalDynamicSolver::init_model(2);
-
-    ompl::RNG rng(1);
-    float vl, vr;
+    
     JackalDynamicSolver solver;
-    for(int i = 0; i < 1000; i++){
-        vl = rng.uniformReal(0, 10);
-        vr = rng.uniformReal(0, 10);
+    ompl::RNG rng(1);
+    float vl, vr, vf, w;
+    float base_width = solver.base_size[0];
+    SimpleTerrainMap *terrain_map = new SimpleTerrainMap();
+    JackalDynamicSolver::set_terrain_map(terrain_map);
+    for(int i = 0; i < 10000; i++){
+        vf = rng.uniformReal(-10, 10);
+        w = rng.uniformReal(-1, 1);
+        
+        vl = (vf - w*(base_width/2.0))/solver.tire_radius;
+        vr = (vf + w*(base_width/2.0))/solver.tire_radius;
         
         solver.solve(xout, xnext, vl, vr, 1);
         memcpy(xout, xnext, sizeof(float)*21);
+        if(i%100 == 0)
+          ROS_INFO("Progress %d/10", i/100);
     }
     
     JackalDynamicSolver::del_model();
