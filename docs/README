@@ -1,3 +1,28 @@
+Full Vehicle State for RBDL vehicle dynamics simulation:
+0 1 2   3  4  5    6  7  8  9    10   11 12 13   14 15 16   17  18  19  20 
+x,y,z,  qx,qy,qz,  q1,q2,q3,q4,  qw,  vx,vy,vz,  ax,ay,az,  qd1,qd2,qd3,qd4
+
+Full Vehicle State for Planning:
+0 1 2   3  4  5  6   7  8  9  10 11 12  13  14  15  16
+x,y,z,  qx,qy,qz,qw, vx,vy,vz,wx,wy,wz, qd1,qd2,qd3,qd4
+
+
+
+
+Tutorials I used:
+http://wiki.ros.org/navigation/Tutorials/Writing%20A%20Global%20Path%20Planner%20As%20Plugin%20in%20ROS
+http://wiki.ros.org/navigation/Tutorials/RobotSetup
+http://wiki.ros.org/navigation/Tutorials/Using%20rviz%20with%20the%20Navigation%20Stack
+
+http://wiki.ros.org/ROS/Tutorials/WritingServiceClient%28c%2B%2B%29
+http://wiki.ros.org/rtabmap_ros/Tutorials/SetupOnYourRobot#Kinect_.2B-_2D_laser
+
+
+
+Docs I used:
+http://wiki.ros.org/costmap_2d
+http://wiki.ros.org/move_base
+http://wiki.ros.org/rtabmap_ros
 
 
 Source Files:

@@ -1,5 +1,6 @@
 
 
+
 * Design Decisions:
   Not going to use moveit.
   Moveit is designed to be used with robot arms and is mostly concerned with
@@ -30,11 +31,34 @@
   
   
 
-* TODO Mapping
-  Wait for fancy maping software
-  In the mean time, dont bother with gazebo yet.
-  Just use a simple 3D height map. Generate some known obstacles. Generate some unknown obstacles.
   
+* Octomap/RTabMap
+  1. Visualize the rosbag file from cerl. (Nope. Will use the freiburg campus)
+  2. Load it into gazebo somehow as a world file.
+  3. Figure out a way to use it to create a global map.
+  4. Run the jackal in this global map and perform local planning.
+     Will need a control system to follow the waypoints.
+  
+  An RTabMap of the Freiburg campus is generated.
+  I need to edit the auvsl_planner launch file to run the RTabMap, Jackal Gazebo sim,
+  and the auvsl_planner node.
+  
+  Somehow convert an rtabmap into a gazebo world
+  Create point cloud from rtabmap laser scans.
+  Use meshlab to convert point cloud to mesh
+  
+
+  1. Request a complete octomap from RTabMap from the auvsl_planner node
+  2. Do global planning on the octomap with a low level of fidelity.
+     Set octomap resolution to like a meter or something
+  3. Do Local planning on the octomap with a much higher level of fidelity
+     Or use RTabMap to request a 2d occupancy grid.
+  4. 
+
+
+
+
+
   
 
 * OMPL
@@ -56,7 +80,7 @@
   Find out about distance function. Its L2 norm implemented in RealVectorStateSpace.
   Distance function gets used in the nearest neighbor calculations.
   It might be good to actually just leave it how it is. Probably not.
-
+  
 
 * DONE Intelligent state sampling
   Make the state space sampler more likely
@@ -90,6 +114,12 @@
   bad. Fortunately I figured it out long ago through trial and error
   and suffering. Note RBDL linear velocity actually matches real linear
   velocity. Oh.
+
+* LPF the vehicle controls to produce smoother trajectories
+  I belive the jackal state propagator can take into account the previous control
+  and I can provide a short interpolation between previous and current controls
+  to ensure smoother motion.
+  update. I don't have access to the previous control.
 
 * <2021-03-18 Thu> Update
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.

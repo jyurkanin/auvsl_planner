@@ -1,0 +1,115 @@
+#include "OctoTerrainMap.h"
+
+
+
+OctoTerrainMap::OctoTerrainMap(ros::NodeHandle nh){
+    ros::Rate loop_rate(10);
+    ros::ServiceClient client = nh.serviceClient<octomap_msgs::GetOctomap>("/rtabmap/octomap_full"); 
+    octomap_msgs::GetOctomap srv;
+
+    client.waitForExistence();
+    
+    ROS_INFO("Requesting Octomap");
+    if(client.call(srv)){
+        ROS_INFO("Got the full octomap");
+    }
+    else{
+        ROS_INFO("Could not obtain an octomap");
+    }
+    
+    octomap_ = (octomap::OcTree*) octomap_msgs::fullMsgToMap(srv.response.map);
+    
+    oc_grid_ = NULL;
+
+    ROS_INFO("trying to get an occupancy grid");
+    ros::Subscriber sub = nh.subscribe("/rtabmap/octomap_grid", 100, &OctoTerrainMap::ocGridCallback, this);
+    for(unsigned i = 0; i < 1000; i++){
+        ROS_INFO("waiting for occupancy grid");
+        ros::spinOnce();
+        ROS_INFO("Did a spin move");
+        loop_rate.sleep();
+        ROS_INFO("loop sleeping");
+        if(oc_grid_){
+            break;
+        }
+    }
+    ROS_INFO("Got the octomap occupancy grid");
+}
+
+
+OctoTerrainMap::~OctoTerrainMap(){
+    if(oc_grid_){
+        delete oc_grid_;
+    }
+    
+    delete octomap_;
+}
+
+
+
+void OctoTerrainMap::ocGridCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg){
+    cols_ = msg->info.width;
+    rows_ = msg->info.height;
+    unsigned map_size = cols_*rows_;
+    
+    map_res_ = msg->info.resolution;
+    
+    ROS_INFO("Occupancy map <%u,%u>   <%f,%f>   %f", cols_, rows_,   cols_*map_res_, rows_*map_res_,   map_res_);
+    
+    if(oc_grid_){
+        delete oc_grid_;
+    }
+    oc_grid_ = new unsigned char[map_size];
+    
+    for(unsigned i = 0; i < map_size; i++){
+        oc_grid_[i] = msg->data[i];
+    }
+    
+    
+}
+
+float OctoTerrainMap::getMapRes(){
+    return map_res_;
+}
+
+
+
+
+
+
+//overriden methods
+
+BekkerData OctoTerrainMap::getSoilDataAt(float x, float y) const{
+    return lookup_soil_table(0);
+}
+
+float OctoTerrainMap::getAltitude(float x, float y, float z_guess) const{
+    octomap::point3d start(x, y, z_guess);
+    octomap::point3d direction(0,0,-1);
+    octomap::point3d end;
+    
+    octomap_->castRay(start, direction, end);
+    
+    return end.z();
+}
+
+int OctoTerrainMap::isStateValid(float x, float y) const{
+    //look up in the oc_grid_ to see if thing is occupied
+    unsigned x_idx = x / map_res_;
+    unsigned y_idx = y / map_res_;
+    
+    if((y_idx < 0) || (x_idx < 0) || (y_idx >= rows_) || (x_idx >= cols_)){
+        return 0;
+    }
+
+    if(oc_grid_[(y_idx*cols_) + x_idx] > .5){
+        return 0; //state is occupied if occupancy > 50%. At least I think thats how it all works.
+    }
+    
+    return (x > Xmin) && (x < Xmax) && (y > Ymin) && (y < Ymax);
+}
+
+std::vector<Rectangle*> OctoTerrainMap::getObstacles() const{
+    std::vector<Rectangle*> obstacles; //Lol, idk what I'm gonna do here exactly. I might remove this method from the base class
+    return obstacles;
+}

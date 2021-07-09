@@ -49,9 +49,15 @@
   <exec_depend>octomap</exec_depend>
   <exec_depend>ompl</exec_depend>
 
+  <depend>nav_core</depend>
+  <depend>costmap_2d</depend>
+  <depend>pluginlib</depend>
+  <depend>move_base</depend>
+  
   <!-- The export tag contains other, unspecified, tags -->
   <export>
-    <!-- Other tools can request additional information be placed here -->
+
+  <nav_core plugin="${prefix}/global_planner_plugin.xml" />
 
   </export>
 </package>

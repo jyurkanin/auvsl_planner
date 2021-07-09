@@ -155,7 +155,14 @@ ${catkin_INCLUDE_DIRS}
 include_directories(include/auvsl_planner)
 
 
+find_package(pluginlib REQUIRED)
+include_directories(${PLUGINLIB_INCLUDE_DIRS})
 
+find_package(costmap_2d REQUIRED)
+include_directories(${COSTMAP_2D_INCLUDE_DIRS})
+
+find_package(move_base REQUIRED)
+include_directories(${MOVE_BASE_INCLUDE_DIRS})
 
 find_package(octomap REQUIRED)
 include_directories(${OCTOMAP_INCLUDE_DIRS})
@@ -166,6 +173,7 @@ include_directories(${OMPL_INCLUDE_DIRS})
 
 
 add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
+  src/OctoTerrainMap.cpp
   src/DStarPlanner.cpp
   src/GlobalParams.cpp
   src/GlobalPlanner.cpp
@@ -182,6 +190,15 @@ add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
   )
 
 
+add_library(global_planner_lib   src/GlobalPlanner.cpp)
+
+
+message(STATUS "move_base: ${move_base_LIBRARIES}")
+
+
+target_link_libraries(${PROJECT_NAME}_node ${pluginlib_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${costmap_2d_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${move_base_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${OCTOMAP_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${OMPL_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
@@ -197,30 +214,30 @@ set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3")
 
 
 
-add_executable(test_planner_node src/test_planner_node.cpp
-  src/DStarPlanner.cpp
-  src/GlobalParams.cpp
-  src/GlobalPlanner.cpp
-  src/JackalStatePropagator.cpp
-  src/TerrainMap.cpp
-  src/JackalDynamicSolver.cpp
-  src/PlannerVisualizer.cpp
-  src/utils.cpp
-  src/VehicleStateSpace.cpp
-  src/VehicleStateProjections.cpp
-  src/VehicleControlSampler.cpp
-  src/DirectedVehicleControlSampler.cpp
-  src/VehicleRRT.cpp
-  )
+#add_executable(test_planner_node src/test_planner_node.cpp
+#  src/DStarPlanner.cpp
+#  src/GlobalParams.cpp
+#  src/GlobalPlanner.cpp
+#  src/JackalStatePropagator.cpp
+#  src/TerrainMap.cpp
+#  src/JackalDynamicSolver.cpp
+#  src/PlannerVisualizer.cpp
+#  src/utils.cpp
+#  src/VehicleStateSpace.cpp
+#  src/VehicleStateProjections.cpp
+#  src/VehicleControlSampler.cpp
+#  src/DirectedVehicleControlSampler.cpp
+#  src/VehicleRRT.cpp
+#  )
 
 
-target_link_libraries(test_planner_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(test_planner_node ${OMPL_LIBRARIES})
-target_link_libraries(test_planner_node ${catkin_LIBRARIES})
-target_link_libraries(test_planner_node rbdl)
-target_link_libraries(test_planner_node X11)
+#target_link_libraries(test_planner_node ${OCTOMAP_LIBRARIES})
+#target_link_libraries(test_planner_node ${OMPL_LIBRARIES})
+#target_link_libraries(test_planner_node ${catkin_LIBRARIES})
+#target_link_libraries(test_planner_node rbdl)
+#target_link_libraries(test_planner_node X11)
 
-set_target_properties(test_planner_node PROPERTIES COMPILE_FLAGS "")
+#set_target_properties(test_planner_node PROPERTIES COMPILE_FLAGS "")
 
 
 

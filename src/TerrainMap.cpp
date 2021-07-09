@@ -58,7 +58,7 @@ BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y) const{
 }
 
 
-float SimpleTerrainMap::getAltitude(float x, float y) const{
+float SimpleTerrainMap::getAltitude(float x, float y, float z_guess) const{
     return .1*sinf(x*.2);//fmax(0.0f,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
 }
 
@@ -191,5 +191,4 @@ int SimpleTerrainMap::isStateValid(float x, float y) const{
     //ROS_INFO("INVALID STATE: OFF MAP %f %f", x, y);
     return 0;
   }
-  
 }

@@ -19,7 +19,7 @@ BekkerData lookup_soil_table(int index);
 class TerrainMap{
 public:
     virtual BekkerData getSoilDataAt(float x, float y) const = 0;
-    virtual float getAltitude(float x, float y) const = 0;
+    virtual float getAltitude(float x, float y, float z_guess) const = 0;
     virtual int isStateValid(float x, float y) const = 0;
     virtual std::vector<Rectangle*> getObstacles() const = 0;
 };
@@ -37,7 +37,7 @@ public:
   void detectAllObstacles();
   
   BekkerData getSoilDataAt(float x, float y) const override;
-  float getAltitude(float x, float y) const override;
+  float getAltitude(float x, float y, float z_guess) const override;
   int isStateValid(float x, float y) const override; //Only 2D obstacle collision checking for now.
   int isRealStateValid(float x, float y);
   

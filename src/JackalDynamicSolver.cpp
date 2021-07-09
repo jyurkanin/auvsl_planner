@@ -255,7 +255,7 @@ void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinka
         Matrix3d temp_rot = (vehicle_rot*test_rot).transpose();     //Rot vector from cpt frame to world.
         cpt = center_of_tire - (temp_rot*radius_vec); //Translate vector from cpt frame to world
         //ROS_INFO("Tire Contact Point <%f %f %f>     Sinkage %f", cpt[0], cpt[1], cpt[2],    test_sinkage);
-        test_sinkage = terrain_map_->getAltitude(cpt[0], cpt[1]) - cpt[2];
+        test_sinkage = terrain_map_->getAltitude(cpt[0], cpt[1], cpt[2]+.5) - cpt[2];
         //if(i==0)
         
         
@@ -302,7 +302,6 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     
     Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer0_out;
     Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer2_out;
-    //Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer4_out;
     Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> layer4_out;
     Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> labels;
     Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> scaled_features;
