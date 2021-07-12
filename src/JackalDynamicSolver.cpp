@@ -118,7 +118,7 @@ void JackalDynamicSolver::init_model(int debug){
   debug_level = debug;//;GlobalParams::get_debug_level();
   if(debug_level == 2 && !log_file.is_open()){
       ROS_INFO("DEBUG LEVEL 2");
-      log_file.open("/home/justin/code/AUVSL_ROS/log_file.csv", std::ofstream::out);
+      log_file.open("/home/justin/xout_file.csv", std::ofstream::out);
   }
     
   //model = NULL;
@@ -312,6 +312,11 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     float sinkages[4];
     get_tire_sinkages_and_cpts(X, sinkages, cpt_X);
     
+    sinkages_[0] = sinkages[0];
+    sinkages_[1] = sinkages[1];
+    sinkages_[2] = sinkages[2];
+    sinkages_[3] = sinkages[3];
+    
     Vector3d tire_vels[4];
     get_tire_vels(X, tire_vels, cpt_X);
     
@@ -417,6 +422,8 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     //wait_for_x();
 }
 
+//This doesn't actually do anything because the PID controllers are actually PD controllers
+//and don't have anything to reset.
 void JackalDynamicSolver::reset(){
   internal_controller[0].reset();
   internal_controller[1].reset();
@@ -443,6 +450,9 @@ void JackalDynamicSolver::log_xout(float *Xout){
 q_init = [0 .4 .8 1.2];
 qd_init = [0 0 0 0];
 */
+  
+  if(timestep < 9980000)
+    return;
   float temp[21];
   temp[0] = Xout[10];
   temp[1] = Xout[3];
@@ -469,19 +479,20 @@ qd_init = [0 0 0 0];
   temp[10] = base_vel[3]; //Vx
   temp[11] = base_vel[4]; //Vy
   temp[12] = base_vel[5]; //Vz
-  
+    
+
   /*
   temp[17] = Xout[6]; //q1
   temp[18] = Xout[7];
   temp[19] = Xout[8];
   temp[20] = Xout[9];
-
+  
   temp[13] = Xout[17]; //qd1
   temp[14] = Xout[18];
   temp[15] = Xout[19];
   temp[16] = Xout[20];
   */
-
+  
   temp[13] = Xout[6]; //q1
   temp[14] = Xout[7];
   temp[15] = Xout[8];
@@ -498,6 +509,35 @@ qd_init = [0 0 0 0];
   log_file << temp[20] << "\n";
 }
 
+
+void JackalDynamicSolver::log_features(float *Xout, float vl, float vr){
+  static float old_Xout[21] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+  if(timestep%10 == 0){
+    for(int i = 0; i < 21; i++){
+      log_file << Xout[i] << ',';
+    }
+
+    log_file << vl << ',';
+    log_file << vr << ',';
+
+    log_file << fmax(0,sinkages_[0]) << ',';
+    log_file << fmax(0,sinkages_[1]) << ',';
+    log_file << fmax(0,sinkages_[2]) << ',';
+    log_file << fmax(0,sinkages_[3]) << ',';
+    
+    for(int i = 0; i < 20; i++){
+      log_file << Xout[i] - old_Xout[i] << ',';
+    }
+    log_file << Xout[20] - old_Xout[20] << '\n';
+
+    for(int i = 0; i < 21; i++){
+      Xout[i] = old_Xout[i];
+    }
+  }
+}
+
+
 void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr, float sim_time){
   int sim_steps = floorf(sim_time/stepsize);
   float Xout[21];
@@ -510,13 +550,15 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
   for(int i = 0; i < 21; i++){
     Xout[i] = x_init[i];
   }
-  
-  for(timestep = 0; (timestep) < sim_steps; timestep++){
+
+  unsigned max_steps = sim_steps + timestep;
+  for(; timestep < max_steps; timestep++){
     //ROS_INFO("Herp %f %f %f %f", Xout[17], Xout[18], Xout[19], Xout[20]);
     step(Xout, Xout_next, vl, vr);
     
     if(debug_level == 2){
-        log_xout(Xout);
+      log_xout(Xout);
+      //log_features(Xout, vl, vr);
     }
     
     for(int i = 0; i < 21; i++){

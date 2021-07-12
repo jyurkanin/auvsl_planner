@@ -59,7 +59,7 @@ BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y) const{
 
 
 float SimpleTerrainMap::getAltitude(float x, float y) const{
-  return fmax(0.0f,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
+    return .1*sinf(x*.2);//fmax(0.0f,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
 }
 
 void SimpleTerrainMap::generateObstacles(){
@@ -88,18 +88,18 @@ void SimpleTerrainMap::generateObstacles(){
 
 void SimpleTerrainMap::generateUnknownObstacles(){
   ompl::RNG rng;
-  const int max_obstacles = 100;
+  const int max_obstacles = 1000;
 
   for(int i = 0; i < max_obstacles; i++){
     Rectangle *rect = new Rectangle();
 
     if(rng.uniformBool()){
-      rect->width = rng.uniformReal(4, 20);
-      rect->height = 2;
+      rect->width = rng.uniformReal(1, 4);
+      rect->height = 1;
     }
     else{
-      rect->width = 2;
-      rect->height = rng.uniformReal(4, 20);
+      rect->width = 1;
+      rect->height = rng.uniformReal(1, 4);
     }
 
 
@@ -127,7 +127,7 @@ int SimpleTerrainMap::detectObstacles(float x, float y){
   //https://stackoverflow.com/questions/5254838/calculating-distance-between-a-point-and-a-rectangular-box-nearest-point
   int got_new = 0;
   
-  const float SENSOR_RANGE = 10; //Robot will detect any obstacles within 10 meters
+  const float SENSOR_RANGE = 2; //Robot will detect any obstacles within 2 meters
   for(unsigned i = 0; i < unknown_obstacles.size(); i++){
     float rect_min_x = unknown_obstacles[i]->x;
     float rect_max_x = unknown_obstacles[i]->x + unknown_obstacles[i]->width;

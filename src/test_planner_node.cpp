@@ -472,6 +472,34 @@ void test_obstacle_detection(){
   ROS_INFO("5.1 .1 is detected:%d", terrain_map.detectObstacles(5.1,.1));
 }
 
+void gen_path_data(){
+    float xout[21] = {0,0,0, 0,0,0, 0,0,0,0, 1, 0,0,0,0,0,0, 0,0,0,0};
+    float xnext[21];
+        
+    JackalDynamicSolver::init_model(2);
+    
+    JackalDynamicSolver solver;
+    ompl::RNG rng(1);
+    float vl, vr, vf, w;
+    float base_width = solver.base_size[0];
+    SimpleTerrainMap *terrain_map = new SimpleTerrainMap();
+    JackalDynamicSolver::set_terrain_map(terrain_map);
+    for(int i = 0; i < 10000; i++){
+        vf = rng.uniformReal(-10, 10);
+        w = rng.uniformReal(-1, 1);
+        
+        vl = (vf - w*(base_width/2.0))/solver.tire_radius;
+        vr = (vf + w*(base_width/2.0))/solver.tire_radius;
+        
+        solver.solve(xout, xnext, vl, vr, 1);
+        memcpy(xout, xnext, sizeof(float)*21);
+        if(i%100 == 0)
+          ROS_INFO("Progress %d/10", i/100);
+    }
+    
+    JackalDynamicSolver::del_model();
+}
+
 int main(int argc, char **argv){
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
@@ -488,7 +516,8 @@ int main(int argc, char **argv){
   //test_state_propagator_divergence();
   //test_dynamic_model();
   //test_l_planner();
-  test_obstacle_detection();
+  //test_obstacle_detection();
+  gen_path_data();
   //test_get_base_velocity();
   //test_angle_math();
   //test_vehicle_control_sampler();

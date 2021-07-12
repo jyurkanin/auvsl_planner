@@ -77,7 +77,8 @@ class JackalDynamicSolver{
   void ode(float *X, float *Xd);
   void apply_force(SpatialVector wrench, int body);
   void log_xout(float *Xout);
-
+  void log_features(float *Xout, float vl, float vr);
+  
   // private:
 
   PIDController internal_controller[2];
@@ -90,7 +91,8 @@ class JackalDynamicSolver{
   int timestep;
   VectorNd tau;
   std::vector<SpatialVector> f_ext;
-
+  float sinkages_[4];
+  
   static float tire_radius;
 
   static Eigen::Matrix<float,num_hidden_nodes,num_in_features> weight0;

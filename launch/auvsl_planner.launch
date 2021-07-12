@@ -1,5 +1,7 @@
 <launch>
-    <!-- <include file="$(find jackal_gazebo)/launch/empty_world.launch"> -->
+    <!-- Following is for some reason required in ROS Noetic. My mistake for using noetic :( -->
+    <param name="robot_description" command="$(find xacro)/xacro $(find jackal_description)/urdf/jackal.urdf.xacro"/>
+    <include file="$(find jackal_gazebo)/launch/hrtac_world.launch"/>
     <rosparam file="$(find auvsl_planner)/config/params.yaml" />
     <node pkg="auvsl_planner" type="auvsl_planner_node" name="auvsl_global_planner" output="screen" launch-prefix=" "/>
 
