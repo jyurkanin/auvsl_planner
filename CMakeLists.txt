@@ -107,7 +107,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES auvsl_planner
-CATKIN_DEPENDS roscpp rospy std_msgs
+CATKIN_DEPENDS roscpp rospy std_msgs octomap
 #  DEPENDS rbdl ompl octomap  #One day I may have to figure this out.
 )
 
@@ -164,9 +164,9 @@ include_directories(${COSTMAP_2D_INCLUDE_DIRS})
 find_package(move_base REQUIRED)
 include_directories(${MOVE_BASE_INCLUDE_DIRS})
 
-find_package(octomap REQUIRED)
+find_package(octomap REQUIRED NO_CMAKE_SYSTEM_PATH)
 include_directories(${OCTOMAP_INCLUDE_DIRS})
-#link_directories(${OCTOMAP_LIBRARY_DIRS}
+link_directories(${OCTOMAP_LIBRARY_DIRS})
 
 find_package(ompl REQUIRED)
 include_directories(${OMPL_INCLUDE_DIRS})
@@ -193,7 +193,7 @@ add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
 add_library(global_planner_lib   src/GlobalPlanner.cpp)
 
 
-message(STATUS "move_base: ${move_base_LIBRARIES}")
+message(STATUS "octomap: ${OCTOMAP_LIBRARIES}")
 
 
 target_link_libraries(${PROJECT_NAME}_node ${pluginlib_LIBRARIES})

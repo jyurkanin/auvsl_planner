@@ -11,12 +11,12 @@
 #include "OctoTerrainMap.h"
 
 //msgs
-#include <auvsl_planner/LocalPathPlan.h>
+//#include <auvsl_planner/LocalPathPlan.h>
 //srvs
-#include <auvsl_planner/GlobalPathPlan.h>
+#//include <auvsl_planner/GlobalPathPlan.h>
 #include <std_srvs/Empty.h>
 #include <nav_msgs/GetPlan.h>
-
+#include <geometry_msgs/Twist.h>
 
 #include <ompl/util/RandomNumbers.h>
 #include <ompl/base/goals/GoalSpace.h>
@@ -32,7 +32,7 @@
 using namespace RigidBodyDynamics;
 using namespace RigidBodyDynamics::Math;
 
-using namespace auvsl_planner;
+//using namespace auvsl_planner;
 
 
 
@@ -55,6 +55,18 @@ int main(int argc, char **argv){
   ompl::RNG::setSeed(GlobalParams::get_seed());
   
   ros::Rate loop_rate(10);
+
+  ros::Publisher cmd_vel_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 100);
+  geometry_msgs::Twist msg;
+  
+  msg.linear.x = 0;
+  msg.linear.y = 0;
+  msg.linear.z = 0;
+  msg.angular.x = 0;
+  msg.angular.y = 0;
+  msg.angular.z = 0;
+  
+  cmd_vel_pub.publish(msg);
   
   ros::ServiceClient localization_srv = nh.serviceClient<std_srvs::Empty>("/rtabmap/set_mode_localization");
   std_srvs::Empty empty_srv;
