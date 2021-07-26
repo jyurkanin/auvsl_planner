@@ -13,7 +13,7 @@ visualize_planner: 1
 goal_bias: .1
 goal_bias2: .5
 distance_weights: [1,1,0,0]
-add_intermediate_states: false
+add_intermediate_states: true
 num_control_samples: 2
 seed: 8 #useful for debugging and getting deterministic results
 heading_heuristic: 0  # 0 -> 1, 1 is try to match heading, 0 is try to match position

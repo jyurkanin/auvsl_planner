@@ -53,14 +53,83 @@
      Set octomap resolution to like a meter or something
   3. Do Local planning on the octomap with a much higher level of fidelity
      Or use RTabMap to request a 2d occupancy grid.
-  4. 
+  4.
+  
+
+** Status  
+   I've got Rtabmap working. I can subscribe to the velodyne and build a map.
+   I can localize in the map, segment obstacles and ground.
+   Now I should focus on trying to do path planning with these new maps.
 
 
+
+
+* DONE D* algorithm
+  Basic implementation finished.
+  Can determine a path in the presence of dynamic obstacles.
+  World map is very simple at this point
+  Cost map is also very simple.
+  No heuristics yet.
+
+** TODO Simple Heuristic
+   To guide search. Use euclidean distance for now.
+   This might not be admissible/consistent with respect to the
+   cost function. Because the cost function is going to become
+   pretty complex. So it might not make sense to implement a heuristic
+   Also it may not be necessary. Algorithm is already pretty fast.
+   This is low priority.
+
+** TODO Complex Cost function
+   Cost function that estimates traversability
+   1. Online simulation of vehicle to determine which neighboring states are reachable
+      and estimate how safe each state is and total time of traverse
+      This is probably not feasible for realtime operation (~10Hz).
+   2. Offline precomputation of which neighboring states are reachable, how safe the states are
+      and how long it would take to reach the state.
+      1. Possibly use a neural network to model possibility of roll-over at a state
+      2. Offline precomputation will be include traversing from lower to higher terrain,
+         higher to lower terrain, and staying on flat terrain. Then running simulations to
+         determine the minimum safe velocities. idk.
+
+
+
+
+
+** TODO Complex world map plus jackal nodes
+   Simulate whole Jackal in gazebo
+   rely on ros nodes for localization
+   Use perception for obstacle detection and updating map in D*
+   Integrate planners with a control system
+   the online loop in D* will have to actually control
+   the vehicle and physically follow the D* backpointers
+
+
+* DONE RRT
+  In general, this is done.
+
+** Smoother trajectories
+   Include a low pass filter on velocity commands
+   so that velocity command smoothly transitions to from old to new command
+
+** TODO SST
+   Sparse Stable RRT
+   asymptotically optimal
+   also apparently sparse so hopefully it doesn't expand a bunch of nodes that are all close together
 
 
 
   
 
+* TODO Make a useful altitude map from rtabmap
+  Wow this was tough. 
+  Point cloud of ground obtained.
+  Point cloud is polynomial smoothed using pcl
+  need to query smoothed cloud for nearest neighbors to a point.
+  Then compute a weighted average based on distance. That should
+  be it I hope.
+  Might need to process the entire map this way and store it as
+  a 2d array then query that array. Oh well.
+  
 * OMPL
   WTF why is it so hard. I guess I need to read the tutorial shit.
 
@@ -121,6 +190,10 @@
   to ensure smoother motion.
   update. I don't have access to the previous control.
 
+* <2021-07-22 Thu> Update
+  Its going pretty good I guess.
+  RRT is simulating in RVIZ but some of the simulation is fucked. I think it is hitting an obstacle
+
 * <2021-03-18 Thu> Update
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.
   It is cool.
@@ -173,3 +246,4 @@
    Planner goal bias
    Planner resolution
    Dynamic model ode time step
+

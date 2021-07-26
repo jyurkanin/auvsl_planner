@@ -80,9 +80,9 @@ class JackalDynamicSolver{
   void log_features(float *Xout, float vl, float vr);
   
   // private:
-
+  
   PIDController internal_controller[2];
-
+  
   static const TerrainMap *terrain_map_;
   static RigidBodyDynamics::Math::Vector3d base_size;
   static int debug_level;

@@ -236,7 +236,7 @@ void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinka
     Vector3d cpt; //contact_point
     
     double theta_limit = -M_PI*.25;
-    int max_checks = 10;
+    int max_checks = 5;
     float test_sinkage;
     
     for(int i = 0; i < 4; i++){
@@ -255,7 +255,7 @@ void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinka
         Matrix3d temp_rot = (vehicle_rot*test_rot).transpose();     //Rot vector from cpt frame to world.
         cpt = center_of_tire - (temp_rot*radius_vec); //Translate vector from cpt frame to world
         //ROS_INFO("Tire Contact Point <%f %f %f>     Sinkage %f", cpt[0], cpt[1], cpt[2],    test_sinkage);
-        test_sinkage = terrain_map_->getAltitude(cpt[0], cpt[1], cpt[2]+.5) - cpt[2];
+        test_sinkage = terrain_map_->getAltitude(cpt[0], cpt[1], cpt[2]) - cpt[2];
         //if(i==0)
         
         
@@ -450,8 +450,6 @@ q_init = [0 .4 .8 1.2];
 qd_init = [0 0 0 0];
 */
   
-  if(timestep < 9980000)
-    return;
   float temp[21];
   temp[0] = Xout[10];
   temp[1] = Xout[3];

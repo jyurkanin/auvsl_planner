@@ -107,13 +107,15 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES auvsl_planner
-CATKIN_DEPENDS roscpp rospy std_msgs
+CATKIN_DEPENDS roscpp rospy std_msgs octomap
 #  DEPENDS rbdl ompl octomap  #One day I may have to figure this out.
 )
 
 ###########
 ## Build ##
 ###########
+
+set(CMAKE_CXX_FLAGS "-Wl,--no-undefined")
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
@@ -164,15 +166,91 @@ include_directories(${COSTMAP_2D_INCLUDE_DIRS})
 find_package(move_base REQUIRED)
 include_directories(${MOVE_BASE_INCLUDE_DIRS})
 
-find_package(octomap REQUIRED)
+find_package(octomap REQUIRED NO_CMAKE_SYSTEM_PATH)
 include_directories(${OCTOMAP_INCLUDE_DIRS})
-#link_directories(${OCTOMAP_LIBRARY_DIRS}
+link_directories(${OCTOMAP_LIBRARY_DIRS})
 
 find_package(ompl REQUIRED)
 include_directories(${OMPL_INCLUDE_DIRS})
 
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS} /opt/ros/noetic/include/pcl_conversions)
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
 
 add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
+  src/OctoTerrainMap.cpp
+  src/DStarPlanner.cpp
+  src/GlobalParams.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
+  )
+
+
+
+
+
+target_link_libraries(${PROJECT_NAME}_node ${PCL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${pluginlib_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${costmap_2d_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${move_base_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${OMPL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node rbdl)
+target_link_libraries(${PROJECT_NAME}_node X11)
+
+set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3")
+
+
+
+
+
+add_executable(test_terrain_node src/test_terrain_map.cpp
+  src/OctoTerrainMap.cpp
+  src/DStarPlanner.cpp
+  src/GlobalParams.cpp
+  src/GlobalPlanner.cpp
+  src/PlannerVisualizer.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
+  )
+
+
+target_link_libraries(test_terrain_node ${PCL_LIBRARIES})
+target_link_libraries(test_terrain_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_terrain_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_terrain_node ${move_base_LIBRARIES})
+target_link_libraries(test_terrain_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_terrain_node ${OMPL_LIBRARIES})
+target_link_libraries(test_terrain_node ${catkin_LIBRARIES})
+target_link_libraries(test_terrain_node rbdl)
+target_link_libraries(test_terrain_node X11)
+
+set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3")
+
+
+
+
+
+
+
+add_library(global_planner_lib
   src/OctoTerrainMap.cpp
   src/DStarPlanner.cpp
   src/GlobalParams.cpp
@@ -190,28 +268,18 @@ add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
   )
 
 
-add_library(global_planner_lib   src/GlobalPlanner.cpp)
 
+target_link_libraries(global_planner_lib ${PCL_LIBRARIES})
+target_link_libraries(global_planner_lib ${pluginlib_LIBRARIES})
+target_link_libraries(global_planner_lib ${costmap_2d_LIBRARIES})
+target_link_libraries(global_planner_lib ${move_base_LIBRARIES})
+target_link_libraries(global_planner_lib ${OCTOMAP_LIBRARIES})
+target_link_libraries(global_planner_lib ${OMPL_LIBRARIES})
+target_link_libraries(global_planner_lib ${catkin_LIBRARIES})
+target_link_libraries(global_planner_lib rbdl)
+target_link_libraries(global_planner_lib X11)
 
-message(STATUS "move_base: ${move_base_LIBRARIES}")
-
-
-target_link_libraries(${PROJECT_NAME}_node ${pluginlib_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node ${costmap_2d_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node ${move_base_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node ${OMPL_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node rbdl)
-target_link_libraries(${PROJECT_NAME}_node X11)
-
-set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3")
-
-
-
-
-
-
+set_target_properties(global_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
 
 
 #add_executable(test_planner_node src/test_planner_node.cpp
