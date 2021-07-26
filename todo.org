@@ -53,8 +53,13 @@
      Set octomap resolution to like a meter or something
   3. Do Local planning on the octomap with a much higher level of fidelity
      Or use RTabMap to request a 2d occupancy grid.
-  4. 
+  4.
+  
 
+** Status  
+   I've got Rtabmap working. I can subscribe to the velodyne and build a map.
+   I can localize in the map, segment obstacles and ground.
+   Now I should focus on trying to do path planning with these new maps.
 
 
 
@@ -102,7 +107,7 @@
 * DONE RRT
   In general, this is done.
 
-** TODO Smoother trajectories
+** Smoother trajectories
    Include a low pass filter on velocity commands
    so that velocity command smoothly transitions to from old to new command
 
@@ -115,6 +120,16 @@
 
   
 
+* TODO Make a useful altitude map from rtabmap
+  Wow this was tough. 
+  Point cloud of ground obtained.
+  Point cloud is polynomial smoothed using pcl
+  need to query smoothed cloud for nearest neighbors to a point.
+  Then compute a weighted average based on distance. That should
+  be it I hope.
+  Might need to process the entire map this way and store it as
+  a 2d array then query that array. Oh well.
+  
 * OMPL
   WTF why is it so hard. I guess I need to read the tutorial shit.
 
@@ -174,6 +189,10 @@
   and I can provide a short interpolation between previous and current controls
   to ensure smoother motion.
   update. I don't have access to the previous control.
+
+* <2021-07-22 Thu> Update
+  Its going pretty good I guess.
+  RRT is simulating in RVIZ but some of the simulation is fucked. I think it is hitting an obstacle
 
 * <2021-03-18 Thu> Update
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.

@@ -5,7 +5,7 @@
 #include <ros/ros.h>
 #include "PlannerVisualizer.h"
 #include "JackalStatePropagator.h"
-
+#include <unistd.h>
 
 
 
@@ -15,27 +15,12 @@ float PlannerVisualizer::min_state_y_;
 float PlannerVisualizer::max_state_y_;
 
 
-
-
-
-
-
 void PlannerVisualizer::startMonitor(){
-  dpy = XOpenDisplay(0);
-  w = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, 0, 0, 0);
-
-  XSelectInput(dpy, w, StructureNotifyMask | ExposureMask | KeyPressMask);
-  XClearWindow(dpy, w);
-  XMapWindow(dpy, w);
-  gc = XCreateGC(dpy, w, 0, 0);
-
-  XEvent e;
-  do{
-    XNextEvent(dpy, &e);
-  } while(e.type != MapNotify);
-
-  XSetBackground(dpy, gc, 0);
-
+  int argc = 0;
+  ros::init(argc, 0, "points_and_lines");
+  ros::NodeHandle nh;
+  rrt_visual_pub_ = nh.advertise<visualization_msgs::Marker>("rrt_visual", 10);
+  
   has_solution = 0;
   
   if (monitorThread_)
@@ -54,8 +39,6 @@ void PlannerVisualizer::stopMonitor(){
   monitorThread_->join();
   monitorThread_.reset();
   
-  XDestroyWindow(dpy, w);
-  XCloseDisplay(dpy);
 }
 
 
@@ -66,16 +49,15 @@ void PlannerVisualizer::setSolution(std::vector<RigidBodyDynamics::Math::Vector2
 }
 
 
-void PlannerVisualizer::setObstacles(std::vector<Rectangle*> obstacles){
-  obstacles_ = obstacles;
-}
-
 
 
 void PlannerVisualizer::threadFunction(){
   ompl::time::point startTime = ompl::time::now();
   ompl::time::point lastOutputTime = startTime;
-
+  
+  ompl::base::PlannerData planner_data(planner_->getSpaceInformation());
+  
+  
   while (shouldMonitor_){
     double timeSinceOutput = ompl::time::seconds(ompl::time::now() - lastOutputTime);
     if (timeSinceOutput < period_){
@@ -83,20 +65,18 @@ void PlannerVisualizer::threadFunction(){
       continue;
     }
 
-    ompl::base::PlannerData planner_data(planner_->getSpaceInformation());
+    
     planner_->getPlannerData(planner_data);
-
-
+    
     drawTree(planner_data);
-    drawObstacles();
     drawGoal();
-
+    drawElevation();
+    drawOccupancy();  
+    
     if(has_solution){
       drawSolution();
     }
-
-    XFlush(dpy);
-
+    
     lastOutputTime = ompl::time::now();
     std::this_thread::sleep_for(ompl::time::seconds(0.01));
   }
@@ -105,106 +85,187 @@ void PlannerVisualizer::threadFunction(){
 void PlannerVisualizer::drawSolution(){
   float curr_x, curr_y, prev_x, prev_y;
 
-  XSetForeground(dpy, gc, 0xFFFFFF);
-  for(int i = 0; i < num_waypoints_ - 1; i++){
-    scaleXY(waypoints_[i][0], waypoints_[i][1], curr_x, curr_y);
-    scaleXY(waypoints_[i+1][0], waypoints_[i+1][1], prev_x, prev_y);
 
-    XDrawLine(dpy, w, gc, curr_x, curr_y, prev_x, prev_y);
-  }
 }
 
 void PlannerVisualizer::setGoal(RigidBodyDynamics::Math::Vector2d goal){
   goal_ = goal;
 }
 
+void PlannerVisualizer::drawElevation(){
+  std::vector<geometry_msgs::Point> elev_pts;
+  float x;
+  float y;
+  float alt = 0;
+  for(int j = 0; j < global_map_->rows_; j++){
+      for(int i = 0; i < global_map_->cols_; i++){
+        x = (i*global_map_->map_res_) + global_map_->x_origin_;
+        y = (j*global_map_->map_res_) + global_map_->y_origin_;
+        
+        alt = global_map_->getAltitude(x, y, alt);
+
+        geometry_msgs::Point pt;
+        pt.x = x;
+        pt.y = y;
+        pt.z = alt;
+        elev_pts.push_back(pt);
+      }
+  }
+
+  
+  visualization_msgs::Marker point_list;
+  point_list.header.frame_id = "map";
+  point_list.header.stamp = ros::Time::now();
+  point_list.ns = "points_and_lines";
+  point_list.action = visualization_msgs::Marker::ADD;
+  point_list.pose.orientation.w = 1.0;
+  point_list.id = 5;
+  point_list.type = visualization_msgs::Marker::POINTS;
+  point_list.scale.x = 0.1; //line width
+  point_list.scale.y = 0.1; //line width
+  point_list.color.r = 1.0;
+  point_list.color.a = 1.0;
+  point_list.points = elev_pts;
+  
+  rrt_visual_pub_.publish(point_list);  
+}
+
+
+
+
+void PlannerVisualizer::drawOccupancy(){
+  std::vector<geometry_msgs::Point> occ_pts;
+  float x;
+  float y;
+  int occ;
+  for(int j = 0; j < global_map_->rows_; j++){
+      for(int i = 0; i < global_map_->cols_; i++){
+        x = (i*global_map_->map_res_) + global_map_->x_origin_;
+        y = (j*global_map_->map_res_) + global_map_->y_origin_;
+        
+        occ = global_map_->isStateValid(x, y);
+        
+        if(!occ){
+          geometry_msgs::Point pt;
+          pt.x = x;
+          pt.y = y;
+          pt.z = 0;
+          occ_pts.push_back(pt);
+        }
+      }
+  }
+
+  
+  visualization_msgs::Marker point_list;
+  point_list.header.frame_id = "map";
+  point_list.header.stamp = ros::Time::now();
+  point_list.ns = "points_and_lines";
+  point_list.action = visualization_msgs::Marker::ADD;
+  point_list.pose.orientation.w = 1.0;
+  point_list.id = 6;
+  point_list.type = visualization_msgs::Marker::POINTS;
+  point_list.scale.x = 0.1; //line width
+  point_list.scale.y = 0.1; //line width
+  point_list.color.g = 1.0;
+  point_list.color.a = 1.0;
+  point_list.points = occ_pts;
+  
+  rrt_visual_pub_.publish(point_list);  
+}
+
+
+
 void PlannerVisualizer::drawGoal(){
   float goal_x = goal_[0];
   float goal_y = goal_[1];
   float temp_x, temp_y;
-  scaleXY(goal_x, goal_y, temp_x, temp_y);
-
-  XSetForeground(dpy, gc, 0xFFFFFF);
-  XFillArc(dpy, w, gc, temp_x-6, temp_y-6, 12, 12, 0, 360*64);
+  
+  visualization_msgs::Marker line_list;
+  line_list.header.frame_id = "map";
+  line_list.header.stamp = ros::Time::now();
+  line_list.ns = "points_and_lines";
+  line_list.action = visualization_msgs::Marker::ADD;
+  line_list.pose.orientation.w = 1.0;
+  line_list.id = 3;
+  line_list.type = visualization_msgs::Marker::SPHERE;
+  line_list.scale.x = 0.1;
+  line_list.scale.y = 0.1;
+  line_list.scale.z = 0.1;
+  
+  line_list.color.r = 1.0;
+  line_list.color.g = 0.0;
+  line_list.color.b = 0.0;
+  line_list.color.a = 1.0;
+  line_list.pose.position.x = goal_x;
+  line_list.pose.position.y = goal_y;
+  line_list.pose.position.z = 0;
+  
+  rrt_visual_pub_.publish(line_list);
 }
 
 
-
-void PlannerVisualizer::drawObstacles(){
-  XSetForeground(dpy, gc, 0xFF0000);
-  for(unsigned i = 0; i < obstacles_.size(); i++){
-    float bottom_left_x = obstacles_[i]->x;
-    float bottom_left_y = obstacles_[i]->y;
-    float top_right_x = obstacles_[i]->x + obstacles_[i]->width;
-    float top_right_y = obstacles_[i]->y + obstacles_[i]->height;
-    float bl_x, bl_y, tr_x, tr_y;
-
-    scaleXY(bottom_left_x, bottom_left_y, bl_x, bl_y);
-    scaleXY(top_right_x, top_right_y, tr_x, tr_y);
-
-    float temp_width = tr_x - bl_x;
-    float temp_height = -(tr_y - bl_y);
-
-    XFillRectangle(dpy, w, gc, bl_x, bl_y - temp_height, temp_width, temp_height);
-  }
-}
 
 void PlannerVisualizer::drawTree(const ompl::base::PlannerData &planner_data){
-  drawSubTree(planner_data, planner_data.vertexIndex(planner_data.getStartVertex(0)));
+  draw_pts_.clear();
+  
+  ROS_INFO("Num frontier nodes %lu", frontier_nodes_.size());
+  
+  drawSubTree(planner_data, planner_data.getStartIndex(0));
+  
+  visualization_msgs::Marker line_list;
+  line_list.header.frame_id = "map";
+  line_list.header.stamp = ros::Time::now();
+  line_list.ns = "points_and_lines";
+  line_list.action = visualization_msgs::Marker::ADD;
+  line_list.pose.orientation.w = 1.0;
+  line_list.id = 2;
+  line_list.type = visualization_msgs::Marker::LINE_LIST;
+  line_list.scale.x = 0.03; //line width
+  line_list.color.b = 1.0;
+  line_list.color.a = 1.0;
+  line_list.points = draw_pts_;
+  
+  rrt_visual_pub_.publish(line_list);
 }
 
 void PlannerVisualizer::drawSubTree(const ompl::base::PlannerData &planner_data, unsigned v_idx){
   const ompl::base::PlannerDataVertex &vertex = planner_data.getVertex(v_idx);
-
+  
   if(vertex == ompl::base::PlannerData::NO_VERTEX){
     return; //this shouldn't even happen.
   }
-
+  
   const ompl::base::State *state = vertex.getState();
   const ompl::base::RealVectorStateSpace::StateType& state_vector = *state->as<ompl::base::RealVectorStateSpace::StateType>();
-
-  float vertex_x, vertex_y;
-  scaleXY(state_vector[0], state_vector[1], vertex_x, vertex_y);
-
+  
   std::vector<unsigned> edge_list;
   unsigned num_edges = planner_data.getEdges(v_idx, edge_list);
 
   //ROS_INFO("Current Vertex %u\n", v_idx);
-
+  
   for(unsigned i = 0; i < num_edges; i++){
     unsigned next_v_idx = edge_list[i];
+    
     const ompl::base::PlannerDataVertex &next_vertex = planner_data.getVertex(next_v_idx);
     const ompl::base::State *next_state = next_vertex.getState();
     const ompl::base::RealVectorStateSpace::StateType& next_state_vector = *next_state->as<ompl::base::RealVectorStateSpace::StateType>();
-
-    float next_vertex_x, next_vertex_y;
-    scaleXY(next_state_vector[0], next_state_vector[1], next_vertex_x, next_vertex_y);
-
-    XSetForeground(dpy, gc, 0xFF00);
-    XDrawLine(dpy, w, gc, vertex_x, vertex_y, next_vertex_x, next_vertex_y);
-
+    
+    geometry_msgs::Point parent_point;
+    geometry_msgs::Point child_point;
+    
+    parent_point.x = state_vector[0];
+    parent_point.y = state_vector[1];
+    parent_point.z = state_vector[2];
+    
+    child_point.x = next_state_vector[0];
+    child_point.y = next_state_vector[1];
+    child_point.z = next_state_vector[2];
+    
+    draw_pts_.push_back(parent_point);
+    draw_pts_.push_back(child_point);
     //ROS_INFO("Current Vertex %u\n", v_idx);
     drawSubTree(planner_data, next_v_idx);
   }
 
-  if(planner_data.isGoalVertex(v_idx)){
-    XSetForeground(dpy, gc, 0xFF0000);
-    XFillArc(dpy, w, gc, vertex_x-6, vertex_y-6, 12, 12, 0, 360*64);
-  }
-  else if(planner_data.isStartVertex(v_idx)){
-    XSetForeground(dpy, gc, 0xFF00FF);
-    XFillArc(dpy, w, gc, vertex_x-6, vertex_y-6, 12, 12, 0, 360*64);
-  }
-  else{
-    XSetForeground(dpy, gc, 0xFF);
-    XFillArc(dpy, w, gc, vertex_x-2, vertex_y-2, 4, 4, 0, 360*64);
-  }
-
-
-
 }
 
-void PlannerVisualizer::scaleXY(float state_x, float state_y, float &draw_x, float &draw_y){
-  draw_x = WINDOW_WIDTH*(state_x - min_state_x_)/(max_state_x_ - min_state_x_);
-  draw_y = WINDOW_HEIGHT*(1 - ((state_y - min_state_y_)/(max_state_y_ - min_state_y_)));
-}

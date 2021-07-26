@@ -18,6 +18,7 @@
 #include <std_msgs/String.h>
 #include <nav_core/base_global_planner.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseWithCovarianceStamped.h>
 
 #include <costmap_2d/costmap_2d_ros.h>
 #include <costmap_2d/costmap_2d.h>
@@ -32,6 +33,8 @@
 //using namespace RigidBodyDynamics::Math;
 
 
+namespace auvsl{
+  
 class GlobalPlanner : public nav_core::BaseGlobalPlanner{
 public:
   GlobalPlanner();
@@ -58,3 +61,5 @@ private:
   ompl::control::StatePropagatorPtr dynamic_model_ptr_;
   //float G_TOLERANCE_;
 };
+
+}

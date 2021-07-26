@@ -11,47 +11,14 @@
        </include>
        <rosparam file="$(find auvsl_planner)/config/jackal_gazebo_pid.yaml" command="load"/> 
 
-  <!-- Run the map server
-       <node name="map_server" pkg="map_server" type="map_server" args="$(find my_map_package)/my_map.pgm my_map_resolution"/> -->
-  
+      
   <arg name="max_range" default="0"/>
   <arg name="p2n" default="true"/>
   <arg name="pm" default="true"/>
-
-  <!--
-  <node pkg="rtabmap_ros" type="icp_odometry" name="icp_odometry" output="screen" >
-    <remap from="scan"      to="/front/scan"/>
-    <remap from="odom"      to="/scanmatch_odom"/>
-    <remap from="odom_info" to="/rtabmap/odom_info"/>
-	
-    <param name="frame_id"        type="string" value="base_link"/>
-
-    <param name="odom_frame_id"   type="string" value="icp_odom"/>
-    <param name="guess_frame_id"  type="string" value="odom"/>
-    
-    <param name="Icp/VoxelSize"     type="string" value="0.05"/>
-    <param name="Icp/RangeMax"      type="string" value="$(arg max_range)"/>
-    <param name="Icp/Epsilon"       type="string" value="0.001"/>
-    
-    <param if="$(arg p2n)" name="Icp/PointToPlane"  type="string" value="false"/>
-    <param if="$(arg p2n)" name="Icp/PointToPlaneK"  type="string" value="5"/>
-    <param if="$(arg p2n)" name="Icp/PointToPlaneRadius"  type="string" value="0.3"/>
-    <param unless="$(arg p2n)" name="Icp/PointToPlane"  type="string" value="false"/>
-    <param unless="$(arg p2n)" name="Icp/PointToPlaneK"  type="string" value="0"/>
-    <param unless="$(arg p2n)" name="Icp/PointToPlaneRadius"  type="string" value="0"/>
-    
-    <param name="Icp/MaxCorrespondenceDistance" type="string" value="0.1"/>
-    <param name="Icp/PM"             type="string" value="$(arg pm)"/> 
-    <param name="Icp/PMOutlierRatio" type="string" value="0.85"/>
-    <param name="Odom/Strategy"        type="string" value="0"/>
-    <param name="Odom/GuessMotion"     type="string" value="true"/>
-    <param name="Odom/ResetCountdown"  type="string" value="0"/>
-    <param name="Odom/ScanKeyFrameThr"  type="string" value="0.9"/>
-  </node>
-  -->
+  
     
   <group ns="rtabmap">
-    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="--delete_db_on_start">
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="">
       <param name="frame_id" type="string" value="base_link"/>          
       
       <param name="subscribe_odom" type="bool" value="true"/>
@@ -71,7 +38,8 @@
       <param name="Mem/IncrementalMemory" type="string" value="true"/>    
 	  <param name="Mem/InitWMWithAllNodes" type="string" value="false"/>
       <param name="RGBD/SavedLocalizationIgnored" type="bool" value="true"/>
-      
+      <param name="RGBD/ProximityPathMaxNeighbors" type="string" value="10"/>
+          
       <!-- RTAB-Map's parameters -->
       <param name="Grid/3D"                   type="string" value="true"/>
       <param name="Grid/FromDepth"            type="string" value="false"/> <!-- occupancy grid from rgbd and therefore 3d -->

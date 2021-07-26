@@ -10,12 +10,14 @@
   </include>
   <rosparam file="$(find auvsl_planner)/config/jackal_gazebo_pid.yaml" command="load"/> 
 
-  <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>   
   <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
-  <node name="auvsl_planner" pkg="auvsl_planner" type="auvsl_planner_node" output="screen"/>
+  <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>
+  <node name="test_terrain_node" pkg="auvsl_planner" type="test_terrain_node" output="screen" launch-prefix=""/>
   
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">
+<!--
     <param name="base_global_planner" value="auvsl/GlobalPlanner"/>
+-->
     <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS"/>
     
     <rosparam file="$(find auvsl_planner)/config/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
@@ -31,7 +33,7 @@
   <arg name="pm" default="true"/>
 
   <group ns="rtabmap">
-    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="log" args="">
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="">
       <param name="frame_id" type="string" value="base_link"/>          
       
       <param name="subscribe_odom" type="bool" value="true"/>
@@ -66,12 +68,11 @@
 
       <!-- RTAB-Map's segmentation parameters -->
       <param name="Grid/RangeMax"               type="string" value="100"/>
-      <param name="Grid/MaxGroundAngle"         type="string" value="80"/>
-      <param name="Grid/ClusterRadius"          type="string" value="1"/>
+      <param name="Grid/MaxGroundAngle"         type="string" value="60"/>
+      <param name="Grid/ClusterRadius"          type="string" value=".1"/>
       <param name="Grid/NoiseFilteringMinNeighbors"    type="string" value="20"/>
       <param name="Grid/NormalK"                type="string" value="100"/>
-      <param name="Grid/MinClusterSize"         type="string" value="10"/>
-      
+        
     </node>
 
   </group>    

@@ -16,8 +16,8 @@ http://wiki.ros.org/navigation/Tutorials/Using%20rviz%20with%20the%20Navigation%
 
 http://wiki.ros.org/ROS/Tutorials/WritingServiceClient%28c%2B%2B%29
 http://wiki.ros.org/rtabmap_ros/Tutorials/SetupOnYourRobot#Kinect_.2B-_2D_laser
-
-
+https://pointclouds.org/documentation/tutorials/resampling.html#moving-least-squares
+https://pcl.readthedocs.io/projects/tutorials/en/latest/statistical_outlier.html
 
 Docs I used:
 http://wiki.ros.org/costmap_2d
