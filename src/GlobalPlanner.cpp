@@ -229,7 +229,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     }
     
     RigidBodyDynamics::Math::Vector2d goal_pos(goalp.pose.position.x, goalp.pose.position.y);
-    float goal_tol = .01;
+    float goal_tol = 1;
     
     // construct the state space we are planning in
     ompl::base::GoalSpace *goal = new ompl::base::GoalSpace(si_);

@@ -51,12 +51,14 @@ void get_grid_map(const nav_msgs::OccupancyGrid::ConstPtr& msg){
   ROS_INFO("grid map header frame %s", msg->header.frame_id.c_str());
   ROS_INFO("Res %f  Cols %u Rows %u", map_res, width, height);
   ROS_INFO("Occ_grid origin %f,%f      end  %f,%f", origin.position.x, origin.position.y,     origin.position.x + (width*map_res), origin.position.y + (height*map_res));
-  
+
+
+  /*
   std::ofstream log_file;  
   log_file.open("/home/justin/state_valid_grid.csv", std::ofstream::out);
   log_file << "x,y,occupancy\n";
 
-
+  
   float *blurred_occ_grid = new float[height*width];
   const int kernel_size = 10;
 
@@ -107,6 +109,7 @@ void get_grid_map(const nav_msgs::OccupancyGrid::ConstPtr& msg){
   
   log_file.close();
   delete blurred_occ_grid;
+  */
   got_grid_map = 1;  
 }
 
@@ -116,6 +119,9 @@ int main(int argc, char **argv){
   
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
+
+  int plot_res;
+  nh.getParam("/TerrainMap/plot_res", plot_res); 
   
   GlobalParams::load_params(&nh);
   ompl::RNG::setSeed(GlobalParams::get_seed());
@@ -145,7 +151,7 @@ int main(int argc, char **argv){
   else{
       ROS_INFO("Failed to set Localization mode set");
   }
-  
+  /*
   ROS_INFO("Getting initial pose");
   ros::Subscriber initial_pose_sub = nh.subscribe("/rtabmap/localization_pose", 100, get_pos_callback);
   while(!got_init_pose){
@@ -169,35 +175,39 @@ int main(int argc, char **argv){
   goalp.pose.orientation.w = 0;
 
   std::vector<geometry_msgs::PoseStamped> plan;
-
-  /*
+  */
+  
   ROS_INFO("Getting OctoTerrainMap");
   OctoTerrainMap terrain_map(costmap.getCostmap());
   ROS_INFO("Constructed terrain map");
-  auvsl::GlobalPlanner planner;
-  planner.initialize("planner", &costmap);
-  planner.makePlan(startp, goalp, plan);
-  */
-  /*
+  //auvsl::GlobalPlanner planner;
+  //planner.initialize("planner", &costmap);
+  //planner.makePlan(startp, goalp, plan);
+  
+  
   std::ofstream log_file;
-  log_file.open("/home/justin/circle_point.csv", std::ofstream::out);
+  log_file.open("/home/justin/elev.csv", std::ofstream::out);
   log_file << "x,y,alt\n";
-
+  
+  map_res = .1;
+  height = 300;
+  width = 300;
+  
   float x;
   float y;
   float alt = 0;
-  for(int j = 0; j < height; j++){
-      for(int i = 0; i < width; i++){
-        x = (i*map_res) + origin.position.x;
-        y = (j*map_res) + origin.position.y;
-        
-        alt = terrain_map.averageNeighbors(x, y, alt);
-        log_file << x << "," << y << "," << alt << "\n";
+  for(int j = 0; j < 10; j+=1){
+      for(int i = 0; i < 40; i+=1){
+          x = (i*map_res*.1); //origin.position.x;
+          y = (j*map_res*.1); //origin.position.y;
+          
+          alt = terrain_map.getAltitude(x, y, alt);
+          log_file << x << "," << y << "," << alt << "\n";
       }
   }
   
   log_file.close();
-  */
+  
   
 
   
@@ -235,6 +245,7 @@ int main(int argc, char **argv){
   
   ROS_INFO("Final position: %f %f %f", end_state[0], end_state[1], end_state[2]);
   */
-  
+
   JackalDynamicSolver::del_model();
+  ROS_INFO("test_terrain is exiting");
 }

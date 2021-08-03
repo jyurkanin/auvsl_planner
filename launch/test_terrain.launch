@@ -12,7 +12,7 @@
 
   <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
   <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>
-  <node name="test_terrain_node" pkg="auvsl_planner" type="test_terrain_node" output="screen" launch-prefix=""/>
+  <node name="test_terrain_node" pkg="auvsl_planner" type="test_terrain_node" output="screen" launch-prefix="" required="true"/>
   
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">
 <!--

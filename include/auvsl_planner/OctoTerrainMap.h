@@ -41,7 +41,11 @@ public:
     float averageNeighbors(float x, float y, float z_guess) const;
     int isStateValid(float x, float y) const override;
     std::vector<Rectangle*> getObstacles() const override;    
-  
+
+    void computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloud, float* temp_occ_grid);
+    void computeElevationGrid(float *temp_elev_map);    
+    void computeInflationGrid(float *costmap, float *inflated_costmap);
+    
     float getMapRes();
     void getBounds(float &max_x, float &min_x, float &max_y, float &min_y) const;
   
@@ -52,11 +56,13 @@ public:
     float map_res_;
     float x_origin_;
     float y_origin_;
-  
+
+    int num_neighbors_avg;
 private:
     costmap_2d::Costmap2D *occ_grid_;
     octomap::OcTree* octomap_;
-  
+    
+    int occupancy_threshold_;
     
     float *occ_grid_blur_;
     float *elev_map_;

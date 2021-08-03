@@ -83,14 +83,14 @@ int main(int argc, char **argv){
   
   ros::Subscriber initial_pose_sub = nh.subscribe("/rtabmap/localization_pose", 100, get_pos_callback);
   while(!got_init_pose){
-    ros::spinOnce();
-    loop_rate.sleep();
+      ros::spinOnce();
+      loop_rate.sleep();
   }
   initial_pose_sub.shutdown();
   
   ros::ServiceClient g_planner_srv = nh.serviceClient<nav_msgs::GetPlan>("/move_base/make_plan");
   nav_msgs::GetPlan get_plan_srv;
-
+  
   get_plan_srv.request.start.pose = initial_pose;
   get_plan_srv.request.start.header.frame_id = "map";
   

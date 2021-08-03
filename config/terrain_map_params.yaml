@@ -1,3 +1,10 @@
 TerrainMap:
     filter_radius: .5
     elevation_map_res: .1
+    normal_radius: .5
+    smoothness_threshold: .01
+    curvature_threshold: .1
+    num_neighbors: 30
+    num_neighbors_avg: 5
+    plot_res: 4
+    occupancy_theshold: 12

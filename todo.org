@@ -190,6 +190,11 @@
   to ensure smoother motion.
   update. I don't have access to the previous control.
 
+* <2021-07-30 Fri> Update...
+  My terrain map is working. It is smooth and segments point cloud pretty well.
+  Will test more global planning tomorrow and make sure it is returning a path plan.
+  Then I will move on to local planning with ROS.
+  Need to verify terrain grid interpolates correctly
 * <2021-07-22 Thu> Update
   Its going pretty good I guess.
   RRT is simulating in RVIZ but some of the simulation is fucked. I think it is hitting an obstacle
