@@ -1,6 +1,6 @@
 #include "OctoTerrainMap.h"
-#include <pcl/filters/extract_indices.h>
 
+#include <pcl/filters/extract_indices.h>
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/search/organized.h>

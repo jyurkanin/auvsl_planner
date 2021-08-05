@@ -435,6 +435,7 @@ float JackalDynamicSolver::get_timestep(){
 void JackalDynamicSolver::log_xout(float *Xout){
   //Log a single row from Xout;
   /*
+//qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qdd4
     x_init = [1 0 0 0  0 0 zoff   0 0 0  0 0 0]';
               |______| |_______| |_____| |____|
                |        |        |       |->Linear Velocity in F_1

@@ -52,13 +52,13 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
    FILES
-   LocalPathPlan.msg
+   
 )
 
 ## Generate services in the 'srv' folder
  add_service_files(
    FILES
-   GlobalPathPlan.srv
+   
  )
 
 ## Generate actions in the 'action' folder
@@ -252,7 +252,6 @@ set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3")
 
 add_library(global_planner_lib
   src/OctoTerrainMap.cpp
-  src/DStarPlanner.cpp
   src/GlobalParams.cpp
   src/GlobalPlanner.cpp
   src/JackalStatePropagator.cpp
@@ -280,6 +279,36 @@ target_link_libraries(global_planner_lib rbdl)
 target_link_libraries(global_planner_lib X11)
 
 set_target_properties(global_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
+
+
+add_library(local_planner_lib
+  src/DStarPlanner.cpp
+  src/GlobalParams.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/PlannerVisualizer.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
+  )
+
+
+
+target_link_libraries(local_planner_lib ${PCL_LIBRARIES})
+target_link_libraries(local_planner_lib ${pluginlib_LIBRARIES})
+target_link_libraries(local_planner_lib ${costmap_2d_LIBRARIES})
+target_link_libraries(local_planner_lib ${move_base_LIBRARIES})
+target_link_libraries(local_planner_lib ${OCTOMAP_LIBRARIES})
+target_link_libraries(local_planner_lib ${OMPL_LIBRARIES})
+target_link_libraries(local_planner_lib ${catkin_LIBRARIES})
+target_link_libraries(local_planner_lib rbdl)
+target_link_libraries(local_planner_lib X11)
+
+set_target_properties(local_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
 
 
 #add_executable(test_planner_node src/test_planner_node.cpp

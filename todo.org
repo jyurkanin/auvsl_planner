@@ -64,6 +64,30 @@
 
 
 
+* Implementing D* in move_base
+  Okay. This is going to be a big one I think.
+  1) Run a separate thread for DStarPlanner
+  2) Move base will call computeVelocityCommands from info generated in move_base
+     computeVelocityCommands will get the next waypoint from D* and using a control system, compute velocity commands to reach it
+     runPlanner thread will wait until vehicle odometry shows that the vehicle has reached the next waypoint
+  3) Going to use a followBackpointer() function to physically make sure the robot follows the back pointer
+     by waiting for odometry to show that it literally has done so.
+  4) Need to first get global terrain and obstacle point cloud. Make these class variable and hold onto them
+     Local planning area will be like 10x10m
+     When initializing D* planner use a spatial window to filter obstacle and terrain point clouds to
+     get points that only lie within planning area and then generate occupancy grid with the window pcls
+     
+
+
+     
+** TODO Implement or refractor local cost map functions
+** TODO Do not use costmap_ros because it sucks
+   I need to be get map updates directly and not have to iterate
+   the entire map. Also, the resolution of the costmap_ros doesn't
+   really match the distance between waypoints anyway. Its just not
+   good for what I want.
+
+
 * DONE D* algorithm
   Basic implementation finished.
   Can determine a path in the presence of dynamic obstacles.
@@ -94,7 +118,6 @@
 
 
 
-
 ** TODO Complex world map plus jackal nodes
    Simulate whole Jackal in gazebo
    rely on ros nodes for localization
@@ -102,6 +125,8 @@
    Integrate planners with a control system
    the online loop in D* will have to actually control
    the vehicle and physically follow the D* backpointers
+
+   
 
 
 * DONE RRT
@@ -120,7 +145,7 @@
 
   
 
-* TODO Make a useful altitude map from rtabmap
+* DONE Make a useful altitude map from rtabmap
   Wow this was tough. 
   Point cloud of ground obtained.
   Point cloud is polynomial smoothed using pcl
@@ -128,7 +153,7 @@
   Then compute a weighted average based on distance. That should
   be it I hope.
   Might need to process the entire map this way and store it as
-  a 2d array then query that array. Oh well.
+  a 2d array then query that array. Oh well. DONE. DONE. DONE.
   
 * OMPL
   WTF why is it so hard. I guess I need to read the tutorial shit.
@@ -204,36 +229,12 @@
   It is cool.
   
 
-* More information required:
-  Ask Norris about whether to use ros 1 or 2.
-
-
-
 * Minimum Viable Product:
 ** DONE RRT Algorithm
    Do it with ompl
 
 ** Double D*
    Can't be done with ompl. Must implement from scratch.
-
-** Occupancy grid generation
-   octomap. Generate a basic grid with a few simple obstacles
-   just for testing the planning algorithms.
-
-** Octomap ROS server
-   Figure out how to use the octomap server node
-
-
-** Implement custom OcTree inheriting from OcTreeDataNode class
-   So, the current default OcTreeNode only holds a single float that
-   represents occupancy. Thats not enough. We need an OcTree with Nodes
-   that contain the wealth of information available. Will need to implement
-   classes that inherit from the more abstract templated OcTree class.
-   Not a huge deal.
-
-
-** Implement custom motion validator class that uses octomap raycasting
-
 
 
 * Nice To Have:

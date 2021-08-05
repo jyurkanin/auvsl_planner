@@ -6,13 +6,16 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 
 
 
-df = pd.read_csv("/home/justin/circle_point.csv")
-
 
 fig = plt.figure()
 ax = Axes3D(fig)
-ax.scatter(df['x'], df['y'], df['alt'])
-#plt.plot(df['x'], df['alt'])
 
+df = pd.read_csv("/home/justin/raw_pcl.csv")
+skip = 8
+ax.scatter(df['x'][::skip], df['y'][::skip], df['alt'][::skip], alpha=.1)# .01*occ[occ[:] > cutoff])
+
+df = pd.read_csv("/home/justin/xout_file.csv")
+ax.scatter(df['x'], df['y'], df['z'])
+#plt.plot(df['x'], df['alt'])
 
 plt.show()

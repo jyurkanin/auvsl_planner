@@ -16,7 +16,7 @@
   
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">
     <param name="base_global_planner" value="auvsl/GlobalPlanner"/>
-    <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS"/>
+    <param name="base_local_planner" value="auvsl/DStarPlanner"/>
     
     <rosparam file="$(find auvsl_planner)/config/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
     <rosparam file="$(find auvsl_planner)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />

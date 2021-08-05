@@ -6,18 +6,15 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 
 
 
-fig = plt.figure()
-ax = Axes3D(fig)
+#fig = plt.figure()
+#ax = Axes3D(fig)
 
 df = pd.read_csv("/home/justin/occ_grid.csv")
 occ = df['occupancy']
-cutoff = 10    
-ax.scatter(df['x'][occ[:] > cutoff], df['y'][occ[:] > cutoff])# .01*occ[occ[:] > cutoff])
-#ax.scatter(df['x'], df['y'], df['inflated'])# .01*occ[occ[:] > cutoff])
-#ax.scatter(df['x'], df['y'], occ)
-#ax.scatter(df['x'], df['y'], df['cost'])
+cutoff = 12    
+plt.scatter(df['x'][occ[:] > cutoff], df['y'][occ[:] > cutoff])# .01*occ[occ[:] > cutoff])
 
-#df = pd.read_csv("/home/justin/raw_occ.csv")
-#ax.scatter(df['x'][::8], df['y'][::8], df['z'][::8])
+df = pd.read_csv("/home/justin/xout_file.csv")
+plt.scatter(df['x'], df['y'])
 
 plt.show()
