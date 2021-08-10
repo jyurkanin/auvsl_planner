@@ -50,8 +50,6 @@ enum TAG {NEW, CLOSED, OPEN};
 enum STATE_TYPE {RAISE, LOWER, NORMAL};
 
 
-#define COSTMAP_HEIGHT 100
-#define COSTMAP_WIDTH 100
 #define EPSILON 1e-5
 
 //This is not efficient
@@ -89,6 +87,8 @@ public:
     
     void updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg);
     void getGlobalCloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg);
+    void initOccupancyGrid(Vector2f start, Vector2f goal);
+    
     
     float getEdgeCost(StateData* X, StateData* Y);    //c(X)
     float getPathCost(Vector2f X, Vector2f G);    //h(X)
@@ -127,8 +127,12 @@ private:
 
     float y_range_;
     float y_offset_;
+
+    float map_res_;
+    unsigned width_;
+    unsigned height_;
     
-    StateData state_map_[COSTMAP_WIDTH][COSTMAP_HEIGHT]; //states are 8 connected
+    StateData *state_map_; //states are 8 connected
     //SimpleTerrainMap *terrain_map_;
     std::vector<StateData*> open_list_; //This is going to be sorted by key function.
 

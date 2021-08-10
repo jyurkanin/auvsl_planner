@@ -142,16 +142,7 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     ROS_INFO("point cloud smoothed");
     
     *cloudPtr = pcl_cloud;
-
-/*
-    std::ofstream log_file;
-    log_file.open("/home/justin/smooth_pcl.csv", std::ofstream::out);
-    log_file << "x,y,alt\n";
-    for(unsigned i = 0; i < cloudPtr->size(); i++){
-        log_file << cloudPtr->points[i].x << ',' << cloudPtr->points[i].y << ',' << cloudPtr->points[i].z << '\n';
-    }
-    log_file.close();
-*/  
+    
     kdtree.setInputCloud(cloudPtr);
     kdtree.setSortedResults(true);
     
@@ -205,7 +196,7 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     float *temp_occ_grid = new float[rows_*cols_];
     computeOccupancyGrid(obstacle_cloudPtr, temp_occ_grid);
     occ_grid_blur_ = new float[rows_*cols_];
-    ROS_INFO("We are now going to... BLUR THE GRID");
+    ROS_INFO("We are now going to blur the grid");
     
     
     const int kernel_size = 5;
@@ -365,6 +356,7 @@ void OctoTerrainMap::computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr ob
     //Step 1. Project it down. to z = 0
     //step 2. Build search tree and search nearest neighbors to build grid.
     
+    /*
     std::ofstream log_file;
     log_file.open("/home/justin/raw_occ.csv", std::ofstream::out);
     log_file << "x,y,z\n";
@@ -373,7 +365,8 @@ void OctoTerrainMap::computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr ob
         obstacle_cloud->points[i].z = 0;
     }
     log_file.close();
-          
+    */
+    
     pcl::search::KdTree<pcl::PointXYZ>::Ptr obs_tree(new pcl::search::KdTree<pcl::PointXYZ>);
     obs_tree->setInputCloud(obstacle_cloud);
     obs_tree->setSortedResults(true);
@@ -381,7 +374,7 @@ void OctoTerrainMap::computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr ob
     unsigned max_neighbors = 16; //num nearest neighbors
     std::vector<int> pointIdxKNNSearch(max_neighbors);
     std::vector<float> pointKNNSquaredDistance(max_neighbors);
-
+    
     pcl::PointXYZ searchPoint;
     int sum;
     int num_neighbors;

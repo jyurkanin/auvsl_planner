@@ -76,7 +76,7 @@
      Local planning area will be like 10x10m
      When initializing D* planner use a spatial window to filter obstacle and terrain point clouds to
      get points that only lie within planning area and then generate occupancy grid with the window pcls
-     
+  5) Run segmentation on updated local point cloud with every new lidar scan? Could be way too slow.
 
 
      

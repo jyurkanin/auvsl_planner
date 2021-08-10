@@ -4,7 +4,6 @@
 /clock
 /cmd_vel
 /diagnostics
-/front/scan
 /gazebo/link_states
 /gazebo/model_states
 /gazebo/parameter_descriptions

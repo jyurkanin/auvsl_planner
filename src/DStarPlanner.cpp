@@ -41,6 +41,10 @@ DStarPlanner::DStarPlanner(){
     
     curr_waypoint_ = 0;
     initialized_ = 0;
+
+    private_nh_ = new ros::NodeHandle("~/local_planner");
+    private_nh_->getParam("/move_base/local_costmap/resolution", map_res_); //map_res_ = .05;
+    state_map_ = 0;
     
     /*
     x_range_ = 0;
@@ -72,27 +76,29 @@ void DStarPlanner::initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d:
     //This is still useful just for the getRobotPose function
     costmap_ros_ = costmap_ros; //Ignore this param.
     
-    private_nh_ = new ros::NodeHandle("~/local_planner");
-
     char *pcl_topic;
     
-    private_nh_->param("/move_base/DStarPlanner/goal_tol", goal_tol_);
-    private_nh_->param("/move_base/local_costmap/pcl_topic", pcl_topic);
-    
+    private_nh_->getParam("/move_base/DStarPlanner/goal_tol", goal_tol_);
+    private_nh_->getParam("/move_base/local_costmap/pcl_topic", pcl_topic);
+
+    //SECTION is going to be for building the global map.
     global_terrain_cloud_ = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
     global_obstacle_cloud_ = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
     local_terrain_cloud_ = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
-    local_obstacle_cloud_ = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
+    local_obstacle_cloud_ = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);    
     
-
     has_init_map_ = 0;
     ros::Subscriber init_sub = private_nh_->subscribe<sensor_msgs::PointCloud2>("/rtabmap/octomap_occupied_space", 100, getGlobalCloudCallback, this);
     do{
         ros::spinOnce();
         loop_rate.sleep();
     } while(!has_init_map_);
+    //END global map section
     
+    
+    //This subscriber is going to be running to provide edge cost updates for the D* algorithm
     pcl_sub_ = private_nh_->subscribe<sensor_msgs::PointCloud2>(pcl_topic, 100, updateEdgeCostsCallback, this);
+    
     
     planner_failed_ = 0;
     planner_thread_ = new boost::thread(&DStarPlanner::runPlanner, this);
@@ -113,6 +119,7 @@ bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
     /*
      * TODO:
      * Use the waypoints to compute a velocity control. Idk how, not my job boss.
+     * Contact Woojin when youre ready for this function.
      */
     
     return true;
@@ -121,9 +128,9 @@ bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
 bool DStarPlanner::setPlan(const std::vector<geometry_msgs::PoseStamped> &plan){
     Vector2f prev_wp(plan[0].pose.position.x, plan[0].pose.position.y);
     const float dist = 1;
-
+    
     global_waypoints_.push_back(prev_wp); 
-  
+    
     for(unsigned i = 1; i < plan.size(); i++){
         float dx = prev_wp[0] - plan[i].pose.position.x;
         float dy = prev_wp[1] - plan[i].pose.position.y;
@@ -155,15 +162,24 @@ int DStarPlanner::isStateValid(float x, float y){
 }
 
 
-// I think the sampled point cloud will need to be processed differently from
-// THe full point cloud.
 //TODO: process sampled point cloud
+//1. temp_cloud = sample_cloud + local_terrain_cloud_
+//2. Run region growing segmentation on temp_cloud
+//3. local_terrain_cloud_ = temp_ground_cloud
+//4. temp_obstacle_cloud gets used to update the occupancy grid with nearest neighbors approach
+//This all needs to happen faster than the lidar can publish.
+//Could become problematic if point clouds get massive
+
+//Change of plans. I'm just going to add the pre-segmented point cloud directly into the costmap.
+//THis is going to be the fastest way of doing things.
 void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
     pcl::PointCloud<pcl::PointXYZ> sample_cloud;
     pcl::fromROSMsg(*msg, sample_cloud);
     
-    
-    
+    for(unsigned i = 0; i < sample_cloud.points.size(); i++){
+        sample_cloud.points[i].z = 0;
+        
+    }
     
     
     
@@ -172,7 +188,10 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     }
 }
 
-//TODO: process aggregate point cloud
+//Done: process aggregate point cloud
+//This function has one job. Segment the full aggregated point cloud into ground and terrain
+//Having these will help segment the for the local grid.
+//Computes the global_terrain_cloud_ and global_obstacle_cloud_
 void DStarPlanner::getGlobalCloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
     pcl::PointCloud<pcl::PointXYZ> full_cloud;
     pcl::fromROSMsg(*msg, full_cloud);
@@ -277,58 +296,137 @@ Vector2f DStarPlanner::getCurrentPose(){
 
 //TODO: init the occupancy grid duh.
 //1. Use a window filter to set the local terrain and obstacle point clouds
-void DStarPlanner::initOccupancyGrid(){
+//2. Build an initial occupancy grid the same way you did for the global grid.
+void DStarPlanner::initOccupancyGrid(Vector2f start, Vector2f goal){
+    pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ> out_cloud;
+    pcl::PassThrough<pcl::PointXYZ> pass;
     
+    pass.setInputCloud(global_terrain_cloud_);
+    pass.setFilterFieldName("x");
+    pass.setFilterLimits(x_offset_,x_offset_ + x_range_);
+    pass.filter(out_cloud);
+    *in_cloud = out_cloud;
+
+    pass.setInputCloud(in_cloud);
+    pass.setFilterFieldName("y");
+    pass.setFilterLimits(y_offset_,y_offset_ + y_range_);
+    pass.filter(out_cloud);
+    *local_terrain_cloud_ = out_cloud;
+    
+    
+    
+    pass.setInputCloud(global_obstacle_cloud_);
+    pass.setFilterFieldName("x");
+    pass.setFilterLimits(x_offset_,x_offset_ + x_range_);
+    pass.filter(out_cloud);
+    *in_cloud = out_cloud;
+    
+    pass.setInputCloud(in_cloud);
+    pass.setFilterFieldName("y");
+    pass.setFilterLimits(y_offset_,y_offset_ + y_range_);
+    pass.filter(out_cloud);
+    *local_obstacle_cloud_ = out_cloud;
+
+    for(unsigned i = 0; i < local_obstacle_cloud_->points.size(); i++){
+        local_obstacle_cloud_->points[i].z = 0; //flatten obstacle point cloud
+    }
+    
+    
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr obs_tree(new pcl::search::KdTree<pcl::PointXYZ>);
+    obs_tree->setInputCloud(local_obstacle_cloud_);
+    obs_tree->setSortedResults(true);
+
+    unsigned max_neighbors = 16; //num nearest neighbors
+    std::vector<int> pointIdxKNNSearch(max_neighbors);
+    std::vector<float> pointKNNSquaredDistance(max_neighbors);
+    
+    pcl::PointXYZ searchPoint;
+    int sum;
+    int num_neighbors;
+    unsigned offset;
+    
+    ROS_INFO("Begin initializing occupancy grid");
+    for(unsigned y = 0; y < height_; y++){
+        offset = y*width_;
+        for(unsigned x = 0; x < width_; x++){
+            sum = 0;
+            
+            searchPoint.x = (x*map_res_) + x_origin_;
+            searchPoint.y = (y*map_res_) + y_origin_;
+            searchPoint.z = 0;
+            
+            num_neighbors = obs_tree->nearestKSearch(searchPoint, max_neighbors, pointIdxKNNSearch, pointKNNSquaredDistance);
+            for(unsigned i = 0; i < num_neighbors; i++){
+                if(sqrtf(pointKNNSquaredDistance[i]) < (map_res_)){
+                    sum++;
+                }
+            }
+            state_map_[offset+x] = (float) sum; //(float)std::min(sum, 4);
+        }
+    }
     
 }
 
 int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
     open_list_.clear();
-    
+
+    //Following code sets up occupancy grid properties
+    //Occupancy grid width width and height are twice the distance from start to goal.
+    //x and y_offset are used to make sure start and goal are centered in the graph.
+    //x and y_offset are the origin of the occ_grid
     x_range_ = 2*fabs(start[0] - goal[0]);
     x_offset_ = std::min(start[0], goal[0]) - (x_range_*.25);
     
     y_range_ = 2*fabs(start[1] - goal[1]);
     y_offset_ = std::min(start[1], goal[1]) - (y_range_*.25);
     
+    width_ = ceilf(x_range_ / map_res_);
+    height_ = ceilf(y_range_ / map_res_);
+    
+    if(state_map_){
+        delete[] state_map_;
+    }
+    state_map_ = new StateData[width_*height_];
     
     
     XClearWindow(dpy, w);
     
-    for(unsigned i = 0; i < COSTMAP_WIDTH; i++){
-        for(unsigned j = 0; j < COSTMAP_HEIGHT; j++){
-            state_map_[i][j].tag = NEW;
-
+    unsigned offset;
+    for(unsigned i = 0; i < height_; i++){
+        offset = width_*i;
+        for(unsigned j = 0; j < width_; j++){
+            state_map_[offset+j].tag = NEW;
 
             //TODO: need to init occupancy grid here.
             /*
             Vector2f test_pos = getRealPosition(i, j);
             if(isStateValid(test_pos[0], test_pos[1])){
-                state_map_[i][j].occupancy = FREE; 
+                state_map_[offset+j].occupancy = FREE; 
             }
             else{
-                state_map_[i][j].occupancy = OBSTACLE;
+                state_map_[offset+j].occupancy = OBSTACLE;
             }
             */
 
-            state_map_[i][j].min_cost = -1;
-            state_map_[i][j].curr_cost = 1;
-            state_map_[i][j].b_ptr = 0;
-            state_map_[i][j].x = i;
-            state_map_[i][j].y = j;
+            state_map_[offset+j].min_cost = -1;
+            state_map_[offset+j].curr_cost = 1;
+            state_map_[offset+j].b_ptr = 0;
+            state_map_[offset+j].x = i;
+            state_map_[offset+j].y = j;
 
-            drawStateTag(&state_map_[i][j]);
+            drawStateTag(&state_map_[offset+j]);
         }
     }
     
-    initOccupancyGrid();
+    //This is going to get a local obstacle and terrain point clouds.
+    //And then build a local occ grid
+    initOccupancyGrid(start, goal);
     
     StateData *goal_state = readStateMap(goal);
     insertState(goal_state, 0);
     goal_state->b_ptr = 0;
     drawGoal(goal_state);
-    
-    
     
     float k_min;
     StateData* state_xc = readStateMap(start);
@@ -352,6 +450,8 @@ int DStarPlanner::replan(StateData* robot_state){
     return k_min;
 }
 
+
+//Main Loop thread
 void DStarPlanner::runPlanner(){
     Vector2f X_pos;
     StateData* X_state;
@@ -359,6 +459,8 @@ void DStarPlanner::runPlanner(){
     StateData* temp_goal;
     
     std::vector<StateData*> actual_path;
+    
+    ros::AsyncSpinner spinner(1);
     
     X_pos = global_waypoints_[0];
     //idx is the current waypoint, idx+1 is the goal
@@ -388,6 +490,10 @@ void DStarPlanner::runPlanner(){
         actual_path.clear();
         actual_path.push_back(X_state);
         
+        //Start asynchronous callback thread. Will listen for new lidar point clouds and it will
+        //provide updated edge_costs for D* as the backpointers are followed
+        spinner.start();
+        
         do{ //This scans for new obstacles, replans, and follows the backptr
           stepPlanner(X_state, X_pos);
           usleep(10000);
@@ -402,11 +508,10 @@ void DStarPlanner::runPlanner(){
           XFlush(dpy);
           //pressEnter();
         } while(readStateMap(global_waypoints_[idx+1]) != X_state);
-
-        ROS_INFO("Reached goal");
-        pressEnter();
+        spinner.stop();
+        
+        ROS_INFO("Reached waypoint");
         drawFinishedGraph(temp_start, actual_path);
-        pressEnter();
         
         
     }
