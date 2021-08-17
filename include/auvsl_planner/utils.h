@@ -15,6 +15,7 @@ typedef struct {
 
 float get_q_norm(rbdm::Quaternion q);
 float get_yaw(rbdm::Vector4d q);
+float get_yaw(float qw, float qx, float qy, float qz);
 EulerAngles get_rpy(rbdm::Vector4d q);
 
 rbdm::Matrix3d get_box_inertia(float mass, rbdm::Vector3d v_size);

@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 
+/*
 #include "VehicleStateSpace.h"
 #include "GlobalParams.h"
 #include "JackalStatePropagator.h"
@@ -8,6 +9,7 @@
 #include "TerrainMap.h"
 #include "GlobalPlanner.h"
 #include "DStarPlanner.h"
+*/
 
 #include <ompl/base/goals/GoalSpace.h>
 #include <ompl/control/SimpleDirectedControlSampler.h>
@@ -18,19 +20,22 @@
 #include <climits>
 #include <math.h>
 
+
+/*
 ompl::base::StateSamplerPtr sampler;
 ompl::control::ControlSamplerPtr control_sampler;
 
 ompl::control::SpaceInformationPtr si;
 ompl::base::VehicleStateSpace *space;
 ompl::control::RealVectorControlSpace *cspace;
-
+*/
 
 /*
  * Test if vehicle state space is a metric space
  * Test for positive definiteness
  * Test for symmetry
  */
+/*
 void test_vehicle_space(){
   
   space->sanityChecks();
@@ -236,53 +241,6 @@ void test_state_propagator_divergence(){
 
 
 //Make sure angle difference is the between [-pi,pi]
-void test_angle_math(){
-  ROS_INFO("Math Test");
-  
-  float source, dest, ang_disp;
-  
-  source = 0;
-  dest = .5;
-  ang_disp = source - dest;
-  if(ang_disp < -M_PI){
-    ang_disp += (2*M_PI);
-  }
-  else if(ang_disp > M_PI){
-    ang_disp -= (2*M_PI);
-  }
-  
-  ROS_INFO("%f - %f = %f", dest, source, ang_disp);
-
-
-
-  source = 0;
-  dest = 5.6;
-  ang_disp = source - dest;
-  if(ang_disp < -M_PI){
-    ang_disp += (2*M_PI);
-  }
-  else if(ang_disp > M_PI){
-    ang_disp -= (2*M_PI);
-  }
-  
-  ROS_INFO("%f - %f = %f", dest, source, ang_disp);
-
-
-
-  source = 5.5;
-  dest = .5;
-  ang_disp = source - dest;
-  if(ang_disp < -M_PI){
-    ang_disp += (2*M_PI);
-  }
-  else if(ang_disp > M_PI){
-    ang_disp -= (2*M_PI);
-  }
-  
-  ROS_INFO("%f - %f = %f", dest, source, ang_disp);
-  
-}
-
 
 void test_vehicle_control_sampler(){
   ROS_INFO("test vehicl control sampler");
@@ -499,13 +457,41 @@ void gen_path_data(){
     
     JackalDynamicSolver::del_model();
 }
+*/
+
+//I checked these by hand. They pass.
+void test_angle_math(){
+  ROS_INFO("Math Test");
+
+  int len = 5;
+  float combos[len] = {-M_PI, -M_PI/2, 0, M_PI/2, M_PI };
+  
+  for(unsigned i = 0; i < len; i++){
+    for(unsigned j = 0; j < len; j++){
+      float source = combos[i];
+      float dest = combos[j];
+      float ang_disp = dest - source;
+      
+      if(ang_disp < -M_PI){
+        ang_disp += (2*M_PI);
+      }
+      else if(ang_disp > M_PI){
+        ang_disp -= (2*M_PI);
+      }
+
+      ROS_INFO("%f - %f = %f", dest, source, ang_disp);
+    }
+  }
+}
+
+
 
 int main(int argc, char **argv){
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
-  ros::Publisher pub = nh.advertise<std_msgs::String>("Global_Planner", 1); //buffer size is one. Only one global plan needed
+  //ros::Publisher pub = nh.advertise<std_msgs::String>("Global_Planner", 1); //buffer size is one. Only one global plan needed
   
-  GlobalParams::load_params(&nh);
+  //GlobalParams::load_params(&nh);
   
   ros::Rate loop_rate(10);
   
@@ -517,9 +503,9 @@ int main(int argc, char **argv){
   //test_dynamic_model();
   //test_l_planner();
   //test_obstacle_detection();
-  gen_path_data();
+  //gen_path_data();
   //test_get_base_velocity();
-  //test_angle_math();
+  test_angle_math();
   //test_vehicle_control_sampler();
   
   //del_ompl();

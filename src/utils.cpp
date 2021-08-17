@@ -21,6 +21,11 @@ Matrix3d get_tire_inertia(float mass, float radius, float height){
   return temp;
 }
 
+float get_yaw(float qw, float qx, float qy, float qz ){
+  Vector4d quat(qw, qx, qy, qz);
+  return get_yaw(quat);
+}
+
 float get_yaw(Vector4d q){
   return get_rpy(q).yaw;
 }

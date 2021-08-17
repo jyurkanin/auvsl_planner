@@ -1,5 +1,6 @@
 #include "LocalPlanner.h"
 #include "TerrainMap.h"
+#include "ControlSystem.h"
 
 #include <Eigen/Dense> //the eigen headers dont end in .h
 #include <rbdl/rbdl.h>
@@ -18,7 +19,7 @@
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/Twist.h>
-
+#include <sensor_msgs/PointCloud2.h>
 #include <ros/ros.h>
 
 // transforms
@@ -28,8 +29,18 @@
 
 #include <costmap_2d/costmap_2d_ros.h>
 #include <nav_core/base_local_planner.h>
-
 #include <boost/thread/thread.hpp>
+
+#include <pcl/point_types.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/search/organized.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/search/search.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/segmentation/region_growing.h>
 
 /*
  * Implementation for this algorithm is from
@@ -57,8 +68,8 @@ struct StateData{
     float min_cost;
     float curr_cost;
     struct StateData *b_ptr;
-    char x;
-    char y;
+    unsigned x;
+    unsigned y;
     TAG tag;
     float occupancy;
 };
@@ -110,11 +121,12 @@ public:
     void drawFinishedGraph(StateData *state, std::vector<StateData*> &actual_path);
     void drawObstacle(StateData *state);
     void drawRobotPos(StateData* state);
+    void drawRobotPos(unsigned x, unsigned y);
     
     //Helper functions
     void getMapIdx(Vector2f X, unsigned &x, unsigned &y);
-    StateData* readStateMap(Vector2f X); //will perform the necessary quantization to go from floating state to grid index
-    Vector2f getRealPosition(int x, int y);
+    StateData* readStateMap(float rx, float ry); //will perform the necessary quantization to go from floating state to grid index
+    Vector2f getRealPosition(unsigned x, unsigned y);
     Vector2f getCurrentPose();
 
     //Costmap related functions
@@ -128,10 +140,12 @@ private:
     float y_range_;
     float y_offset_;
 
+    float occupancy_threshold_;
     float map_res_;
+    
     unsigned width_;
     unsigned height_;
-    
+  
     StateData *state_map_; //states are 8 connected
     //SimpleTerrainMap *terrain_map_;
     std::vector<StateData*> open_list_; //This is going to be sorted by key function.
@@ -141,7 +155,7 @@ private:
     std::vector<Vector2f> global_waypoints_;
     
     //These represent the higher resolution immediate next waypoints to reach.
-    std::mutex mu_;
+    std::mutex wp_mu_;
     unsigned lookahead_len_;
     std::vector<Vector2f> local_waypoints_;
     
@@ -154,7 +168,8 @@ private:
     pcl::PointCloud<pcl::PointXYZ>::Ptr local_terrain_cloud_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr local_obstacle_cloud_;
 
-
+    std::ofstream log_file;
+    ControlSystem *control_system_;
     
     volatile int has_pose_;
     float goal_tol_;

@@ -180,18 +180,7 @@ add_definitions(${PCL_DEFINITIONS})
 
 
 add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
-  src/OctoTerrainMap.cpp
-  src/DStarPlanner.cpp
-  src/GlobalParams.cpp
-  src/JackalStatePropagator.cpp
-  src/TerrainMap.cpp
-  src/JackalDynamicSolver.cpp
-  src/utils.cpp
-  src/VehicleStateSpace.cpp
-  src/VehicleStateProjections.cpp
-  src/VehicleControlSampler.cpp
-  src/DirectedVehicleControlSampler.cpp
-  src/VehicleRRT.cpp
+src/GlobalParams.cpp
   )
 
 
@@ -214,35 +203,33 @@ set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3")
 
 
 
-add_executable(test_terrain_node src/test_terrain_map.cpp
-  src/OctoTerrainMap.cpp
-  src/DStarPlanner.cpp
-  src/GlobalParams.cpp
-  src/GlobalPlanner.cpp
-  src/PlannerVisualizer.cpp
-  src/JackalStatePropagator.cpp
-  src/TerrainMap.cpp
-  src/JackalDynamicSolver.cpp
-  src/utils.cpp
-  src/VehicleStateSpace.cpp
-  src/VehicleStateProjections.cpp
-  src/VehicleControlSampler.cpp
-  src/DirectedVehicleControlSampler.cpp
-  src/VehicleRRT.cpp
-  )
+#add_executable(test_terrain_node src/test_terrain_map.cpp
+#  src/OctoTerrainMap.cpp
+#  src/DStarPlanner.cpp
+#  src/GlobalParams.cpp
+#  src/GlobalPlanner.cpp
+#  src/PlannerVisualizer.cpp
+#  src/JackalStatePropagator.cpp
+#  src/TerrainMap.cpp
+#  src/JackalDynamicSolver.cpp
+#  src/utils.cpp
+#  src/VehicleStateSpace.cpp
+#  src/VehicleStateProjections.cpp
+#  src/VehicleControlSampler.cpp
+#  src/DirectedVehicleControlSampler.cpp
+#  src/VehicleRRT.cpp
+#  )
 
-
-target_link_libraries(test_terrain_node ${PCL_LIBRARIES})
-target_link_libraries(test_terrain_node ${pluginlib_LIBRARIES})
-target_link_libraries(test_terrain_node ${costmap_2d_LIBRARIES})
-target_link_libraries(test_terrain_node ${move_base_LIBRARIES})
-target_link_libraries(test_terrain_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(test_terrain_node ${OMPL_LIBRARIES})
-target_link_libraries(test_terrain_node ${catkin_LIBRARIES})
-target_link_libraries(test_terrain_node rbdl)
-target_link_libraries(test_terrain_node X11)
-
-set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3")
+#target_link_libraries(test_terrain_node ${PCL_LIBRARIES})
+#target_link_libraries(test_terrain_node ${pluginlib_LIBRARIES})
+#target_link_libraries(test_terrain_node ${costmap_2d_LIBRARIES})
+#target_link_libraries(test_terrain_node ${move_base_LIBRARIES})
+#target_link_libraries(test_terrain_node ${OCTOMAP_LIBRARIES})
+#target_link_libraries(test_terrain_node ${OMPL_LIBRARIES})
+#target_link_libraries(test_terrain_node ${catkin_LIBRARIES})
+#target_link_libraries(test_terrain_node rbdl)
+#target_link_libraries(test_terrain_node X11)
+#set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3")
 
 
 
@@ -282,18 +269,13 @@ set_target_properties(global_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
 
 
 add_library(local_planner_lib
+  src/ControlSystem.cpp
   src/DStarPlanner.cpp
   src/GlobalParams.cpp
   src/JackalStatePropagator.cpp
   src/TerrainMap.cpp
   src/JackalDynamicSolver.cpp
-  src/PlannerVisualizer.cpp
   src/utils.cpp
-  src/VehicleStateSpace.cpp
-  src/VehicleStateProjections.cpp
-  src/VehicleControlSampler.cpp
-  src/DirectedVehicleControlSampler.cpp
-  src/VehicleRRT.cpp
   )
 
 
@@ -311,7 +293,7 @@ target_link_libraries(local_planner_lib X11)
 set_target_properties(local_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
 
 
-#add_executable(test_planner_node src/test_planner_node.cpp
+#add_executable(test_planner_node src/test_planner_node.cpp)
 #  src/DStarPlanner.cpp
 #  src/GlobalParams.cpp
 #  src/GlobalPlanner.cpp
@@ -335,61 +317,3 @@ set_target_properties(local_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
 #target_link_libraries(test_planner_node X11)
 
 #set_target_properties(test_planner_node PROPERTIES COMPILE_FLAGS "")
-
-
-
-
-#############
-## Install ##
-#############
-
-# all install targets should use catkin DESTINATION variables
-# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
-
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-# catkin_install_python(PROGRAMS
-#   scripts/my_python_script
-#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark executables for installation
-## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-# install(TARGETS ${PROJECT_NAME}_node
-#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-# )
-
-## Mark libraries for installation
-## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
-# install(TARGETS ${PROJECT_NAME}
-#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
-# )
-
-## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
-
-## Mark other files for installation (e.g. launch and bag files, etc.)
-# install(FILES
-#   # myfile1
-#   # myfile2
-#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-# )
-
-#############
-## Testing ##
-#############
-
-## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_auvsl_planner.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
-
-## Add folders to be run by python nosetests
-# catkin_add_nosetests(test)

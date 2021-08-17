@@ -61,12 +61,12 @@ bool GlobalPlanner::isStateValid(const ompl::base::State *state){
   RigidBodyDynamics::Math::Quaternion quat(state_vector[3], state_vector[4], state_vector[5], state_vector[6]);
   RigidBodyDynamics::Math::Vector3d vec = quat.rotate(RigidBodyDynamics::Math::Vector3d(0,0,1));
   if(vec[2] < 0){ //you could put a number slightly greater than zero here. But I'll leave it as zero for now.
-    //ROS_INFO("INVALID STATE: ROllOVER");
+    //ROS_INFO("RRT INVALID STATE: ROllOVER");
     return false; //if the vehicle has rotated so the z axis of the body frame is pointing down in the world frame, then it fucked up
   }
   
   if(!space_ptr_->satisfiesBounds(state)){
-    //ROS_INFO("INVALID STATE: OOB");
+    //ROS_INFO("RRT INVALID STATE: OOB");
       return false;
   }
   
@@ -76,7 +76,7 @@ bool GlobalPlanner::isStateValid(const ompl::base::State *state){
 
 
 GlobalPlanner::~GlobalPlanner(){
-  ROS_INFO("Destruct GP");
+  ROS_INFO("RRT Destruct GP");
     
 }
 
@@ -110,7 +110,7 @@ void GlobalPlanner::getWaypoints(std::vector<ompl::control::Control*> &controls,
   waypoints.push_back(start_pose);
   
   
-  ROS_INFO("Num controls %ld     num durations %ld    num states %ld", controls.size(), durations.size(), states.size()); //Sanity check.
+  ROS_INFO("RRT Num controls %ld     num durations %ld    num states %ld", controls.size(), durations.size(), states.size()); //Sanity check.
 
   geometry_msgs::PoseStamped temp_pose;
   //Iterate through the controls.
@@ -121,7 +121,7 @@ void GlobalPlanner::getWaypoints(std::vector<ompl::control::Control*> &controls,
     si_->copyState(start_state, result_state);
     
     const double* result_val = result_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-    ROS_INFO("Waypoint %d  %f %f", i, result_val[0], result_val[1]);
+    ROS_INFO("RRT Waypoint %d  %f %f", i, result_val[0], result_val[1]);
     
     temp_pose.pose.position.x = result_val[0];
     temp_pose.pose.position.y = result_val[1];
@@ -136,13 +136,13 @@ void GlobalPlanner::getWaypoints(std::vector<ompl::control::Control*> &controls,
   }
   
   num_waypoints = waypoints.size();
-  ROS_INFO("Got all the waypoints.");
+  ROS_INFO("RRT Got all the waypoints.");
 }
 
 
 
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
-    ROS_INFO("GlobalPlanner::initialize");
+    ROS_INFO("RRT GlobalPlanner::initialize");
     
     
     global_map_ = new OctoTerrainMap(costmap_ros->getCostmap());
@@ -150,7 +150,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
 
     float max_x, max_y, min_x, min_y;
     global_map_->getBounds(max_x, min_x,  max_y, min_y);
-    ROS_INFO("Bounds %f %f  %f %f", min_x, max_x, min_y, max_y);
+    ROS_INFO("RRT Bounds %f %f  %f %f", min_x, max_x, min_y, max_y);
     
     ros::NodeHandle nh;
     GlobalParams::load_params(&nh);
@@ -212,7 +212,13 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
                              const geometry_msgs::PoseStamped& goalp,
                              std::vector<geometry_msgs::PoseStamped>& plan){
-    
+  
+    plan.push_back(startp);
+    plan.push_back(goalp);
+    ROS_INFO("RRT MAKING PLAN");
+    return true;
+  
+    /*
     ompl::base::ScopedState<> start(space_ptr_);
     
     start[0] = startp.pose.position.x;
@@ -229,7 +235,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     }
     
     RigidBodyDynamics::Math::Vector2d goal_pos(goalp.pose.position.x, goalp.pose.position.y);
-    float goal_tol = 1;
+    float goal_tol = .1;
     
     // construct the state space we are planning in
     ompl::base::GoalSpace *goal = new ompl::base::GoalSpace(si_);
@@ -258,20 +264,21 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     if(GlobalParams::get_visualize_planner()){
       planner_visualizer.startMonitor();
     }
-
+    
     
     //float max_runtime = 600; //seconds
     float max_runtime = GlobalParams::get_max_gp_runtime();
     ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(max_runtime), ompl::base::exactSolnPlannerTerminationCondition(pdef_));
     ompl::base::PlannerStatus solved = planner_->solve(ptc);
-    
+
+
     planner_visualizer.stopMonitor();
     
     if(solved){
-        ROS_INFO("\n\nHAS SOLUTION\n\n");
+        ROS_INFO("RRT \n\nHAS SOLUTION\n\n");
         ompl::base::PlannerSolution soln = pdef_->getSolutions()[0];
         
-        ROS_INFO("Solution Cost %f", soln.length_);
+        ROS_INFO("RRT Solution Cost %f", soln.length_);
         
         ompl::control::PathControl *path = soln.path_->as<ompl::control::PathControl>();
         
@@ -281,13 +288,13 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
         
         unsigned num_waypoints;
         getWaypoints(controls, durations, states, plan, num_waypoints);
-        ROS_INFO("Returning true from makePlan");
+        ROS_INFO("RRT Returning true from makePlan");
         return true;
     }
     else{
         return false;
     }
-
+    */  
 }
 
 

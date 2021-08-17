@@ -32,7 +32,10 @@ void PlannerVisualizer::startMonitor(){
                                        }));
 }
 
-void PlannerVisualizer::stopMonitor(){  
+void PlannerVisualizer::stopMonitor(){
+  //while(1){
+  //  std::this_thread::sleep_for(ompl::time::seconds(1.0));
+  //}
   if (!monitorThread_)
     return;
   shouldMonitor_ = false;
@@ -123,7 +126,7 @@ void PlannerVisualizer::drawElevation(){
   point_list.type = visualization_msgs::Marker::POINTS;
   point_list.scale.x = 0.1; //line width
   point_list.scale.y = 0.1; //line width
-  point_list.color.r = 1.0;
+  point_list.color.r = .5;
   point_list.color.a = 1.0;
   point_list.points = elev_pts;
   

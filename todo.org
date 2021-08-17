@@ -78,14 +78,21 @@
      get points that only lie within planning area and then generate occupancy grid with the window pcls
   5) Run segmentation on updated local point cloud with every new lidar scan? Could be way too slow.
 
-
      
-** TODO Implement or refractor local cost map functions
-** TODO Do not use costmap_ros because it sucks
+** DONE Implement or refractor local cost map functions
+   I believe this is done.
+** DONE Uh, How do I actually cause the local planner to get called???
+   After looking at the source code, I believe the answer is that setting a goal through the goal topic starts everything
+   It causes a callback to be activated, runs the global planner, then starts a loop where the local planner runs.
+   The main loop exits when the goal is reached.
+   Yeah. Except instead of a goal topic, its an actionserver. Which is essentially the same thing I think.
+   
+** DONE Do not use costmap_ros because it sucks
    I need to be get map updates directly and not have to iterate
    the entire map. Also, the resolution of the costmap_ros doesn't
    really match the distance between waypoints anyway. Its just not
    good for what I want.
+
 
 
 * DONE D* algorithm
