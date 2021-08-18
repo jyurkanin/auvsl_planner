@@ -6,11 +6,6 @@
 #include <rbdl/rbdl.h>
 
 #include <vector>
-#include <X11/keysymdef.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
-#include <X11/Xlib.h>
-#undef Success
 
 // msgs
 #include <nav_msgs/Path.h>
@@ -112,7 +107,6 @@ public:
     
     //Drawing related functions
     void initWindow();
-    void pressEnter();
     void drawStateType(StateData *state, STATE_TYPE s_type);
     void drawStateTag(StateData *state);
     void drawStateBPtr(StateData *state);
@@ -184,10 +178,9 @@ private:
     ros::NodeHandle *private_nh_;
     ros::Subscriber pcl_sub_;
     costmap_2d::Costmap2DROS *costmap_ros_; //This is still useful just for the getRobotPose function
-    
-    Display *dpy;
-    Window w;
-    GC gc;
+
+    ros::Publisher dstar_visual_pub_;
+  
 };
 
 

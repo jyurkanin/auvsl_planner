@@ -24,11 +24,6 @@ PLUGINLIB_EXPORT_CLASS(auvsl::DStarPlanner, nav_core::BaseLocalPlanner)
 using namespace auvsl;
 
 DStarPlanner::DStarPlanner(){
-    dpy = 0;
-    w = 0;
-    gc = 0;
-
-    
     curr_waypoint_ = 0;
     initialized_ = 0;
 
@@ -52,10 +47,6 @@ DStarPlanner::DStarPlanner(){
 }
 
 DStarPlanner::~DStarPlanner(){
-    if(dpy){
-        XDestroyWindow(dpy, w);
-        XCloseDisplay(dpy);
-    }
     if(initialized_){
         delete private_nh_;
         planner_thread_->join();
@@ -434,8 +425,6 @@ void DStarPlanner::initOccupancyGrid(Vector2f start, Vector2f goal){
     int num_neighbors;
     unsigned offset;
     
-    XClearWindow(dpy, w);
-    
     
     //ROS_INFO("D* Initializing occupancy grid");
     for(unsigned y = 0; y < height_; y++){
@@ -461,8 +450,6 @@ void DStarPlanner::initOccupancyGrid(Vector2f start, Vector2f goal){
         }
 
     }
-    
-    XFlush(dpy);
     
     ROS_INFO("D* Done initializing occupancy grid");
 }
@@ -492,7 +479,6 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
     }
     state_map_ = new StateData[width_*height_];
     
-    XClearWindow(dpy, w);
     
     unsigned offset;
     for(unsigned i = 0; i < height_; i++){
@@ -506,7 +492,7 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
             state_map_[offset+j].x = j;
             state_map_[offset+j].y = i;
 
-            drawStateTag(&state_map_[offset+j]);
+            //drawStateTag(&state_map_[offset+j]);
         }
     }
     
@@ -532,7 +518,6 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
     float k_min;
     StateData* state_xc = readStateMap(start[0], start[1]);
     drawGoal(state_xc);
-    XFlush(dpy);
 
     //pressEnter();
     
@@ -617,13 +602,10 @@ void DStarPlanner::runPlanner(){
           actual_path.push_back(X_state);
           
           drawRobotPos(X_state);
-          XFlush(dpy);
-          //pressEnter();
         } while(readStateMap(global_waypoints_[idx+1][0], global_waypoints_[idx+1][1]) != X_state);
         pcl_sub_.shutdown();
         
         ROS_INFO("D* Reached waypoint");
-        //drawFinishedGraph(temp_start, actual_path);
     }
     
     return;
@@ -678,13 +660,15 @@ int DStarPlanner::stepPlanner(StateData*& robot_state, Vector2f &X_robot){
     }
     
     int k_min = replan(robot_state); //pass current robot position.
-    
+
+    drawPath(robot_state);
+    /*
     StateData *temp_state = robot_state;
     while(temp_state){
       drawStateBPtr(temp_state);
       temp_state = temp_state->b_ptr;
     }
-    XFlush(dpy);
+    */
     
     followBackpointer(robot_state);
     X_robot = getRealPosition(robot_state->x, robot_state->y);
@@ -845,8 +829,6 @@ float DStarPlanner::processState(int replan){
         }
     }
     
-    XFlush(dpy);
-    
     if(open_list_.empty())
         return -1;
     else
@@ -890,7 +872,7 @@ void DStarPlanner::insertState(StateData* state, float path_cost){
         }
     }
     
-    drawStateTag(state);
+    //drawStateTag(state);
     open_list_.push_back(state);
 }
 
@@ -972,71 +954,56 @@ Vector2f DStarPlanner::getRealPosition(unsigned x, unsigned y){
 
 
 void DStarPlanner::initWindow(){
-    dpy = XOpenDisplay(0);
-
-    w = XCreateSimpleWindow(dpy, DefaultRootWindow(dpy), 0, 0, 1024, 1024, 0, 0, 0);
-    
-    XSelectInput(dpy, w, StructureNotifyMask | ExposureMask | KeyPressMask);
-    //XClearWindow(dpy, w);
-    XMapWindow(dpy, w);
-    gc = XCreateGC(dpy, w, 0, 0);
-    
-    XEvent e;
-    do{
-        XNextEvent(dpy, &e);
-    } while(e.type != MapNotify);
-    
-    XSetBackground(dpy, gc, 0);
-    //XClearWindow(dpy, w);
-}
-
-void DStarPlanner::pressEnter(){
-    XEvent e;
-    char buf[2];
-    KeySym ks = 0;
-    
-    while(1){
-        if(XPending(dpy) > 0){
-            XNextEvent(dpy, &e);
-            if(e.type == KeyPress){
-                XLookupString(&e.xkey, buf, 1, &ks, NULL);
-                if(ks == 0xFF0D){
-                    return;
-                }
-            }
-        }
-        
-        usleep(1000);
-    }
+  dstar_visual_pub_ = private_nh_->advertise<visualization_msgs::Marker>("dstar_visual", 10000);
 }
 
 void DStarPlanner::drawStateType(StateData *state, STATE_TYPE s_type){
     unsigned color;
     float scalar; //from 1 to zero
+
+    visualization_msgs::Marker rect;
+    rect.header.frame_id = "map";
+    rect.header.stamp = ros::Time::now();
+    rect.ns = "dstar";
+    rect.action = visualization_msgs::Marker::ADD;
+    rect.pose.orientation.w = 1.0;
+    rect.pose.orientation.x = 0.0;
+    rect.pose.orientation.y = 0.0;
+    rect.pose.orientation.z = 0.0;
+    rect.id = 0;
+    rect.type = visualization_msgs::Marker::CUBE;
+    rect.scale.x = .1;//map_res_;
+    rect.scale.y = .1;//map_res_;
+    rect.scale.z = .1;//map_res_;
     
-    switch(s_type){
-    case RAISE:
-        color = 0x0000FF;
-        break;
-    case LOWER:
-        color = 0x00FF00;
-        break;
-    case NORMAL:
-        color = 0xFF0000;
-        break;
-    }
+    rect.color.r = 0.0;
+    rect.color.g = 0.0;
+    rect.color.b = 0.0;
     
     scalar = std::min(1.0f, std::max(0.0f, (float)(.1+ .01*state->curr_cost)));
     
-    color = color & (unsigned) (color * scalar); //This is pretty clever. Hopefully it works
-    XSetForeground(dpy, gc, color);
+    switch(s_type){
+    case RAISE:
+      rect.color.b = scalar;
+      break;
+    case LOWER:
+      rect.color.g = scalar;
+      break;
+    case NORMAL:
+      rect.color.r = scalar;
+      break;
+    }
     
-    unsigned x = state->x * 2;
-    unsigned y = state->y * 2;
+    Vector2f goal = getRealPosition(state->x, state->y);
     
-    XFillRectangle(dpy, w, gc, x, y, 2, 2);
+    rect.color.a = 0.5;
+    rect.pose.position.x = goal[0];
+    rect.pose.position.y = goal[1];
+    rect.pose.position.z = 0;
+  
+    dstar_visual_pub_.publish(rect);
     
-    drawStateTag(state);
+    //drawStateTag(state);
     //drawStateBPtr(state);
 }
 
@@ -1059,149 +1026,184 @@ void DStarPlanner::drawStateTag(StateData* state){
         break;
     }
     
-    color = color & (unsigned) (color * scalar); //This is pretty clever. Hopefully it works
-    XSetForeground(dpy, gc, 0x00);
-    XFillRectangle(dpy, w, gc, x+1, y+1, 2, 2);
-    
-    XSetForeground(dpy, gc, color);
-    XDrawLine(dpy, w, gc, x+1, y+2, x+3, y+2);
-    XDrawLine(dpy, w, gc, x+2, y+1, x+2, y+3);
+    //draw something if you feel like it.
 }
 
 void DStarPlanner::drawObstacle(StateData *state){
-    unsigned x = state->x * 2;
-    unsigned y = state->y * 2;
-
-    XSetForeground(dpy, gc, 0xFF0000); //Red
-    XFillRectangle(dpy, w, gc, x, y, 2, 2);
+  Vector2f goal = getRealPosition(state->x, state->y);
+  
+  visualization_msgs::Marker rect;
+  rect.header.frame_id = "map";
+  rect.header.stamp = ros::Time::now();
+  rect.ns = "dstar";
+  rect.action = visualization_msgs::Marker::ADD;
+  rect.pose.orientation.w = 1.0;
+  rect.pose.orientation.x = 0.0;
+  rect.pose.orientation.y = 0.0;
+  rect.pose.orientation.z = 0.0;
+  rect.id = 1;
+  rect.type = visualization_msgs::Marker::SPHERE;
+  rect.scale.x = map_res_;
+  rect.scale.y = map_res_;
+  rect.scale.z = map_res_;
+  
+  rect.color.r = 1.0;
+  rect.color.g = 0.0;
+  rect.color.b = 0.0;
+  rect.color.a = 1.0;
+  rect.pose.position.x = goal[0];
+  rect.pose.position.y = goal[1];
+  rect.pose.position.z = 0;
+  
+  dstar_visual_pub_.publish(rect);
 }
 
 void DStarPlanner::drawStateBPtr(StateData *state){
   if(!state->b_ptr){
     return;
   }
-       
-  unsigned start_x = state->x*2 + 1;
-  unsigned start_y = state->y*2 + 1;
-  
-  unsigned end_x = state->b_ptr->x*2 + 1;
-  unsigned end_y = state->b_ptr->y*2 + 1;
-  
-  XSetForeground(dpy, gc, 0xFFFFFF);
-  XDrawLine(dpy, w, gc, start_x, start_y, end_x, end_y);
 
-  int dx = 1 + state->x - state->b_ptr->x;
-  int dy = 1 + state->y - state->b_ptr->y;
-
-  /*
-  //Draws arrows.
-  switch(dx){
-  case 0:
-    switch(dy){
-    case 0:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x-2, end_y);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x, end_y-2);
-      break;
-    case 1:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x-2, end_y-2);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x-2, end_y+2);
-      break;
-    case 2:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x-2, end_y);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x, end_y+2);
-      break;
-    }
-    break;
-  case 1:
-    switch(dy){
-    case 0:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x-2, end_y-2);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x+2, end_y-2);
-      break;
-    case 1:
-      ROS_INFO("D* This should never happen.");
-      break;
-    case 2:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x-2, end_y+2);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x+2, end_y+2);
-      break;
-    }
-    break;
-  case 2:
-    switch(dy){
-    case 0:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x, end_y-2);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x+2, end_y);
-      break;
-    case 1:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x+2, end_y-2);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x+2, end_y+2);
-      break;
-    case 2:
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x, end_y+2);
-      XDrawLine(dpy, w, gc, end_x, end_y, end_x+2, end_y);
-      break;
-    }
-    break;
-  }
-  */
+  std::vector<geometry_msgs::Point> pts;
   
+  Vector2f start = getRealPosition(state->x, state->y);
+  Vector2f end = getRealPosition(state->b_ptr->x, state->b_ptr->y);
+
+  geometry_msgs::Point start_pt;
+  start_pt.x = start[0] + map_res_*.5f;
+  start_pt.y = start[1] + map_res_*.5f;
+  start_pt.z = .1f;
+
+  geometry_msgs::Point end_pt;
+  end_pt.x = end[0] + map_res_*.5f;
+  end_pt.y = end[1] + map_res_*.5f;
+  end_pt.z = .1f;
+  
+  pts.push_back(start_pt);
+  pts.push_back(end_pt);
+  
+  visualization_msgs::Marker point_list;
+  point_list.header.frame_id = "map";
+  point_list.header.stamp = ros::Time::now();
+  point_list.ns = "dstar";
+  point_list.action = visualization_msgs::Marker::ADD;
+  point_list.pose.orientation.w = 1.0;
+  point_list.pose.orientation.x = 0.0;
+  point_list.pose.orientation.y = 0.0;
+  point_list.pose.orientation.z = 0.0;
+  point_list.id = 2;
+  point_list.type = visualization_msgs::Marker::POINTS;
+  point_list.scale.x = 0.1; //line width
+  point_list.scale.y = 0.1; //line width
+  point_list.color.r = 1.0;
+  point_list.color.g = 1.0;
+  point_list.color.b = 1.0;
+  point_list.color.a = 1.0;
+  point_list.points = pts;
+  
+  dstar_visual_pub_.publish(point_list);
 }
 
 void DStarPlanner::drawRobotPos(unsigned x, unsigned y){
-  XSetForeground(dpy, gc, 0xFF);
-  XFillRectangle(dpy, w, gc, x*2, y*2, 2, 2);  
+  Vector2f goal = getRealPosition(x, y);
+  
+  visualization_msgs::Marker rect;
+  rect.header.frame_id = "map";
+  rect.header.stamp = ros::Time::now();
+  rect.ns = "dstar";
+  rect.action = visualization_msgs::Marker::ADD;
+  rect.pose.orientation.w = 1.0;
+  rect.pose.orientation.x = 0.0;
+  rect.pose.orientation.y = 0.0;
+  rect.pose.orientation.z = 0.0;
+  rect.id = 3;
+  rect.type = visualization_msgs::Marker::CUBE;
+  rect.scale.x = .2;
+  rect.scale.y = .2;
+  rect.scale.z = .1;
+  
+  rect.color.r = 0.0;
+  rect.color.g = 0.0;
+  rect.color.b = 1.0;
+  rect.color.a = 0.5;
+  rect.pose.position.x = goal[0];
+  rect.pose.position.y = goal[1];
+  rect.pose.position.z = 0;
+  
+  dstar_visual_pub_.publish(rect);
 }
 
+
 void DStarPlanner::drawRobotPos(StateData* state){
-  XSetForeground(dpy, gc, 0xFF);
-  XFillRectangle(dpy, w, gc, state->x*2, state->y*2, 2, 2);  
+  drawRobotPos(state->x, state->y);
 }
 
 void DStarPlanner::drawGoal(StateData *state){
   //ROS_INFO("State   %u %u", state->x, state->y);
-  XSetForeground(dpy, gc, 0x00FF00);
-  XFillRectangle(dpy, w, gc, state->x*2, state->y*2, 2, 2);  
+  //XSetForeground(dpy, gc, 0x00FF00);
+  
+  Vector2f goal = getRealPosition(state->x, state->y);
+  
+  visualization_msgs::Marker rect;
+  rect.header.frame_id = "map";
+  rect.header.stamp = ros::Time::now();
+  rect.ns = "dstar";
+  rect.action = visualization_msgs::Marker::ADD;
+  rect.pose.orientation.w = 1.0;
+  rect.pose.orientation.x = 0.0;
+  rect.pose.orientation.y = 0.0;
+  rect.pose.orientation.z = 0.0;
+  rect.id = 4;
+  rect.type = visualization_msgs::Marker::CUBE;
+  rect.scale.x = .5;
+  rect.scale.y = .5;
+  rect.scale.z = .5;
+  
+  rect.color.r = 1.0;
+  rect.color.g = 0.0;
+  rect.color.b = 0.0;
+  rect.color.a = 1.0;
+  rect.pose.position.x = goal[0];
+  rect.pose.position.y = goal[1];
+  rect.pose.position.z = 0;
+  
+  dstar_visual_pub_.publish(rect);
 }
 
 void DStarPlanner::drawPath(StateData *state){
-    XSetForeground(dpy, gc, 0xFFFFFF);
+    std::vector<geometry_msgs::Point> path_pts;
     while(state->b_ptr){
-        XDrawLine(dpy, w, gc, (state->x*2) + 1, (state->y*2) + 1,  (state->b_ptr->x*2) + 1, (state->b_ptr->y*2) + 1);
+        geometry_msgs::Point pt;
+        Vector2f vec = getRealPosition(state->x, state->y);
+        pt.x = vec[0];
+        pt.y = vec[1];
+        pt.z = 0;
+        path_pts.push_back(pt);
         state = state->b_ptr;
     }
-    //XFlush(dpy);
+    
+    visualization_msgs::Marker line_list;
+    line_list.header.frame_id = "map";
+    line_list.header.stamp = ros::Time::now();
+    line_list.ns = "dstar";
+    line_list.action = visualization_msgs::Marker::ADD;
+    line_list.pose.orientation.w = 1.0;
+    line_list.pose.orientation.x = 0.0;
+    line_list.pose.orientation.y = 0.0;
+    line_list.pose.orientation.z = 0.0;
+    line_list.id = 5;
+    line_list.type = visualization_msgs::Marker::LINE_STRIP;
+    line_list.scale.x = 0.06; //line width
+    line_list.color.r = 1.0;
+    line_list.color.g = 1.0;
+    line_list.color.b = 1.0;
+    line_list.color.a = 1.0;
+    line_list.points = path_pts;
+    
+    dstar_visual_pub_.publish(line_list);
 }
 
 
 void DStarPlanner::drawFinishedGraph(StateData *start, std::vector<StateData*> &actual_path){
-    //terrain_map_->detectAllObstacles();
-
-  Vector2f test_pos;
-  
-  //XClearWindow(dpy, w);
-  
-  XSetForeground(dpy, gc, 0xFF0000);
-  for(unsigned i = 0; i < width_; i++){
-    for(unsigned j = 0; j < height_; j++){
-      test_pos = getRealPosition(i, j);
-      
-      if(!isStateValid(test_pos[0], test_pos[1])){
-        XFillRectangle(dpy, w, gc, i*2, j*2, 2, 2);  
-      }
-    }
-  }
-  
-  XSetForeground(dpy, gc, 0xFF);
-  StateData *state;
-  for(unsigned i = 0 ; i < actual_path.size(); i++){
-    //pressEnter();
-    
-    state = actual_path[i];
-    XFillRectangle(dpy, w, gc, state->x*2, state->y*2, 2, 2);
-    //XFlush(dpy);
-  }
-  
   
 }
 
