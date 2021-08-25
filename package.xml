@@ -50,7 +50,7 @@
   <exec_depend>nav_core</exec_depend>
 
 
-  
+  <depend>pcl_conversions</depend>
   <depend>costmap_2d</depend>
   <depend>pluginlib</depend>
   <depend>move_base</depend>

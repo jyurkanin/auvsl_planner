@@ -213,12 +213,12 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
                              const geometry_msgs::PoseStamped& goalp,
                              std::vector<geometry_msgs::PoseStamped>& plan){
   
-    plan.push_back(startp);
-    plan.push_back(goalp);
-    ROS_INFO("RRT MAKING PLAN");
-    return true;
+  plan.push_back(startp);
+  plan.push_back(goalp);
+  ROS_INFO("RRT MAKING PLAN");
+  return true;
   
-    /*
+  /*  
     ompl::base::ScopedState<> start(space_ptr_);
     
     start[0] = startp.pose.position.x;
@@ -294,7 +294,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     else{
         return false;
     }
-    */  
+  */
 }
 
 

@@ -11,10 +11,15 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 
 df = pd.read_csv("/home/justin/occ_grid.csv")
 occ = df['occupancy']
-cutoff = 12    
+cutoff = 8
 plt.scatter(df['x'][occ[:] > cutoff], df['y'][occ[:] > cutoff])# .01*occ[occ[:] > cutoff])
-
-df = pd.read_csv("/home/justin/xout_file.csv")
-plt.scatter(df['x'], df['y'])
-
 plt.show()
+#df = pd.read_csv("/home/justin/xout_file.csv")
+#plt.scatter(df['x'], df['y'])
+
+#plt.show()
+
+
+#df = pd.read_csv("/home/justin/code/AUVSL_ROS/pose.csv")
+#plt.scatter(df['x'], df['y'])
+#plt.show()

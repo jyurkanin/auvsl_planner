@@ -11,7 +11,15 @@
        </include>
        <rosparam file="$(find auvsl_planner)/config/jackal_gazebo_pid.yaml" command="load"/> 
 
-      
+
+  <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" clear_params="true">
+    <param name="use_odometry_yaw" value="true"/>
+    <param name="yaw_offset" value="1.570796327"/>
+    <remap from="imu/data" to="/imu/data"/>
+    <remap from="gps/fix" to="/navsat/fix"/> 
+  </node>
+
+       
   <arg name="max_range" default="0"/>
   <arg name="p2n" default="true"/>
   <arg name="pm" default="true"/>

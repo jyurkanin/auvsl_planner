@@ -7,4 +7,7 @@ TerrainMap:
     num_neighbors: 30
     num_neighbors_avg: 5
     plot_res: 4
-    occupancy_theshold: 12
+    occupancy_threshold: .9
+LocalMap:
+    smoothness_threshold: .03
+    curvature_threshold: .5

@@ -46,6 +46,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
+  
 )
 
 
@@ -107,7 +108,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES auvsl_planner
-CATKIN_DEPENDS roscpp rospy std_msgs octomap
+CATKIN_DEPENDS roscpp rospy std_msgs octomap pcl_conversions
 #  DEPENDS rbdl ompl octomap  #One day I may have to figure this out.
 )
 
@@ -174,6 +175,8 @@ find_package(ompl REQUIRED)
 include_directories(${OMPL_INCLUDE_DIRS})
 
 find_package(PCL REQUIRED)
+find_package(pcl_ros REQUIRED)
+find_package(pcl_conversions REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS} /opt/ros/noetic/include/pcl_conversions)
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})

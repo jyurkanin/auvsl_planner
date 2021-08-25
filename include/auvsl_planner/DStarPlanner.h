@@ -37,6 +37,8 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/segmentation/region_growing.h>
 
+#include <rosgraph_msgs/Clock.h>
+
 /*
  * Implementation for this algorithm is from
  * https://www.ri.cmu.edu/pub_files/pub3/stentz_anthony__tony__1994_2/stentz_anthony__tony__1994_2.pdf
@@ -90,12 +92,12 @@ public:
     void runPlanner();
     int stepPlanner(StateData*& robot_state, Vector2f &robot_pos);
     int replan(StateData* robot_state);
-    
+
     void updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg);
     void getGlobalCloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg);
     void initOccupancyGrid(Vector2f start, Vector2f goal);
-    
-    
+    void segmentPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr, pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloudPtr, pcl::PointCloud<pcl::PointXYZ>::Ptr ground_cloudPtr, int local);
+  
     float getEdgeCost(StateData* X, StateData* Y);    //c(X)
     float getPathCost(Vector2f X, Vector2f G);    //h(X)
     float getMinPathCost(Vector2f X, Vector2f G); //Min Path Cost since state was added to open list. This is the "key function"
@@ -177,9 +179,14 @@ private:
     boost::thread *planner_thread_;
     ros::NodeHandle *private_nh_;
     ros::Subscriber pcl_sub_;
+    ros::CallbackQueue pcl_obs_queue_;
     costmap_2d::Costmap2DROS *costmap_ros_; //This is still useful just for the getRobotPose function
-
+  
     ros::Publisher dstar_visual_pub_;
+    tf::TransformListener tf_listener_;
+    ros::Publisher cloud_pub1_;
+    ros::Publisher cloud_pub2_;
+    ros::Publisher cloud_pub3_;
   
 };
 

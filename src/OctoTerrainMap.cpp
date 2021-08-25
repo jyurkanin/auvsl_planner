@@ -175,12 +175,12 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     x_origin_ = occ_grid_->getOriginX();
     y_origin_ = occ_grid_->getOriginY();
     
-    
-    x_origin_ = -15;
-    y_origin_ = -15;
-    map_res_ = .1;
-    cols_ = 300;
-    rows_ = 300;
+    //Right?
+    //x_origin_ = -15;
+    //y_origin_ = -15;
+    //map_res_ = .1;
+    //cols_ = 300;
+    //rows_ = 300;
     
     ROS_INFO("cols %u  rows %u   res %f   x_origin %f   y_origin %f", cols_, rows_, map_res_, x_origin_, y_origin_);
     
@@ -366,6 +366,11 @@ void OctoTerrainMap::computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr ob
     }
     log_file.close();
     */
+
+    
+    for(unsigned i = 0; i < obstacle_cloud->points.size(); i++){
+        obstacle_cloud->points[i].z = 0;
+    }
     
     pcl::search::KdTree<pcl::PointXYZ>::Ptr obs_tree(new pcl::search::KdTree<pcl::PointXYZ>);
     obs_tree->setInputCloud(obstacle_cloud);
