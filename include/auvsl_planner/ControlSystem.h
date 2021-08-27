@@ -33,4 +33,14 @@ public:
   int computeVelocityCommand(std::vector<Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) override;
 };
   
+
+
+class AnfisControlSystem : public ControlSystem{
+public:
+  AnfisControlSystem();
+  ~AnfisControlSystem();
+  int initialize() override;
+  int computeVelocityCommand(std::vector<Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) override;
+};
+  
 }

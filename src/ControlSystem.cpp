@@ -54,14 +54,22 @@ int SimpleControlSystem::computeVelocityCommand(std::vector<Vector2f> waypoints,
     ang_disp -= (2*M_PI);
   }
 
-  v_angular = std::max(std::min(ang_disp*4.0f, 4.0f), -4.0f);
-  if(fabs(ang_disp) > .2){
-    v_forward = 0;
+  v_angular = std::max(std::min(ang_disp*.5f, 4.0f), -4.0f);
+  v_forward = std::max(std::min((dist*.5f)/(1+(ang_disp*ang_disp)), 4.0f), -4.0f);
+  if(fabs(ang_disp) > .5){
+    v_forward *= .1;
   }
-  else{
-    v_forward = std::max(std::min((dist*5.0f)/(1+(ang_disp*ang_disp)), 4.0f), 0.0f);  
+  if(v_forward < 0){
+    v_angular *= -1;
   }
+
   
   return 1;
 }
+
+
+
+
+
+
 

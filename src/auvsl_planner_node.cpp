@@ -44,6 +44,7 @@ void get_pos_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& 
 }
 
 
+//<node name="test_cs" pkg="auvsl_planner" type="test_cs_node" output="screen"/>
 //1. Solve Global Path Plan
 //2. Run Local Path Planner and try to follow global path plan
 

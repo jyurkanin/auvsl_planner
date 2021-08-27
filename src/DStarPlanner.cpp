@@ -72,7 +72,7 @@ void DStarPlanner::initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d:
 }
 
 bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
-  //ROS_INFO("D* Computing velocity commands");
+    ROS_INFO("D* Computing velocity commands");
     std::vector<Vector2f> waypoints;
     {
         std::lock_guard<std::mutex> lock(wp_mu_);
@@ -202,8 +202,8 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     //pcl::toROSMsg(*ground_cloudPtr, cloud_msg);
     //cloud_pub2_.publish(cloud_msg);
     
-    pcl::toROSMsg(*obstacle_cloudPtr, cloud_msg);
-    cloud_pub3_.publish(cloud_msg);
+    //pcl::toROSMsg(*obstacle_cloudPtr, cloud_msg);
+    //cloud_pub3_.publish(cloud_msg);
     
     /*
     *local_terrain_cloud_ = *local_terrain_cloud_ + *ground_cloudPtr;
@@ -277,20 +277,23 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
             
             num_neighbors = obs_tree->nearestKSearch(searchPoint, max_neighbors, pointIdxKNNSearch, pointKNNSquaredDistance);
             for(unsigned i = 0; i < num_neighbors; i++){
-              if(sqrtf(pointKNNSquaredDistance[i]) < (2*map_res_)){
+              if(sqrtf(pointKNNSquaredDistance[i]) < (map_res_)){
                     sum++;
                 }
             }
             
             temp_occ = sum / (float)max_neighbors;
-            if(fabs(temp_occ - state_map_[offset+x].occupancy) > .1){ //Dont just use != here. Because this would cause obstacles that are not seen to update as well when using sampled point clouds.
+            if(fabs(temp_occ - state_map_[offset+x].occupancy) > .01){
               temp_state_data.x = x;
               temp_state_data.y = y;
               temp_state_data.occupancy = temp_occ;             //if(sum > occupancy_threshold_){
               update_nodes.push_back(temp_state_data);
             }
             if(state_map_[offset+x].occupancy >= occupancy_threshold_){
-              drawObstacle(&state_map_[offset+x]);
+              drawObstacle(&state_map_[offset+x], 0);
+            }
+            else{
+              drawObstacle(&state_map_[offset+x], 1);
             }
         }
     }
@@ -547,7 +550,7 @@ void DStarPlanner::initOccupancyGrid(Vector2f start, Vector2f goal){
     pass.setFilterLimits(y_offset_,y_offset_ + y_range_);
     pass.filter(out_cloud);
     *local_obstacle_cloud_ = out_cloud;
-
+    
     //for(unsigned i = 0; i < local_obstacle_cloud_->points.size(); i++){
     //    local_obstacle_cloud_->points[i].z = 0; //flatten obstacle point cloud
     //} //THis messes up voxel filter if you project down right away.
@@ -581,14 +584,14 @@ void DStarPlanner::initOccupancyGrid(Vector2f start, Vector2f goal){
             
             num_neighbors = obs_tree->nearestKSearch(searchPoint, max_neighbors, pointIdxKNNSearch, pointKNNSquaredDistance);
             for(unsigned i = 0; i < num_neighbors; i++){
-              if(sqrtf(pointKNNSquaredDistance[i]) < (2*map_res_)){
+              if(sqrtf(pointKNNSquaredDistance[i]) < (map_res_)){
                     sum++;
                 }
             }
             state_map_[offset+x].occupancy = sum/(float)max_neighbors; //(float)std::min(sum, 4);
 
             if(state_map_[offset+x].occupancy >= occupancy_threshold_){
-              drawObstacle(&state_map_[offset+x]);
+              drawObstacle(&state_map_[offset+x], 0);
             }
         }
 
@@ -893,7 +896,7 @@ void DStarPlanner::followBackpointer(StateData*& robot_state){
 
         //ros::spinOnce();
         loop_rate.sleep();
-    } while(!(x_actual == x_desired && y_actual == y_desired) && !(sqrtf((dx*dx)+(dy*dy)) < .05));
+    } while(!(x_actual == x_desired && y_actual == y_desired) && !(sqrtf((dx*dx)+(dy*dy)) < .1));
     ROS_INFO("D* followBackPointer: Back Pointer = Followed");
     robot_state = robot_state->b_ptr;
 }
@@ -1201,7 +1204,7 @@ void DStarPlanner::drawStateTag(StateData* state){
     //draw something if you feel like it.
 }
 
-void DStarPlanner::drawObstacle(StateData *state){
+void DStarPlanner::drawObstacle(StateData *state, int clear){
   Vector2f goal = getRealPosition(state->x, state->y);
   
   visualization_msgs::Marker rect;
@@ -1218,8 +1221,13 @@ void DStarPlanner::drawObstacle(StateData *state){
   rect.scale.x = map_res_*.5;
   rect.scale.y = map_res_*.5;
   rect.scale.z = map_res_;
-  
-  rect.color.r = 1.0;
+
+  if(clear){
+    rect.color.r = 0.0;
+  }
+  else{
+    rect.color.r = 1.0;
+  }
   rect.color.g = 0.0;
   rect.color.b = 0.0;
   rect.color.a = 0.5;
@@ -1343,9 +1351,10 @@ void DStarPlanner::drawGoal(StateData *state){
 
 void DStarPlanner::drawPath(StateData *state){
     std::vector<geometry_msgs::Point> path_pts;
+    geometry_msgs::Point pt;
+    Vector2f vec;
     while(state->b_ptr){
-        geometry_msgs::Point pt;
-        Vector2f vec = getRealPosition(state->x, state->y);
+        vec = getRealPosition(state->x, state->y);
         pt.x = vec[0];
         pt.y = vec[1];
         pt.z = 0;
@@ -1353,6 +1362,12 @@ void DStarPlanner::drawPath(StateData *state){
         state = state->b_ptr;
     }
 
+    vec = getRealPosition(state->x, state->y);
+    pt.x = vec[0];
+    pt.y = vec[1];
+    pt.z = 0;
+    path_pts.push_back(pt);
+    
     if(path_pts.empty()){
       return;
     }

@@ -115,7 +115,7 @@ public:
     void drawPath(StateData *start);
     void drawGoal(StateData *state);
     void drawFinishedGraph(StateData *state, std::vector<StateData*> &actual_path);
-    void drawObstacle(StateData *state);
+  void drawObstacle(StateData *state, int clear);
     void drawRobotPos(StateData* state);
     void drawRobotPos(unsigned x, unsigned y);
     
