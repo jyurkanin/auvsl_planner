@@ -267,6 +267,18 @@
   I'm going to have to increase the processing speed by down
   sampling otherwise this is never going to work in realtime.
   Also getting rid of the publishing will definitely help.
+
+  Vehicle is not publishing velocity commadns. I believe its because
+  ros.spin() is spending all of its time in the updateEdgeCostsCallback
+  and leaving no time for computeVelocityCommands. But idk.
+  
+  You are going to have to rely on point cloud density alone probably.
+  I don't think segmentation can be done fast enough. Region growing
+  isn't fast enough. Maybe voxel filter would fix it but I'm not sure.
+  What I am sure of is that iterating through the point cloud and updating
+  the grid directly by mapping point to grid location would be fast.
+  I can probably make it work.
+
   
 
 * Minimum Viable Product:

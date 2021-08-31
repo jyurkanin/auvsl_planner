@@ -175,11 +175,18 @@ int DStarPlanner::isStateValid(float x, float y){
 //THis is going to be the fastest way of doing things.
 //This callback is going to have to be subscribed to /rtabmap/cloud_ground or whatever its called
 
+//Change of plans yet again.
 
+/*
 void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
     ROS_INFO("D* update edge costs callback");
     ros::WallTime start_time = ros::WallTime::now();
-    
+    ros::WallDuration exe_time;
+
+    exe_time = ros::WallTime::now() - start_time;
+    ROS_INFO("D* updateEdge: Segmenting point cloud %u %u", exe_time.sec, exe_time.nsec);
+
+      
     pcl::PointCloud<pcl::PointXYZ>::Ptr sample_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*msg, *sample_cloud);
 
@@ -233,6 +240,8 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     *global_obstacle_cloud_ = temp_cloud;
     */
 //
+    exe_time = ros::WallTime::now() - start_time;
+    ROS_INFO("D* updateEdge: building search tree %u %u", exe_time.sec, exe_time.nsec);
     
     if(obstacle_cloudPtr->points.empty()){
       return;
@@ -260,6 +269,9 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     
     StateData temp_state_data;
     std::vector<StateData> update_nodes;
+
+    exe_time = ros::WallTime::now() - start_time;
+    ROS_INFO("D* updateEdge: Doing nearest neighbor grid update %u %u", exe_time.sec, exe_time.nsec);
     
     ROS_INFO("D* Done intitializing pcl, updating Edges in occupancy grid");
     if(!state_map_){
@@ -310,10 +322,10 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     }
     
 
-    ros::WallDuration exe_time = ros::WallTime::now() - start_time;
+    exe_time = ros::WallTime::now() - start_time;
     ROS_INFO("D* updateEdge: exiting critical section %u %u", exe_time.sec, exe_time.nsec);
 }
-
+*/
 
 /*
 void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
