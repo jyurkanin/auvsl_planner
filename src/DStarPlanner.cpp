@@ -41,6 +41,7 @@ DStarPlanner::DStarPlanner(){
 
     control_system_ = new SimpleControlSystem();
     
+    
     //log_file.open("/home/justin/code/AUVSL_ROS/pose.csv", std::ofstream::out);
     //log_file << "x,y\n";
     /*
@@ -87,6 +88,7 @@ bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
     cmd_vel.angular.y = 0;
     
     if(waypoints.empty()){
+      ROS_INFO("D* computeVelocityCommands: No waypoints");
       cmd_vel.linear.x = 0;
       cmd_vel.angular.z = 0;
       return true;
@@ -100,6 +102,8 @@ bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
     if(!costmap_ros_->getRobotPose(pose)){
       ROS_INFO("Failed to get robot pose");
     }
+    
+    ROS_INFO("D* computeVelocityCommands: computeVelocityCommand");
     control_system_->computeVelocityCommand(waypoints, pose.pose, v_forward, v_angular);
     
     cmd_vel.linear.x = v_forward;
@@ -177,28 +181,41 @@ int DStarPlanner::isStateValid(float x, float y){
 
 //Change of plans yet again.
 
-/*
+
 void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
     ROS_INFO("D* update edge costs callback");
     ros::WallTime start_time = ros::WallTime::now();
     ros::WallDuration exe_time;
 
-    exe_time = ros::WallTime::now() - start_time;
-    ROS_INFO("D* updateEdge: Segmenting point cloud %u %u", exe_time.sec, exe_time.nsec);
-
-      
+    if(!state_map_){
+      ROS_INFO("D* Occ grid not yet initialized. Can't update edges in grid.");
+      return;
+    }
+    
+    
     pcl::PointCloud<pcl::PointXYZ>::Ptr sample_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*msg, *sample_cloud);
-
+    
+    pcl::PointCloud<pcl::PointXYZ> temp_cloud;
+    pcl::VoxelGrid<pcl::PointXYZ> sor;
+    sor.setLeafSize(0.1f, 0.1f, 0.1f);
+    sor.setInputCloud(sample_cloud);
+    sor.filter(temp_cloud);
+    *sample_cloud = temp_cloud;
+    
     pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloudPtr(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr ground_cloudPtr(new pcl::PointCloud<pcl::PointXYZ>);
     
-    
     pcl::PointCloud<pcl::PointXYZ> sample_map_frame;
     pcl_ros::transformPointCloud("map", *sample_cloud, sample_map_frame, tf_listener_);
+    
     *sample_cloud = sample_map_frame + *local_terrain_cloud_;
     
     segmentPointCloud(sample_cloud, obstacle_cloudPtr, ground_cloudPtr, 1);
+
+    exe_time = ros::WallTime::now() - start_time;
+    ROS_INFO("D* updateEdge: Segmenting point cloud %u %u", exe_time.sec, exe_time.nsec);
+    
     
     sensor_msgs::PointCloud2 cloud_msg;
     cloud_msg.header.frame_id = "map";
@@ -209,40 +226,9 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     //pcl::toROSMsg(*ground_cloudPtr, cloud_msg);
     //cloud_pub2_.publish(cloud_msg);
     
-    //pcl::toROSMsg(*obstacle_cloudPtr, cloud_msg);
-    //cloud_pub3_.publish(cloud_msg);
-    
-    /*
-    *local_terrain_cloud_ = *local_terrain_cloud_ + *ground_cloudPtr;
-    *local_obstacle_cloud_ = *local_obstacle_cloud_ + *obstacle_cloudPtr;
-    
-    *global_terrain_cloud_ = *global_terrain_cloud_ + *ground_cloudPtr;
-    *global_obstacle_cloud_ = *global_obstacle_cloud_ + *obstacle_cloudPtr;
-
-    pcl::PointCloud<pcl::PointXYZ> temp_cloud;
-    pcl::VoxelGrid<pcl::PointXYZ> sor;
-    sor.setLeafSize(0.1f, 0.1f, 0.1f);
-    
-    sor.setInputCloud(local_terrain_cloud_);
-    sor.filter(temp_cloud);
-    *local_terrain_cloud_ = temp_cloud;
-    
-    sor.setInputCloud(local_obstacle_cloud_);
-    sor.filter(temp_cloud);
-    *local_obstacle_cloud_ = temp_cloud;
-    
-    sor.setInputCloud(global_terrain_cloud_);
-    sor.filter(temp_cloud);
-    *global_terrain_cloud_ = temp_cloud;
-    
-    sor.setInputCloud(global_obstacle_cloud_);
-    sor.filter(temp_cloud);
-    *global_obstacle_cloud_ = temp_cloud;
-    */
-//
-    exe_time = ros::WallTime::now() - start_time;
-    ROS_INFO("D* updateEdge: building search tree %u %u", exe_time.sec, exe_time.nsec);
-    
+    pcl::toROSMsg(*obstacle_cloudPtr, cloud_msg);
+    cloud_pub3_.publish(cloud_msg);
+        
     if(obstacle_cloudPtr->points.empty()){
       return;
     }
@@ -252,16 +238,22 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     }
     
     //one alternative would be to cluster obstacle point cloud and then compute radius and then do sparse update of point cloud.
-    
+
+    /*
     pcl::search::KdTree<pcl::PointXYZ>::Ptr obs_tree(new pcl::search::KdTree<pcl::PointXYZ>);
     obs_tree->setInputCloud(obstacle_cloudPtr);
     obs_tree->setSortedResults(true);
     
-    unsigned max_neighbors = 16; //num nearest neighbors
+    //num nearest neighbors
     std::vector<int> pointIdxKNNSearch(max_neighbors);
     std::vector<float> pointKNNSquaredDistance(max_neighbors);
     
     pcl::PointXYZ searchPoint;
+    */
+
+    private_nh_->getParam("/LocalMap/occupancy_threshold", occupancy_threshold_);
+    
+    unsigned max_neighbors = 16;
     float temp_occ;
     int sum;
     int num_neighbors;
@@ -274,10 +266,71 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
     ROS_INFO("D* updateEdge: Doing nearest neighbor grid update %u %u", exe_time.sec, exe_time.nsec);
     
     ROS_INFO("D* Done intitializing pcl, updating Edges in occupancy grid");
-    if(!state_map_){
-      ROS_INFO("D* Occ grid not yet initialized. Can't update edges in grid.");
-      return;
+
+    
+    unsigned *point_density_grid = new unsigned[width_*height_];
+    for(unsigned y = 0; y < height_; y++){
+      offset = y*width_;
+      for(unsigned x = 0; x < width_; x++){
+        point_density_grid[offset+x] = 0;
+      }
     }
+    
+    for(unsigned i = 0; i < obstacle_cloudPtr->points.size(); i++){
+      int x = floorf((obstacle_cloudPtr->points[i].x - x_offset_) / map_res_);
+      int y = floorf((obstacle_cloudPtr->points[i].y - y_offset_) / map_res_);
+      if(x < 0 || x >= width_ || y < 0 || y >= height_){
+        continue;
+      }
+      point_density_grid[(y*width_)+x]++;
+    }
+
+    float *blur_density_grid = new float[width_*height_];
+    const int kernel_size = 5;
+    const float sigma_sq = 12;
+    for(int i = 0; i < height_; i++){
+      for(int j = 0; j < width_; j++){
+        
+        float dist_sq;
+        float weight;
+        float total_weight = 0;
+        float occ_sum = 0;
+        
+        for(int k = std::max((int)0,(int)(i-kernel_size)); k <= std::min(int(height_-1),int(i+kernel_size)); k++){
+            for(int m = std::max((int)0,int(j-kernel_size)); m <= std::min(int(width_-1),int(j+kernel_size)); m++){
+              float dx = m - j;
+              float dy = k - i;
+                
+              dist_sq = (dx*dx) + (dy*dy);
+              weight = expf(-1.0*dist_sq/sigma_sq);
+              occ_sum += weight*point_density_grid[(k*width_) + m];
+              total_weight += weight;
+              //occ_sum = std::max(occ_sum, (float)point_density_grid[(k*width_) + m]);
+            }
+        }
+        blur_density_grid[(i*width_) + j] = occ_sum / total_weight;
+      }
+    }
+
+    
+    for(unsigned y = 0; y < height_; y++){
+      offset = y*width_;
+      for(unsigned x = 0; x < width_; x++){
+        temp_occ = blur_density_grid[offset+x] / max_neighbors;
+        //if(fabs(temp_occ - state_map_[offset+x].occupancy) > .001){
+        if(temp_occ > occupancy_threshold_){
+          temp_state_data.x = x;
+          temp_state_data.y = y;
+          temp_state_data.occupancy = temp_occ;
+          update_nodes.push_back(temp_state_data);
+          drawObstacle(&state_map_[offset+x], 0);
+        }
+      }
+    }
+    
+    
+    
+    /*
     for(unsigned y = 0; y < height_; y++){
         offset = y*width_;
         for(unsigned x = 0; x < width_; x++){
@@ -309,7 +362,7 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
             }
         }
     }
-    
+    */
     ROS_INFO("D* updateEdge: Done with detecting new states to update. Entering critical section now");
     
     
@@ -321,11 +374,13 @@ void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPt
         }
     }
     
-
+    delete[] blur_density_grid;
+    delete[] point_density_grid;
+    
     exe_time = ros::WallTime::now() - start_time;
     ROS_INFO("D* updateEdge: exiting critical section %u %u", exe_time.sec, exe_time.nsec);
 }
-*/
+
 
 /*
 void DStarPlanner::updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
@@ -445,6 +500,14 @@ void DStarPlanner::getGlobalCloudCallback(const sensor_msgs::PointCloud2ConstPtr
     mls.process(*global_terrain_cloud_);
     ROS_INFO("D* point cloud smoothed");
 
+    pcl::PointCloud<pcl::PointXYZ> temp_cloud;
+    pcl::VoxelGrid<pcl::PointXYZ> sor;
+    sor.setLeafSize(0.1f, 0.1f, 0.1f);
+    
+    sor.setInputCloud(global_terrain_cloud_);
+    sor.filter(temp_cloud);
+    *global_terrain_cloud_ = temp_cloud;
+    
     has_init_map_ = 1;
 }
 
@@ -562,12 +625,7 @@ void DStarPlanner::initOccupancyGrid(Vector2f start, Vector2f goal){
     pass.setFilterLimits(y_offset_,y_offset_ + y_range_);
     pass.filter(out_cloud);
     *local_obstacle_cloud_ = out_cloud;
-    
-    //for(unsigned i = 0; i < local_obstacle_cloud_->points.size(); i++){
-    //    local_obstacle_cloud_->points[i].z = 0; //flatten obstacle point cloud
-    //} //THis messes up voxel filter if you project down right away.
 
-    //ROS_INFO("D* Point cloud size %lu", local_obstacle_cloud_->points.size());
     
     pcl::search::KdTree<pcl::PointXYZ>::Ptr obs_tree(new pcl::search::KdTree<pcl::PointXYZ>);
     obs_tree->setInputCloud(local_obstacle_cloud_);
@@ -602,9 +660,6 @@ void DStarPlanner::initOccupancyGrid(Vector2f start, Vector2f goal){
             }
             state_map_[offset+x].occupancy = sum/(float)max_neighbors; //(float)std::min(sum, 4);
 
-            if(state_map_[offset+x].occupancy >= occupancy_threshold_){
-              drawObstacle(&state_map_[offset+x], 0);
-            }
         }
 
     }
@@ -637,7 +692,6 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
     }
     state_map_ = new StateData[width_*height_];
     
-    
     unsigned offset;
     for(unsigned i = 0; i < height_; i++){
         offset = width_*i;
@@ -649,7 +703,7 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
             state_map_[offset+j].b_ptr = 0;
             state_map_[offset+j].x = j;
             state_map_[offset+j].y = i;
-
+            
             //drawStateTag(&state_map_[offset+j]);
         }
     }
@@ -707,7 +761,7 @@ void DStarPlanner::runPlanner(){
     
     //This is still useful just for the getRobotPose function
     private_nh_->getParam("/move_base/DStarPlanner/goal_tol", goal_tol_);
-    private_nh_->getParam("/TerrainMap/occupancy_threshold", occupancy_threshold_);
+    private_nh_->getParam("/LocalMap/occupancy_threshold", occupancy_threshold_);
     //private_nh_->getParam("/move_base/local_costmap/pcl_topic", pcl_topic);
 
     //SECTION is going to be for building the global map.
@@ -830,7 +884,7 @@ int DStarPlanner::stepPlanner(StateData*& robot_state, Vector2f &X_robot){
     }
     ROS_INFO("D* stepPlanner: exiting critical section");
     
-    ROS_INFO("D* Num New Obstacles To be Processed: %lu", update_nodes.size());
+    ROS_INFO("D* Num Cells To be Processed: %lu", update_nodes.size());
     std::vector<StateData*> neighbors;
     
     for(unsigned i = 0; i < update_nodes.size(); i++){
@@ -843,6 +897,7 @@ int DStarPlanner::stepPlanner(StateData*& robot_state, Vector2f &X_robot){
         getNeighbors(neighbors, &state_map_[m_idx], 1);
         
         state_map_[m_idx].occupancy = update_nodes[i].occupancy;
+                
         if(state_map_[m_idx].tag == CLOSED){
           insertState(&state_map_[m_idx], state_map_[m_idx].curr_cost);
         }
@@ -889,7 +944,7 @@ void DStarPlanner::followBackpointer(StateData*& robot_state){
           local_waypoints_.push_back(temp_vec);
         }
     }
-    
+    ROS_INFO("D* followBackPointer: Num Waypoints %lu", local_waypoints_.size());
     ROS_INFO("D* followBackPointer: actually following back pointer and also listening for edgeCost updates");
     float dx;
     float dy;
@@ -908,7 +963,7 @@ void DStarPlanner::followBackpointer(StateData*& robot_state){
 
         //ros::spinOnce();
         loop_rate.sleep();
-    } while(!(x_actual == x_desired && y_actual == y_desired) && !(sqrtf((dx*dx)+(dy*dy)) < .1));
+    } while(!(x_actual == x_desired && y_actual == y_desired) && !(sqrtf((dx*dx)+(dy*dy)) < .2));
     ROS_INFO("D* followBackPointer: Back Pointer = Followed");
     robot_state = robot_state->b_ptr;
 }
@@ -1079,7 +1134,7 @@ float DStarPlanner::getEdgeCost(StateData* X, StateData* Y){
   //ROS_INFO("D* getEdgeCost");
   int dx = X->x - Y->x;
   int dy = X->y - Y->y;
-  return sqrtf(dx*dx + dy*dy) + Y->occupancy*2;
+  return sqrtf(dx*dx + dy*dy) + Y->occupancy*1000;
 }
 
 float DStarPlanner::getPathCost(Vector2f X, Vector2f G){
@@ -1119,7 +1174,7 @@ Vector2f DStarPlanner::getRealPosition(unsigned x, unsigned y){
     float x_scale = x_range_ / width_;
     float y_scale = y_range_ / height_;
     Vector2f X;
-
+    
     
     X[0] = ((float)x*x_scale) + x_offset_;// + (x_scale*.5);
     X[1] = ((float)y*y_scale) + y_offset_;// + (y_scale*.5);

@@ -1,7 +1,10 @@
 #include <Eigen/Dense>
 #include <vector>
 
+#include <ros/ros.h>
 #include <geometry_msgs/Pose.h>
+#include <auvsl_control/AnfisControl.h>
+
 
 /*
  * Abstract base class for control systems + simple waypoint follower
@@ -41,6 +44,7 @@ public:
   ~AnfisControlSystem();
   int initialize() override;
   int computeVelocityCommand(std::vector<Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) override;
+  ros::ServiceClient client_;
 };
   
 }

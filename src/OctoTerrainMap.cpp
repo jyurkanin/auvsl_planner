@@ -192,7 +192,6 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     
     ROS_INFO("Goind to compute our own occupancy grid");
     //gaussian blur of occ_grid to smooth it out and reduce noise from terrain incorrectly labeled as obstacle.
-    const unsigned char *occupancy_grid = occ_grid->getCharMap();//new unsigned char[rows_*cols_];
     float *temp_occ_grid = new float[rows_*cols_];
     computeOccupancyGrid(obstacle_cloudPtr, temp_occ_grid);
     occ_grid_blur_ = new float[rows_*cols_];
@@ -532,12 +531,12 @@ int OctoTerrainMap::isStateValid(float x, float y) const{
 
     //might not need this conversion.
     if(!occ_grid_->worldToMap(x, y, mx, my)){
-      ROS_INFO("worldToMap OOB");
+      //ROS_INFO("worldToMap OOB");
       return 0; //Out of Bounds
     }
     
     if(occ_grid_blur_[(my*cols_) + mx] > occupancy_threshold_){
-      ROS_INFO("Lethal Obstacle Detected");
+      //ROS_INFO("Lethal Obstacle Detected");
       return 0; //state is occupied if occupancy > 50%. At least I think thats how it all works.
     }
 

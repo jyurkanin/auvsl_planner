@@ -163,7 +163,7 @@ private:
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr local_terrain_cloud_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr local_obstacle_cloud_;
-
+    
     std::ofstream log_file;
     ControlSystem *control_system_;
     

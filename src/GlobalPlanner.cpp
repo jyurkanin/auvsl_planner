@@ -146,6 +146,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
     
     
     global_map_ = new OctoTerrainMap(costmap_ros->getCostmap());
+    costmap_ros->stop();
     JackalDynamicSolver::set_terrain_map((TerrainMap*) global_map_);
 
     float max_x, max_y, min_x, min_y;
@@ -173,8 +174,8 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
     }
 
     space->setBounds(bounds);
-    space_ptr_.reset(space); //no me gusta shared ptrs
-
+    //space_ptr_.reset(space); //no me gusta shared ptrs
+    space_ptr_ = ompl::base::StateSpacePtr(space);
     
     ompl::control::RealVectorControlSpace *cspace = new ompl::control::RealVectorControlSpace(space_ptr_, 2);
     ompl::base::RealVectorBounds cbounds(2);
@@ -196,29 +197,32 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
     si_->setStateValidityCheckingResolution(GlobalParams::get_state_checker_resolution());    //this is for checking motions
     si_->setup();
 
+    ROS_INFO("RRT si_ setup");
     
     pdef_ = ompl::base::ProblemDefinitionPtr(new ompl::base::ProblemDefinition(si_));
 
-    
+    ROS_INFO("RRT problem definition");
     ompl::control::VehicleRRT *rrt_planner = new ompl::control::VehicleRRT(si_);
     rrt_planner->setGoalBias(GlobalParams::get_goal_bias()); //.05 was recommended.
     rrt_planner->setIntermediateStates(GlobalParams::get_add_intermediate_states());
     planner_ = ompl::base::PlannerPtr(rrt_planner);
+    ROS_INFO("RRT planner_ made");
     
     
     planner_->clear();
+    ROS_INFO("RRT planner_ cleared");
 }
 
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
                              const geometry_msgs::PoseStamped& goalp,
                              std::vector<geometry_msgs::PoseStamped>& plan){
   
-  plan.push_back(startp);
-  plan.push_back(goalp);
-  ROS_INFO("RRT MAKING PLAN");
-  return true;
+  //  plan.push_back(startp);
+  //plan.push_back(goalp);
+  //ROS_INFO("RRT MAKING PLAN");
+  //return true;
   
-  /*  
+    ROS_INFO("RRT makePlan started");
     ompl::base::ScopedState<> start(space_ptr_);
     
     start[0] = startp.pose.position.x;
@@ -235,7 +239,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     }
     
     RigidBodyDynamics::Math::Vector2d goal_pos(goalp.pose.position.x, goalp.pose.position.y);
-    float goal_tol = .1;
+    float goal_tol = .5;
     
     // construct the state space we are planning in
     ompl::base::GoalSpace *goal = new ompl::base::GoalSpace(si_);
@@ -258,19 +262,20 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     ompl::base::GoalPtr goal_ptr(goal);
     pdef_->setGoal(goal_ptr);
     planner_->setProblemDefinition(pdef_);
-    
+
+    ROS_INFO("RRT all set up");
     PlannerVisualizer planner_visualizer(si_, planner_, global_map_, .5);
     planner_visualizer.setGoal(goal_pos);
     if(GlobalParams::get_visualize_planner()){
       planner_visualizer.startMonitor();
     }
     
-    
+    ROS_INFO("RRT started monitor");
     //float max_runtime = 600; //seconds
     float max_runtime = GlobalParams::get_max_gp_runtime();
     ompl::base::PlannerTerminationCondition ptc = ompl::base::plannerOrTerminationCondition(ompl::base::timedPlannerTerminationCondition(max_runtime), ompl::base::exactSolnPlannerTerminationCondition(pdef_));
     ompl::base::PlannerStatus solved = planner_->solve(ptc);
-
+    ROS_INFO("RRT Solved");
 
     planner_visualizer.stopMonitor();
     
@@ -294,7 +299,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     else{
         return false;
     }
-  */
+  
 }
 
 

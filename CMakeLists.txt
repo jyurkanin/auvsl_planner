@@ -46,7 +46,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
-  
+  auvsl_control
 )
 
 
@@ -200,7 +200,7 @@ target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node rbdl)
 target_link_libraries(${PROJECT_NAME}_node X11)
 
-set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3")
+set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 
@@ -232,7 +232,7 @@ set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3")
 #target_link_libraries(test_terrain_node ${catkin_LIBRARIES})
 #target_link_libraries(test_terrain_node rbdl)
 #target_link_libraries(test_terrain_node X11)
-#set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3")
+#set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 
@@ -268,7 +268,7 @@ target_link_libraries(global_planner_lib ${catkin_LIBRARIES})
 target_link_libraries(global_planner_lib rbdl)
 target_link_libraries(global_planner_lib X11)
 
-set_target_properties(global_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
+set_target_properties(global_planner_lib PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 add_library(local_planner_lib
@@ -293,7 +293,7 @@ target_link_libraries(local_planner_lib ${catkin_LIBRARIES})
 target_link_libraries(local_planner_lib rbdl)
 target_link_libraries(local_planner_lib X11)
 
-set_target_properties(local_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
+set_target_properties(local_planner_lib PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 
@@ -320,4 +320,4 @@ target_link_libraries(test_cs_node ${catkin_LIBRARIES})
 target_link_libraries(test_cs_node rbdl)
 target_link_libraries(test_cs_node X11)
 
-set_target_properties(test_cs_node PROPERTIES COMPILE_FLAGS "-O3")
+set_target_properties(test_cs_node PROPERTIES COMPILE_FLAGS "-O3 -g")

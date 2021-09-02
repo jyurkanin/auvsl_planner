@@ -41,8 +41,8 @@
 #include <cstring>
 #include <limits>
 #include <cmath>
+#include <ros/ros.h>
 
-#include "GlobalParams.h"
 
 void ompl::base::VehicleStateSampler::sampleUniform(State *state)
 {
@@ -237,7 +237,8 @@ void ompl::base::VehicleStateSpace::deserialize(State *state, const void *serial
 }
 
 bool ompl::base::VehicleStateSpace::isMetricSpace() const {
-  std::vector<float> weights = GlobalParams::get_distance_weights();
+  std::vector<float> weights;//GlobalParams::get_distance_weights();
+  ros::param::get("/distance_weights", weights);
   return (weights[2] == 0) && (weights[3] == 0);
 }
 
@@ -250,7 +251,8 @@ double ompl::base::VehicleStateSpace::distance(const State *state1, const State 
   const double *s2 = static_cast<const StateType *>(state2)->values;
 
   
-  std::vector<float> weights = GlobalParams::get_distance_weights();
+  std::vector<float> weights;
+  ros::param::get("/distance_weights", weights);
   double vec[2] = {s2[0] - s1[0], s2[1] - s1[1]};  
   double vec_magnitude = sqrt((vec[0]*vec[0]) + (vec[1]*vec[1]));
   
