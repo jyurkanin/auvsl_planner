@@ -13,11 +13,10 @@
   <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
   <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>
   <node name="test_terrain_node" pkg="auvsl_planner" type="test_terrain_node" output="screen" launch-prefix="" required="true"/>
-  
-  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">
+
 <!--
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">
     <param name="base_global_planner" value="auvsl/GlobalPlanner"/>
--->
     <param name="base_local_planner" value="auvsl/DStarPlanner"/>
     
     <rosparam file="$(find auvsl_planner)/config/costmap_common_params.yaml" command="load" ns="global_costmap" /> 
@@ -26,7 +25,7 @@
     <rosparam file="$(find auvsl_planner)/config/global_costmap_params.yaml" command="load" /> 
     <rosparam file="$(find auvsl_planner)/config/base_local_planner_params.yaml" command="load" />
   </node>
-  
+-->  
     
   <arg name="max_range" default="0"/>
   <arg name="p2n" default="true"/>

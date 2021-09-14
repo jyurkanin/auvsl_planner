@@ -206,33 +206,34 @@ set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 
-#add_executable(test_terrain_node src/test_terrain_map.cpp
-#  src/OctoTerrainMap.cpp
-#  src/DStarPlanner.cpp
-#  src/GlobalParams.cpp
-#  src/GlobalPlanner.cpp
-#  src/PlannerVisualizer.cpp
-#  src/JackalStatePropagator.cpp
-#  src/TerrainMap.cpp
-#  src/JackalDynamicSolver.cpp
-#  src/utils.cpp
-#  src/VehicleStateSpace.cpp
-#  src/VehicleStateProjections.cpp
-#  src/VehicleControlSampler.cpp
-#  src/DirectedVehicleControlSampler.cpp
-#  src/VehicleRRT.cpp
-#  )
+add_executable(test_terrain_node src/test_terrain_map.cpp
+  src/OctoTerrainMap.cpp
+  src/DStarPlanner.cpp
+  src/ControlSystem.cpp
+  src/GlobalParams.cpp
+  src/GlobalPlanner.cpp
+  src/PlannerVisualizer.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
+  )
 
-#target_link_libraries(test_terrain_node ${PCL_LIBRARIES})
-#target_link_libraries(test_terrain_node ${pluginlib_LIBRARIES})
-#target_link_libraries(test_terrain_node ${costmap_2d_LIBRARIES})
-#target_link_libraries(test_terrain_node ${move_base_LIBRARIES})
-#target_link_libraries(test_terrain_node ${OCTOMAP_LIBRARIES})
-#target_link_libraries(test_terrain_node ${OMPL_LIBRARIES})
-#target_link_libraries(test_terrain_node ${catkin_LIBRARIES})
-#target_link_libraries(test_terrain_node rbdl)
-#target_link_libraries(test_terrain_node X11)
-#set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+target_link_libraries(test_terrain_node ${PCL_LIBRARIES})
+target_link_libraries(test_terrain_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_terrain_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_terrain_node ${move_base_LIBRARIES})
+target_link_libraries(test_terrain_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_terrain_node ${OMPL_LIBRARIES})
+target_link_libraries(test_terrain_node ${catkin_LIBRARIES})
+target_link_libraries(test_terrain_node rbdl)
+target_link_libraries(test_terrain_node X11)
+set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 

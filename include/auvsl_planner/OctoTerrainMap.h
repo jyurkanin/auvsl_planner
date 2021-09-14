@@ -45,7 +45,8 @@ public:
     void computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloud, float* temp_occ_grid);
     void computeElevationGrid(float *temp_elev_map);    
     void computeInflationGrid(float *costmap, float *inflated_costmap);
-    
+    void computePclOriginSize();
+  
     float getMapRes();
     void getBounds(float &max_x, float &min_x, float &max_y, float &min_y) const;
   
@@ -56,7 +57,9 @@ public:
     float map_res_;
     float x_origin_;
     float y_origin_;
-
+    float x_max_;
+    float y_max_;
+    
     int num_neighbors_avg;
 private:
     costmap_2d::Costmap2D *occ_grid_;
@@ -66,7 +69,11 @@ private:
     
     float *occ_grid_blur_;
     float *elev_map_;
-  
+
+    ros::NodeHandle *private_nh_;
+    ros::Publisher cloud_pub1_;
+    ros::Publisher cloud_pub2_;
+    
     static unsigned has_octomap_ground;
     static pcl::PointCloud<pcl::PointXYZ> pcl_cloud;
     static pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;

@@ -29,8 +29,7 @@ PLUGINLIB_EXPORT_CLASS(auvsl::DStarPlanner, nav_core::BaseLocalPlanner)
 //valgrind --track-origins=yes --log-file=/home/justin/temp/log.txt 
 using namespace auvsl;
 
-/*
-*/
+
 DStarPlanner::DStarPlanner(){
     curr_waypoint_ = 0;
     initialized_ = 0;
@@ -40,7 +39,6 @@ DStarPlanner::DStarPlanner(){
     state_map_ = 0;
 
     control_system_ = new SimpleControlSystem();
-    
     
     //log_file.open("/home/justin/code/AUVSL_ROS/pose.csv", std::ofstream::out);
     //log_file << "x,y\n";
