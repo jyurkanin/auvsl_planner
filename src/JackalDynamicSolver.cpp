@@ -120,7 +120,7 @@ void JackalDynamicSolver::init_model(int debug){
   if(debug_level == 2 && !log_file.is_open()){
       ROS_INFO("DEBUG LEVEL 2");
       log_file.open("/home/justin/xout_file.csv", std::ofstream::out);
-      //log_file << "qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qdd4\n";
+      log_file << "qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qdd4\n";
   }
   
   //model = NULL;
@@ -691,6 +691,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float sim_time){
   
   unsigned max_steps = sim_steps + timestep;
   for(; timestep < max_steps; timestep++){
+    //runge_kutta_method(Xout, Xout_next);
     euler_method(Xout, Xout_next);
     
     if(debug_level == 2){
@@ -774,7 +775,7 @@ void JackalDynamicSolver::euler_method(float *X, float *Xt1){
   }
   
   float temp[4] = {Xt1[3], Xt1[4], Xt1[5], Xt1[10]};
-  normalize_quat(temp);
+  normalize_quat(temp); //this is needed because the quaternion is updated under a small angle assumption using what is essentially a hack for integratin quaternions and it doesnt preserve the quaternion unit norm property
   Xt1[3] = temp[0];
   Xt1[4] = temp[1];
   Xt1[5] = temp[2];
@@ -785,23 +786,37 @@ void JackalDynamicSolver::runge_kutta_method(float *X, float *Xt1){
   int len = model->q_size + model->qdot_size;
   float ts = stepsize;
   
+  //make sure quaternion is normalized after every step or error will be terrible.
+  auto normalize_helper = [](float *X_temp){
+                            float l2_norm = sqrtf((X_temp[3]*X_temp[3]) + (X_temp[4]*X_temp[4]) + (X_temp[5]*X_temp[5]) + (X_temp[10]*X_temp[10]));
+                            X_temp[3] /= l2_norm;
+                            X_temp[4] /= l2_norm;
+                            X_temp[5] /= l2_norm;
+                            X_temp[10] /= l2_norm;
+                          };
+  
   float temp[len];
-  float k1[len]; ode(X, k1); //Calculate derivative.
-  
+  float k1[len];
+  ode(X, k1); //Calculate derivative.
   for(int i = 0; i < len; i++) temp[i] = X[i]+.5*ts*k1[i];
-  float k2[len]; ode(temp, k2);
+  normalize_helper(temp);
   
+  float k2[len];
+  ode(temp, k2);
   for(int i = 0; i < len; i++) temp[i] = X[i]+.5*ts*k2[i];
-  float k3[len]; ode(temp, k3);
+  normalize_helper(temp);
   
+  float k3[len];
+  ode(temp, k3);
   for(int i = 0; i < len; i++) temp[i] = X[i]+ts*k3[i];
-  float k4[len]; ode(temp, k4);
+  normalize_helper(temp);
   
+  float k4[len];
+  ode(temp, k4);
   for(int i = 0; i < len; i++){
     Xt1[i] = X[i] + (ts/6)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
   }
-  
-  normalize_quat(&Xt1[3]);
+  normalize_helper(Xt1);
 }
 
 void JackalDynamicSolver::normalize_quat(float *q){

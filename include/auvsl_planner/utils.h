@@ -1,6 +1,8 @@
 #pragma once
 
+#include <Eigen/Dense>
 #include <rbdl/rbdl.h>
+
 
 namespace rbd = RigidBodyDynamics;
 namespace rbdm = RigidBodyDynamics::Math;
@@ -17,6 +19,8 @@ float get_q_norm(rbdm::Quaternion q);
 float get_yaw(rbdm::Vector4d q);
 float get_yaw(float qw, float qx, float qy, float qz);
 EulerAngles get_rpy(rbdm::Vector4d q);
+
+float getDistance(Eigen::Vector2f x, Eigen::Vector2f y);
 
 rbdm::Matrix3d get_box_inertia(float mass, rbdm::Vector3d v_size);
 rbdm::Matrix3d get_tire_inertia(float mass, float radius, float height);

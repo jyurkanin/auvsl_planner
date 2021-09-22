@@ -38,7 +38,7 @@ DStarPlanner::DStarPlanner(){
     private_nh_->getParam("/move_base/local_costmap/resolution", map_res_); //map_res_ = .05;
     state_map_ = 0;
 
-    control_system_ = new SimpleControlSystem();
+    control_system_ = new AnfisControlSystem();
     
     //log_file.open("/home/justin/code/AUVSL_ROS/pose.csv", std::ofstream::out);
     //log_file << "x,y\n";
@@ -70,8 +70,7 @@ void DStarPlanner::initialize(std::string name, tf2_ros::Buffer *tf, costmap_2d:
     
 }
 
-bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
-    ROS_INFO("D* Computing velocity commands");
+bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){       
     std::vector<Vector2f> waypoints;
     {
         std::lock_guard<std::mutex> lock(wp_mu_);
@@ -79,14 +78,14 @@ bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
             waypoints.push_back(local_waypoints_[i]);
         }
     }
-
+    
+    
     cmd_vel.linear.y = 0; //?
     cmd_vel.linear.z = 0;
     cmd_vel.angular.x = 0;
     cmd_vel.angular.y = 0;
     
     if(waypoints.empty()){
-      ROS_INFO("D* computeVelocityCommands: No waypoints");
       cmd_vel.linear.x = 0;
       cmd_vel.angular.z = 0;
       return true;
@@ -100,8 +99,9 @@ bool DStarPlanner::computeVelocityCommands(geometry_msgs::Twist &cmd_vel){
     if(!costmap_ros_->getRobotPose(pose)){
       ROS_INFO("Failed to get robot pose");
     }
-    
-    ROS_INFO("D* computeVelocityCommands: computeVelocityCommand");
+
+    ROS_INFO("D* %f %f   %f %f   %f %f   %f %f", pose.pose.position.x, pose.pose.position.y,  waypoints[0][0], waypoints[0][1], waypoints[1][0], waypoints[1][1], waypoints[2][0], waypoints[2][1]);
+    //    ROS_INFO("D* computeVelocityCommands: computeVelocityCommand");
     control_system_->computeVelocityCommand(waypoints, pose.pose, v_forward, v_angular);
     
     cmd_vel.linear.x = v_forward;
@@ -670,6 +670,8 @@ int DStarPlanner::initPlanner(Vector2f start, Vector2f goal){
     ROS_INFO("D* init planner");
     open_list_.clear();
 
+    init_curr_wp_ = 1; //this is required to set curr_wp_ to origin for the control system when the robot is at the very start of the path plan
+    
     //Following code sets up occupancy grid properties
     //Occupancy grid width width and height are twice the distance from start to goal.
     //x and y_offset are used to make sure start and goal are centered in the graph.
@@ -769,7 +771,7 @@ void DStarPlanner::runPlanner(){
     local_obstacle_cloud_ = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);    
     
     has_init_map_ = 0;
-    ros::Subscriber init_sub = private_nh_->subscribe<sensor_msgs::PointCloud2>("/rtabmap/octomap_occupied_space", 100, &DStarPlanner::getGlobalCloudCallback, this);
+    ros::Subscriber init_sub = private_nh_->subscribe<sensor_msgs::PointCloud2>("/rtabmap/cloud_map", 100, &DStarPlanner::getGlobalCloudCallback, this);
     do{
       //ros::spinOnce();
         loop_rate.sleep();
@@ -793,6 +795,7 @@ void DStarPlanner::runPlanner(){
     //ROS_INFO("init over");
     
     ROS_INFO("D* Entering DStar Main Thread");
+    Vector2f curr_pose;
     Vector2f X_pos;
     StateData* X_state;
     StateData* temp_start;
@@ -834,6 +837,8 @@ void DStarPlanner::runPlanner(){
         
         actual_path.clear();
         actual_path.push_back(X_state);
+
+        ROS_INFO("D* starting online part");
         
         do{ //This scans for new obstacles, replans, and follows the backptr
           stepPlanner(X_state, X_pos);
@@ -846,10 +851,14 @@ void DStarPlanner::runPlanner(){
 
           actual_path.push_back(X_state);
           
-        } while(readStateMap(global_waypoints_[idx+1][0], global_waypoints_[idx+1][1]) != X_state);
+          
+          
+        } while(getDistance(global_waypoints_[idx+1], getCurrentPose()) > .5f);//readStateMap(global_waypoints_[idx+1][0], global_waypoints_[idx+1][1]) != X_state);
         
         ROS_INFO("D* Reached waypoint");
     }
+    
+    pcl_sub_.shutdown();
     
     return;
 }
@@ -916,7 +925,76 @@ int DStarPlanner::stepPlanner(StateData*& robot_state, Vector2f &X_robot){
     return k_min;
 }
 
+void DStarPlanner::followBackpointer(StateData*& robot_state){
+    static Vector2f curr_wp;
+    
+    ROS_INFO("D* follow back pointer");
+    unsigned x_actual; //map physical location to local map index
+    unsigned y_actual;
+    Vector2f current_pose = getCurrentPose();
+    getMapIdx(current_pose, x_actual, y_actual);
+    drawRobotPos(x_actual, y_actual);
+    
+    ROS_INFO("D* followBackPointer: setting waypoints for control system");
+    //Critical Section. Sets local waypoints for control system to use as lookahead.
+    //Need to guard local_waypoints which is being read in the computeVelocityCommands function/move_base thread.
+    {
+        std::lock_guard<std::mutex> lock(wp_mu_);
+        StateData* temp_state = robot_state;
+        
+        local_waypoints_.clear();
+        for(unsigned i = 0; i < lookahead_len_; i++){
+          Vector2f temp_vec = getRealPosition(temp_state->x, temp_state->y);
+          temp_state = temp_state->b_ptr; 
+          if(temp_state == NULL){
+            break;
+          }
+          local_waypoints_.push_back(temp_vec); //don't include the current point. Set curr point to prev target point
+        }
+        
+        if(init_curr_wp_){
+          init_curr_wp_ = 0;
+          curr_wp = current_pose;
+        }
+        
+        local_waypoints_.insert(local_waypoints_.begin(), curr_wp);
+    }
+    
+    
+    float dx, dy, dist, best_dist;
+    unsigned best_idx;
+    
+    dx = local_waypoints_[1][0] - current_pose[0];
+    dy = local_waypoints_[1][1] - current_pose[1];
+    best_dist = sqrtf(dx*dx + dy*dy);
+    best_idx = 1;
+    
+    for(unsigned i = 2; i < local_waypoints_.size(); i++){
+      dx = local_waypoints_[i][0] - current_pose[0];
+      dy = local_waypoints_[i][1] - current_pose[1];
+      dist = sqrtf(dx*dx + dy*dy);
+      
+      if(dist < best_dist){
+        best_dist = dist;
+        best_idx = i;
+      }
+    }
+
+    //Hopefully my logic is correct here.
+    if(best_idx != 1){ //this means a closer target is available. set curr_wp[k+1] = target_wp[k], target_wp[k+1] = future_wp[k], future_wp[k] = next waypoint. 
+      curr_wp = local_waypoints_[1];
+      
+      ROS_INFO("D* followBackPointer: Back Pointer = Advanced down the path");
+      for(unsigned i = 0; i < best_idx-1; i++){
+        robot_state = robot_state->b_ptr;
+      }
+    }    
+    
+}
+
+
 //Physically follow backpointer
+/*
 void DStarPlanner::followBackpointer(StateData*& robot_state){
     ROS_INFO("D* follow back pointer");
     unsigned x_actual; //map physical location to local map index
@@ -965,6 +1043,7 @@ void DStarPlanner::followBackpointer(StateData*& robot_state){
     ROS_INFO("D* followBackPointer: Back Pointer = Followed");
     robot_state = robot_state->b_ptr;
 }
+*/
 
 void DStarPlanner::getNeighbors(std::vector<StateData*> &neighbors, StateData* X, int replan){
   //ROS_INFO("D* get neighbors");

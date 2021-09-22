@@ -1,6 +1,7 @@
 #include "LocalPlanner.h"
 #include "TerrainMap.h"
 #include "ControlSystem.h"
+#include "utils.h"
 
 #include <Eigen/Dense> //the eigen headers dont end in .h
 #include <rbdl/rbdl.h>
@@ -115,7 +116,7 @@ public:
     void drawPath(StateData *start);
     void drawGoal(StateData *state);
     void drawFinishedGraph(StateData *state, std::vector<StateData*> &actual_path);
-  void drawObstacle(StateData *state, int clear);
+    void drawObstacle(StateData *state, int clear);
     void drawRobotPos(StateData* state);
     void drawRobotPos(unsigned x, unsigned y);
     
@@ -172,7 +173,8 @@ private:
 
     volatile int has_init_map_;
     int initialized_;
-
+     
+    int init_curr_wp_;
     
     int planner_failed_;
     

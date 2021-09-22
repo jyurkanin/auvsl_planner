@@ -104,13 +104,16 @@ int main(int argc, char **argv){
   
   JackalDynamicSolver::set_terrain_map((TerrainMap*) &terrain_map);
   JackalDynamicSolver::init_model(2);
-
+  
   
   JackalDynamicSolver solver;
   
   solver.simulateRealTrajectory("/home/justin/code/AUVSL_ROS/bags/odom.csv", "/home/justin/code/AUVSL_ROS/bags/joint_states_10hz.csv");
   
+  
+  
   JackalDynamicSolver::del_model();
+  
   
   ROS_INFO("test_terrain is exiting");
 }

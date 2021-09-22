@@ -38,8 +38,8 @@ int SimpleControlSystem::computeVelocityCommand(std::vector<Vector2f> waypoints,
   double pitch;
   double yaw;
   mat.getRPY(roll, pitch, yaw);
-  float dx = waypoints[0][0] - pose.position.x;
-  float dy = waypoints[0][1] - pose.position.y;
+  float dx = waypoints[1][0] - pose.position.x;
+  float dy = waypoints[1][1] - pose.position.y;
   
   float dist = sqrtf(dx*dx + dy*dy);
   
@@ -88,14 +88,15 @@ int AnfisControlSystem::computeVelocityCommand(std::vector<Vector2f> waypoints, 
   srv.request.target_x = waypoints[1][0];
   srv.request.target_y = waypoints[1][1];
 
-  if(waypoints.size() > 1){
+  if(waypoints.size() > 2){
     srv.request.future_x = waypoints[2][0];
     srv.request.future_y = waypoints[2][1];
   }
   else{
-    srv.request.future_x = 1000;
-    srv.request.future_y = 1000;
+    srv.request.future_x = waypoints[1][0];
+    srv.request.future_y = waypoints[1][1];
   }
+  
   
   if(!client_.call(srv)){
     v_forward = 0;
