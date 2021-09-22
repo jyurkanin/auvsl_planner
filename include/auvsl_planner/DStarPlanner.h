@@ -6,6 +6,7 @@
 #include <rbdl/rbdl.h>
 
 #include <vector>
+#include <mutex>
 
 // msgs
 #include <nav_msgs/Path.h>

@@ -755,6 +755,11 @@ int DStarPlanner::replan(StateData* robot_state){
 //Main Loop thread
 void DStarPlanner::runPlanner(){
     ROS_INFO("D* Initialize DStar");
+    
+    bool is_disabled = false;
+    private_nh_->getParam("disable_lp", is_disabled);
+    if(is_disabled) return;
+    
     ros::Rate loop_rate(10);
     
     control_system_->initialize();
@@ -972,7 +977,7 @@ void DStarPlanner::getNeighbors(std::vector<StateData*> &neighbors, StateData* X
   //ROS_INFO("D* get neighbors");
   neighbors.clear();
   // each state has 8 Neighbors, top left, top, top right, left, right, etc...
-  const char dxdy[8][2] = {
+  const int dxdy[8][2] = {
                            {-1,-1},
                            {-1, 0},
                            {-1, 1},

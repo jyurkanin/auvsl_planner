@@ -7,7 +7,7 @@
 #include <octomap_msgs/Octomap.h>
 #include <octomap_msgs/GetOctomap.h>
 
-#include <rtabmap_ros/GetMap.h>
+//#include <rtabmap_ros/GetMap.h>
 
 #include <nav_msgs/OccupancyGrid.h>
 #include <costmap_2d/costmap_2d.h>

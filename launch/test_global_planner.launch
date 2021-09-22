@@ -13,7 +13,7 @@
 
   <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>   
   <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
-  <node name="auvsl_planner" pkg="auvsl_planner" type="auvsl_planner_node" output="screen"/>
+  <node name="auvsl_planner" pkg="auvsl_planner" type="test_global_planner_node" output="screen"/>
   <node name="auvsl_control" pkg="auvsl_control" type="jackal.py" output="screen"/>
     
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">

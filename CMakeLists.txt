@@ -45,6 +45,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
   message_generation
   auvsl_control
 )
@@ -73,7 +74,7 @@ add_message_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
-   
+   geometry_msgs
  )
 
 ################################################
@@ -108,7 +109,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES auvsl_planner
-CATKIN_DEPENDS roscpp rospy std_msgs octomap pcl_conversions
+CATKIN_DEPENDS roscpp rospy std_msgs octomap pcl_conversions auvsl_control message_runtime
 #  DEPENDS rbdl ompl octomap  #One day I may have to figure this out.
 )
 
@@ -177,7 +178,7 @@ include_directories(${OMPL_INCLUDE_DIRS})
 find_package(PCL REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
-include_directories(${PCL_INCLUDE_DIRS} /opt/ros/noetic/include/pcl_conversions)
+include_directories(${PCL_INCLUDE_DIRS} /opt/ros/melodic/include/pcl_conversions)
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
@@ -195,12 +196,36 @@ target_link_libraries(${PROJECT_NAME}_node ${pluginlib_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${costmap_2d_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${move_base_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(${PROJECT_NAME}_node ${OMPL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ompl)
 target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
 target_link_libraries(${PROJECT_NAME}_node rbdl)
 target_link_libraries(${PROJECT_NAME}_node X11)
 
 set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+add_executable(test_global_planner_node src/test_global_planner.cpp
+src/GlobalParams.cpp
+  )
+
+
+
+
+
+target_link_libraries(test_global_planner_node ${PCL_LIBRARIES})
+target_link_libraries(test_global_planner_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_global_planner_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_global_planner_node ${move_base_LIBRARIES})
+target_link_libraries(test_global_planner_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_global_planner_node ompl)
+target_link_libraries(test_global_planner_node ${catkin_LIBRARIES})
+target_link_libraries(test_global_planner_node rbdl)
+target_link_libraries(test_global_planner_node X11)
+
+set_target_properties(test_global_planner_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
 
 
 
@@ -263,7 +288,7 @@ target_link_libraries(global_planner_lib ${pluginlib_LIBRARIES})
 target_link_libraries(global_planner_lib ${costmap_2d_LIBRARIES})
 target_link_libraries(global_planner_lib ${move_base_LIBRARIES})
 target_link_libraries(global_planner_lib ${OCTOMAP_LIBRARIES})
-target_link_libraries(global_planner_lib ${OMPL_LIBRARIES})
+target_link_libraries(global_planner_lib ompl)
 target_link_libraries(global_planner_lib ${catkin_LIBRARIES})
 target_link_libraries(global_planner_lib rbdl)
 target_link_libraries(global_planner_lib X11)
@@ -288,7 +313,7 @@ target_link_libraries(local_planner_lib ${pluginlib_LIBRARIES})
 target_link_libraries(local_planner_lib ${costmap_2d_LIBRARIES})
 target_link_libraries(local_planner_lib ${move_base_LIBRARIES})
 target_link_libraries(local_planner_lib ${OCTOMAP_LIBRARIES})
-target_link_libraries(local_planner_lib ${OMPL_LIBRARIES})
+target_link_libraries(local_planner_lib ompl)
 target_link_libraries(local_planner_lib ${catkin_LIBRARIES})
 target_link_libraries(local_planner_lib rbdl)
 target_link_libraries(local_planner_lib X11)
@@ -315,7 +340,7 @@ target_link_libraries(test_cs_node ${pluginlib_LIBRARIES})
 target_link_libraries(test_cs_node ${costmap_2d_LIBRARIES})
 target_link_libraries(test_cs_node ${move_base_LIBRARIES})
 target_link_libraries(test_cs_node ${OCTOMAP_LIBRARIES})
-target_link_libraries(test_cs_node ${OMPL_LIBRARIES})
+target_link_libraries(test_cs_node ompl)
 target_link_libraries(test_cs_node ${catkin_LIBRARIES})
 target_link_libraries(test_cs_node rbdl)
 target_link_libraries(test_cs_node X11)

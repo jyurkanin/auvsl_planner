@@ -1,29 +1,23 @@
 <launch>
   <!-- Following is for some reason required in ROS Noetic. My mistake for using noetic :( -->
+<!--
        <param name="robot_description" command="$(find xacro)/xacro $(find jackal_description)/urdf/jackal.urdf.xacro"/>
-       
-       <include file="$(find jackal_gazebo)/launch/hrtac_world.launch">
+       <include file="$(find jackal_gazebo)/launch/hrtac_world.launch">       
        <arg name="use_sim_time" value="true"/>
        <arg name="gui" value="true"/>
        <arg name="headless" value="false"/>
        <arg name="joystick" value="false"/>
 
        </include>
+-->
        <rosparam file="$(find auvsl_planner)/config/jackal_gazebo_pid.yaml" command="load"/> 
 
 
-  <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" clear_params="true">
-    <param name="use_odometry_yaw" value="true"/>
-    <param name="yaw_offset" value="1.570796327"/>
-    <remap from="imu/data" to="/imu/data"/>
-    <remap from="gps/fix" to="/navsat/fix"/> 
-  </node>
-
-       
   <arg name="max_range" default="0"/>
   <arg name="p2n" default="true"/>
   <arg name="pm" default="true"/>
   
+  <node name="velodyne_hack" pkg="velodyne_hack" type="velodyne_hack_node"/>
     
   <group ns="rtabmap">
     <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="">
@@ -38,7 +32,7 @@
       <param name="subscribe_scan" type="bool" value="false"/>
       <param name="subscribe_scan_cloud" type="bool" value="true"/>  
       
-      <remap from="scan_cloud"  to="/mid/points"/>
+      <remap from="scan_cloud"  to="/velodyne_points_fixed"/>
       <remap from="odom"        to="/odometry/filtered"/>
 
       <param name="approx_sync"       value="true"/> 
@@ -66,13 +60,8 @@
       <param name="Grid/NormalK"                type="string" value="100"/>
         
     </node>
-
-    <!--
-    <node name="rtabmapviz" pkg="rtabmap_ros" type="rtabmapviz" args="_frame_id:=base_link">
-      <remap from="scan_cloud"  to="/mid/points"/>
-      <remap from="odom"        to="/odometry/filtered"/>
-    </node>
-    -->
+    
+    
   </group>    
   
 </launch>
