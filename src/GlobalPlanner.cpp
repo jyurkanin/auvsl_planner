@@ -216,13 +216,16 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
                              const geometry_msgs::PoseStamped& goalp,
                              std::vector<geometry_msgs::PoseStamped>& plan){
-  
-  plan.push_back(startp);
-  plan.push_back(goalp);
-  ROS_INFO("RRT MAKING PLAN");
-  return true;
-}
-  /*
+    ros::NodeHandle nh;
+    bool is_disabled = false;
+    nh.getParam("disable_gp", is_disabled);
+    if(is_disabled){
+        plan.push_back(startp);
+        plan.push_back(goalp);
+        ROS_INFO("RRT MAKING FAKE PLAN");
+        return true;
+    }
+    
     ROS_INFO("RRT makePlan started");
     ompl::base::ScopedState<> start(space_ptr_);
     

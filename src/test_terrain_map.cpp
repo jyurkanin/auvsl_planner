@@ -41,6 +41,65 @@ void get_pos_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& 
   got_init_pose = 1;
 }
 
+float evaluateSimulatedTrajectory(){
+  //Step 1. Read Odometry into an array for searching.
+  std::ifstream odom_file("/home/justin/code/AUVSL_ROS/bags/odom.csv");
+  std::string line;
+  std::stringstream ss;
+  char comma;
+  unsigned num_rows = 0;
+  float *X_odom;
+  
+  while(odom_file.peek() != std::EOF){
+    std::getline(odom_file, line);
+    num_rows++;
+  }
+  
+  odom_file.clear();
+  odom_file.seekg(0);
+  
+  X_odom = new float[3*num_rows];
+  
+  for(unsigned i = 0; i < num_rows; i++){
+    std::getline(odom_file, line);
+    ss.str(line);
+    ss.clear();
+
+    unsigned col = 3*i;
+    
+    ss >> X_odom[col+0] >> comma;
+    ss >> X_odom[col+1] >> comma;
+    ss >> X_odom[col+2] >> comma;
+  }
+  
+  
+  
+  //Step 2. Open and prepare xout.csv to be read.
+  std::ifstream sim_xout_file("/home/justin/xout_file.csv");
+  std::getline(sim_xout_file, line); //remove first line
+  
+  float sim_x, sim_y, sim_z, ignoreme;
+  
+  while(sim_xout_file.peek() != std::EOF){
+    std::getline(sim_xout_file, line);
+    ss.str(line);
+    ss.clear();
+    
+    ss >> ignoreme >> comma; //skip quaternion components
+    ss >> ignoreme >> comma;
+    ss >> ignoreme >> comma;
+    ss >> ignoreme >> comma;
+    
+    ss >> sim_x >> comma;
+    ss >> sim_y >> comma;
+    ss >> sim_z >> comma;
+    
+  }
+
+
+  delete[] X_odom;
+}
+
 int main(int argc, char **argv){
   
   ros::init(argc, argv, "auvsl_global_planner");
@@ -109,7 +168,7 @@ int main(int argc, char **argv){
   JackalDynamicSolver solver;
   
   solver.simulateRealTrajectory("/home/justin/code/AUVSL_ROS/bags/odom.csv", "/home/justin/code/AUVSL_ROS/bags/joint_states_10hz.csv");
-  
+  float err = evaluateSimulatedTrajectory();
   
   
   JackalDynamicSolver::del_model();

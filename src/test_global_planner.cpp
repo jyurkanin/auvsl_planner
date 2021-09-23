@@ -79,29 +79,46 @@ int main(int argc, char **argv){
   }
   
   ROS_INFO("ABOUT TO WAIT");
-  actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> nav_client("move_base", true);
-  ROS_INFO("Waiting for server");
-  nav_client.waitForServer();
   
-  move_base_msgs::MoveBaseGoal nav_goal;
-  nav_goal.target_pose.pose.position.x = 8;
-  nav_goal.target_pose.pose.position.y = 0;
-  nav_goal.target_pose.pose.position.z = .16;
-  nav_goal.target_pose.pose.orientation.x = 0;
-  nav_goal.target_pose.pose.orientation.y = 0;
-  nav_goal.target_pose.pose.orientation.z = 0;
-  nav_goal.target_pose.pose.orientation.w = 1;
-  nav_goal.target_pose.header.frame_id = "map"; //These next two probably aren't necessary.
-  nav_goal.target_pose.header.stamp = ros::Time::now();
-  nav_goal.target_pose.header.seq = 0; 
   
-  ROS_INFO("Sending goal");
-  nav_client.sendGoal(nav_goal);
-  nav_client.waitForResult();
-  ROS_INFO("Reached goal?");
+  ros::ServiceClient g_planner_srv = nh.serviceClient<nav_msgs::GetPlan>("/move_base/make_plan");
+  nav_msgs::GetPlan get_plan_srv;
   
-  actionlib::SimpleClientGoalState state = nav_client.getState();
-  ROS_INFO("A message from move_base: %s", state.getText().c_str());
+  get_plan_srv.request.start.pose.position.x = 8;
+  get_plan_srv.request.start.pose.position.y = 0;
+  get_plan_srv.request.start.pose.position.z = .16;
+  
+  get_plan_srv.request.start.pose.orientation.x = 0;
+  get_plan_srv.request.start.pose.orientation.y = 0;
+  get_plan_srv.request.start.pose.orientation.z = 0;
+  get_plan_srv.request.start.pose.orientation.w = 1;
+  
+  get_plan_srv.request.start.header.frame_id = "map";
+  
+  
+  get_plan_srv.request.goal.pose.position.x = 8;
+  get_plan_srv.request.goal.pose.position.y = 0;
+  get_plan_srv.request.goal.pose.position.z = .16;
+  
+  get_plan_srv.request.goal.pose.orientation.x = 0;
+  get_plan_srv.request.goal.pose.orientation.y = 0;
+  get_plan_srv.request.goal.pose.orientation.z = 0;
+  get_plan_srv.request.goal.pose.orientation.w = 1;
+  
+  get_plan_srv.request.goal.header.frame_id = "map";
+  
+  get_plan_srv.request.tolerance = 1;
+  
+  ROS_INFO("Waiting for Global Planner to exist");
+  g_planner_srv.waitForExistence();
+  ROS_INFO("Calling global planner");
+  if(g_planner_srv.call(get_plan_srv)){
+      ROS_INFO("global plan got. Size %lu", get_plan_srv.response.plan.poses.size());
+  }
+  else{
+      ROS_INFO("Failed to get global plan.");
+  }
+  
   
   return 0;
 }

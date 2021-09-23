@@ -13,19 +13,9 @@
 
   <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>   
   <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
-  <node name="auvsl_planner" pkg="auvsl_planner" type="auvsl_planner_node" output="screen"/>
+  <node name="auvsl_planner" pkg="auvsl_planner" type="test_global_planner_node" output="screen"/>
   <node name="auvsl_control" pkg="auvsl_control" type="jackal.py" output="screen"/>
-
-   <!--  
-  <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform" clear_params="true">
-    <param name="use_odometry_yaw" value="true"/>
-    <param name="yaw_offset" value="1.570796327"/>
-    <remap from="odometry/filtered" to="/odometry/filtered"/>
-    <remap from="imu/data" to="/imu/data"/>
-    <remap from="gps/fix" to="/navsat/fix"/> 
-  </node>
-  -->
-
+    
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">
     <param name="base_global_planner" value="auvsl/GlobalPlanner"/>
     <param name="base_local_planner" value="auvsl/DStarPlanner"/>
