@@ -2,7 +2,8 @@ Dependencies:
 	ros (Robotics Operatin System, any version)
 	Rigid Body Dynamics Library (rbdl)
 	Open Motion Planning Library (ompl)
-	
+
+hallway test starts at 34.86, 1.038, ends at 25, 1.46	
 
 Installation Instructions:
 1. Open a Terminal
