@@ -71,13 +71,14 @@ class JackalDynamicSolver{
   void solve(float *x_init, float *x_end, float vl, float vr, float sim_time);
   void solve(float *x_init, float *x_end, float sim_time);
 
-  void simulateRealTrajectory(const char *odom_fn, const char *joint_state_fn);
+  void simulateRealTrajectory(const char *odom_fn, const char *joint_state_fn, float *X_final);
   
   void euler_method(float *X, float *Xt1);
   void runge_kutta_method(float *X, float *Xt1);
   float get_timestep();
   void normalize_quat(float *q);
   void ode(float *X, float *Xd);
+  void ode_dynamic(float *X, float *Xd);
   void apply_force(SpatialVector wrench, int body);
   void log_xout(float *Xout);
   void log_features(float *Xout, float vl, float vr);

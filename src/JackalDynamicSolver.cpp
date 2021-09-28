@@ -120,7 +120,10 @@ void JackalDynamicSolver::init_model(int debug){
   if(debug_level == 2 && !log_file.is_open()){
       ROS_INFO("DEBUG LEVEL 2");
       log_file.open("/home/justin/xout_file.csv", std::ofstream::out);
-      log_file << "qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qdd4\n";
+      log_file << "qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qd4\n";
+      
+      temp_log.open("/home/justin/feature_file.csv");
+      temp_log << "zr1,zr2,zr3,zr4\n";
   }
   
   //model = NULL;
@@ -195,6 +198,7 @@ void JackalDynamicSolver::del_model(){
   }
   if(debug_level == 2){
     log_file.close();
+    temp_log.close();
   }
 }
 
@@ -513,19 +517,22 @@ qd_init = [0 0 0 0];
 void JackalDynamicSolver::log_features(float *Xout, float vl, float vr){
   static float old_Xout[21] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-  if(timestep%10 == 0){
+  //if(timestep%10 == 0){
+    /*
     for(int i = 0; i < 21; i++){
       log_file << Xout[i] << ',';
     }
 
     log_file << vl << ',';
     log_file << vr << ',';
-
-    log_file << fmax(0,sinkages_[0]) << ',';
-    log_file << fmax(0,sinkages_[1]) << ',';
-    log_file << fmax(0,sinkages_[2]) << ',';
-    log_file << fmax(0,sinkages_[3]) << ',';
+    */
     
+    temp_log << fmax(0,sinkages_[0]) << ',';
+    temp_log << fmax(0,sinkages_[1]) << ',';
+    temp_log << fmax(0,sinkages_[2]) << ',';
+    temp_log << fmax(0,sinkages_[3]) << '\n';
+    
+    /*
     for(int i = 0; i < 20; i++){
       log_file << Xout[i] - old_Xout[i] << ',';
     }
@@ -534,16 +541,17 @@ void JackalDynamicSolver::log_features(float *Xout, float vl, float vr){
     for(int i = 0; i < 21; i++){
       Xout[i] = old_Xout[i];
     }
-  }
+    */
+    //}
 }
 
 
-void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const char *joint_state_fn){
+void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const char *joint_state_fn, float *X_final){
   //================== Step 1. get starting position and orientation ============================
   std::ifstream odom_file(odom_fn);
   const int num_odom_cols = 90;
   std::string line;
-  for(unsigned i = 0; i < 1865; i++){
+  for(unsigned i = 0; i < 1; i++){
     std::getline(odom_file, line);
   }
   
@@ -568,10 +576,10 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
   odom_file >> Xn[4] >> comma;
   odom_file >> Xn[5] >> comma;
   odom_file >> Xn[10] >> comma;
-
+    
   //==================== Step 2. Allow vehicle to come to rest/reach equillibrium sinkage before moving =================
   
-  ROS_INFO("Starting z position: %f", Xn[2]);
+  ROS_INFO("Starting z position: %f %f %f", Xn[0], Xn[1], Xn[2]);
   ROS_INFO("Starting orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
   float Xn1[21];
   //hack to allow vehicle to settle and reach a stable sinkage before actually starting.
@@ -583,11 +591,26 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
     }
     Xn[2] = Xn1[2];
     
+    Xn[3] = Xn1[3];
+    Xn[4] = Xn1[4];
+    Xn[5] = Xn1[5];
+    Xn[10] = Xn1[10];
+    
   }
-  ROS_INFO("Settled z position: %f", Xn[2]);
+  ROS_INFO("Settled z position: %f %f %f", Xn[0], Xn[1], Xn[2]);
   ROS_INFO("Starting orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
   
   odom_file.close();
+
+  /*
+  for(int i = 0; i < 21; i++){
+    Xn[i] = 0;
+  }
+  */
+  
+  //Kinematics:
+  //Xn[2] = 2.1; //get_yaw(Xn[10], Xn[3], Xn[4], Xn[5]);
+  //ROS_INFO("Calculated initial yaw: %f", Xn[2]);
   
   //================== Step 3. Do the simulation bro  ============================
   std::ifstream joint_file(joint_state_fn);
@@ -604,26 +627,34 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
     joint_file >> front_left_vel >> comma;
     joint_file >> front_right_vel >> comma;
     joint_file >> back_left_vel >> comma;
-    joint_file >> back_right_vel >> comma;
-
+    joint_file >> back_right_vel;// >> comma; //ends the line without a comma. its not necessary.
+    
+    //ROS_INFO("joint file, vel: %f %f %f %f", front_left_vel, front_right_vel, back_left_vel, back_right_vel);
     
     Xn[17] = front_right_vel;
     Xn[18] = back_right_vel;
     Xn[19] = front_left_vel;
     Xn[20] = back_left_vel;
-        
+    
 
-    solve(Xn, Xn1, .1f); //(front_left_vel+back_left_vel)*.5, (front_right_vel+back_right_vel)*.5, .1f);
+    solve(Xn, Xn1, .02f); //(front_left_vel+back_left_vel)*.5, (front_right_vel+back_right_vel)*.5, .1f);
     for(int i = 0; i < 21; i++){
       Xn[i] = Xn1[i];
     }
     
     if(!terrain_map_->isStateValid(Xn[0], Xn[1])){
+      ROS_INFO("State is equal to LIBERAL BULLSHIT");
       break;
     }
   }
   
   joint_file.close();
+  
+  for(unsigned i = 0; i < 21; i++){
+    X_final[i] = Xn1[i]; 
+  }
+  
+  return;
 }
 
 
@@ -646,7 +677,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
     
     if(debug_level == 2){
       log_xout(Xout);
-      //log_features(Xout, vl, vr);
+      log_features(Xout, vl, vr);
     }
     
     for(int i = 0; i < 21; i++){
@@ -670,8 +701,8 @@ void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
   tau[8] = tau[9] = std::min(std::max(internal_controller[1].step(left_err), -20.0f), 20.0f);
   
   
-  euler_method(X_now, X_next);
-  //runge_kutta_method(X_now, X_next); //runge kutta is fucked rn.
+  //euler_method(X_now, X_next);
+  runge_kutta_method(X_now, X_next); //runge kutta is fucked rn.
 }
 
 
@@ -691,11 +722,12 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float sim_time){
   
   unsigned max_steps = sim_steps + timestep;
   for(; timestep < max_steps; timestep++){
-    //runge_kutta_method(Xout, Xout_next);
-    euler_method(Xout, Xout_next);
+    runge_kutta_method(Xout, Xout_next);
+    //euler_method(Xout, Xout_next);
     
     if(debug_level == 2){
       log_xout(Xout);
+      //log_features(Xout, 0, 0);
     }
     
     for(int i = 0; i < 17; i++){ //dont assign tire velocities, hold them constant
@@ -711,6 +743,29 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float sim_time){
 
 void JackalDynamicSolver::apply_force(SpatialVector wrench, int body){
   f_ext[body] = wrench;
+}
+
+//kinematic
+//     0, 1, 2,     3,4,5,  6,7,8,9,  10,11, 12,13, 14,15,16, 17,  18,  19,  20
+//X = [x, y, theta, -,-,-,  -,-,-,-,  -, vx, vy,-,  -, -, Wz, qd1, qd2, qd3, qd4  ]
+void JackalDynamicSolver::ode_kinematic(float *X, float *Xd){
+  for(int i = 0; i < model->q_size; i++){
+    Xd[i] = 0;
+  }
+  for(int i = 0; i < model->qdot_size; i++){
+    Xd[i+model->q_size] = 0;
+  }
+
+  
+  float vr = tire_radius*(X[17]+X[18])*.5;
+  float vl = tire_radius*(X[19]+X[20])*.5;
+  float vf = (vl+vr)*.5;
+  
+  Xd[0] = vf*cosf(X[2]);
+  Xd[1] = vf*sinf(X[2]);
+  Xd[2] = (vr-vl)/.646;
+  
+  
 }
 
 void JackalDynamicSolver::ode(float *X, float *Xd){

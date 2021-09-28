@@ -17,8 +17,8 @@
   Then create a dynamic planner to integrate with
   move_base/navigation.
   organize the code you have written a bit better into different files.
-
-* Dynamic planning
+  
+* DONE Dynamic planning
   1. Clean up existing global planner code into a single class.
   2. Create main file that includes both global and local planners. Integrate them.
   3. Understand Jackal Gazebo Simulation.
@@ -32,7 +32,7 @@
   
 
   
-* Octomap/RTabMap
+* DONE Octomap/RTabMap
   1. Visualize the rosbag file from cerl. (Nope. Will use the freiburg campus)
   2. Load it into gazebo somehow as a world file.
   3. Figure out a way to use it to create a global map.
@@ -64,7 +64,7 @@
 
 
 
-* Implementing D* in move_base
+* DONE Implementing D* in move_base
   Okay. This is going to be a big one I think.
   1) Run a separate thread for DStarPlanner
   2) Move base will call computeVelocityCommands from info generated in move_base
@@ -280,6 +280,14 @@
   I can probably make it work.
 
   
+* <2021-09-27 Mon> Update
+  So I've run the vehicle off-road and collected some data and run simulation to compare against it.
+  Now what? I should try to run the planner, and also increase model performance somehow.
+  Could increase collision checking resolution I guess.
+  I experimented with elevation map smoothing.
+  I wrote code to select the best soil params.
+  Need to find answer to "what amount of accuracy is necessary/acceptable/standard"
+  Need to retrain tire network to add Ty to the output instead of the current stupid hack that you are doing
 
 * Minimum Viable Product:
 ** DONE RRT Algorithm

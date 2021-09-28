@@ -28,7 +28,7 @@ void OctoTerrainMap::get_cloud_callback(const sensor_msgs::PointCloud2ConstPtr& 
   
   pass.setInputCloud(temp_cloud);
   pass.setFilterFieldName("z");
-  pass.setFilterLimits(-10,.2);
+  pass.setFilterLimits(-10,.5);
   pass.filter(pcl_cloud);
   
   /*
@@ -196,7 +196,7 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     ROS_INFO("We are now going to blur the grid");
     
     
-    const int kernel_size = 5;
+    const int kernel_size = 20;
     
     for(int i = 0; i < rows_; i++){
       for(int j = 0; j < cols_; j++){
@@ -205,7 +205,7 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
       }
     }
     
-    float sigma_sq = 5;
+    float sigma_sq = 90;
     for(int i = 0; i < rows_; i++){
       for(int j = 0; j < cols_; j++){
         
@@ -249,7 +249,8 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
       smooth_pcl_msg.header.frame_id = "map";
       
       smooth_pub.publish(smooth_pcl_msg);
-
+      
+      
       sensor_msgs::PointCloud2 cloud_msg;
       cloud_msg.header.frame_id = "map";
       cloud_msg.header.seq = seq;
@@ -260,7 +261,7 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
       
       pcl::toROSMsg(pcl_cloud, cloud_msg);
       cloud_pub2_.publish(cloud_msg);
-
+      
 
       
       ROS_INFO("Publishing smooth pcl");
@@ -451,7 +452,7 @@ void OctoTerrainMap::computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr ob
     int sum;
     int num_neighbors;
     unsigned offset;
-    ROS_INFO("Begin precomputing elevation grid");
+    ROS_INFO("Begin precomputing occupancy grid");
     for(unsigned y = 0; y < rows_; y++){
         offset = y*cols_;
         for(unsigned x = 0; x < cols_; x++){
@@ -491,7 +492,8 @@ void OctoTerrainMap::getBounds(float &max_x, float &min_x, float &max_y, float &
 //overriden methods
 
 BekkerData OctoTerrainMap::getSoilDataAt(float x, float y) const{
-    return lookup_soil_table(0);
+  return test_bekker_data_;
+  //return lookup_soil_table(0);
 }
 
 float OctoTerrainMap::getAltitude(float x, float y, float z_guess) const{
@@ -623,8 +625,8 @@ int OctoTerrainMap::isStateValid(float x, float y) const{
     
     
     if(occ_grid_blur_[(my*cols_) + mx] > occupancy_threshold_){
-      ROS_INFO("Lethal Obstacle Detected");
-      return 0; //state is occupied if occupancy > 50%. At least I think thats how it all works.
+      //ROS_INFO("Lethal Obstacle Detected");
+      //return 0; //state is occupied if occupancy > 50%. At least I think thats how it all works.
     }
     
     //ROS_INFO("Returning true from OctoTerrainMap::isStateValid");

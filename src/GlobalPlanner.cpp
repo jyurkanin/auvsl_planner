@@ -305,17 +305,6 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     }
   
 }
-  */
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -178,7 +178,7 @@ include_directories(${OMPL_INCLUDE_DIRS})
 find_package(PCL REQUIRED)
 find_package(pcl_ros REQUIRED)
 find_package(pcl_conversions REQUIRED)
-include_directories(${PCL_INCLUDE_DIRS} /opt/ros/melodic/include/pcl_conversions)
+include_directories(${PCL_INCLUDE_DIRS} /opt/ros/noetic/include/pcl_conversions)
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 

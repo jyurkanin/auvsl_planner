@@ -21,34 +21,28 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 #ax.scatter(df['field.pose.pose.position.x'][idx::stop_idx], df['field.pose.pose.position.y'][idx::stop_idx], df['field.pose.pose.position.z'][idx::stop_idx])
 
 idx = 1
-stop_idx = 200
+stop_idx = 2969
 
-df = pd.read_csv("/home/justin/euler_1000_xout.csv")
+
+df = pd.read_csv("/home/justin/xout_file.csv")
+df = df[::20]
 print(df.shape)
-df = df[::100]
-plt.plot(df['x'][idx:stop_idx], df['y'][idx:stop_idx])
-
-df = pd.read_csv("/home/justin/euler_10000_xout.csv")
-df = df[::1000]
 plt.plot(df['x'][idx:stop_idx], df['y'][idx:stop_idx])
 
 
-
-df = pd.read_csv("/home/justin/rk4_1000_xout.csv")
+df = pd.read_csv("/home/justin/kinematic_xout.csv")
+df = df[::20]
 print(df.shape)
-df = df[::100]
-plt.plot(df['x'][idx:stop_idx], df['y'][idx:stop_idx])
-
-df = pd.read_csv("/home/justin/rk4_10000_xout.csv")
-print(df.shape)
-df = df[::1000]
 plt.plot(df['x'][idx:stop_idx], df['y'][idx:stop_idx])
 
 
-df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/odom_10hz.csv")
+
+df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul/bags/rantoul_odom_2.csv")
 print(df.shape)
 plt.plot(df['field.pose.pose.position.x'][idx:stop_idx], df['field.pose.pose.position.y'][idx:stop_idx])
 
-plt.title("Hallway Trajectory vs Simulated Trajectory")
-plt.legend(['euler .001s','euler .0001s','rk4 .001s','rk4 .0001s','Trajectory']);
+plt.xlabel("m");
+plt.ylabel("m");
+plt.title("Comparison of Dynamic Model, Kinematic Model, and Odometry Trajectories at 1m/s")
+plt.legend(["Dynamic Model","Kinematic Model","Odometry"])
 plt.show()

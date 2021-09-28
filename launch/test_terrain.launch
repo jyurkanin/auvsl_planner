@@ -32,7 +32,7 @@
   <arg name="pm" default="true"/>
 
   <group ns="rtabmap">
-    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="">
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="log" args="">
       <param name="frame_id" type="string" value="base_link"/>          
       
       <param name="subscribe_odom" type="bool" value="true"/>

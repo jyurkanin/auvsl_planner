@@ -61,15 +61,17 @@ public:
     float y_max_;
     
     int num_neighbors_avg;
+    BekkerData test_bekker_data_;
+    
+    float *occ_grid_blur_;
+    float *elev_map_;
+    
 private:
     costmap_2d::Costmap2D *occ_grid_;
     octomap::OcTree* octomap_;
     
     int occupancy_threshold_;
     
-    float *occ_grid_blur_;
-    float *elev_map_;
-
     ros::NodeHandle *private_nh_;
     ros::Publisher cloud_pub1_;
     ros::Publisher cloud_pub2_;

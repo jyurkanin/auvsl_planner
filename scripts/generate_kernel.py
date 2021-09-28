@@ -1,8 +1,8 @@
 import math
 
-sigma_sq = 12
+sigma_sq = 90
 kernel = ""
-kernel_size = 5
+kernel_size = 20
 for i in range(-kernel_size,kernel_size+1):
     for j in range(-kernel_size,kernel_size+1):
         dist = (i*i)+(j*j)
