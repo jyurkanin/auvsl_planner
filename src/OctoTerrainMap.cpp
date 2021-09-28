@@ -21,7 +21,16 @@ pcl::KdTreeFLANN<pcl::PointXYZ> OctoTerrainMap::kdtree;
 
 void OctoTerrainMap::get_cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg){
   ROS_INFO("Point CLoud frame id %s", msg->header.frame_id.c_str());
-  pcl::fromROSMsg(*msg, pcl_cloud);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr temp_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(*msg, *temp_cloud);
+  
+  pcl::PassThrough<pcl::PointXYZ> pass;
+  
+  pass.setInputCloud(temp_cloud);
+  pass.setFilterFieldName("z");
+  pass.setFilterLimits(-10,.2);
+  pass.filter(pcl_cloud);
+  
   /*
   std::ofstream log_file;
   log_file.open("/home/justin/raw_pcl.csv", std::ofstream::out);
@@ -31,15 +40,16 @@ void OctoTerrainMap::get_cloud_callback(const sensor_msgs::PointCloud2ConstPtr& 
   }
   log_file.close();
   */
+  
   has_octomap_ground = 1;
 }
 
 
 
 OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
-    ros::NodeHandle nh;
+    private_nh_ = new ros::NodeHandle("~/octo_terrain_map");
     ros::Rate loop_rate(10);
-    ros::Subscriber client = nh.subscribe<sensor_msgs::PointCloud2>("/rtabmap/octomap_occupied_space", 100, get_cloud_callback);
+    ros::Subscriber client = private_nh_->subscribe<sensor_msgs::PointCloud2>("/rtabmap/cloud_ground", 100, get_cloud_callback);
     
     ROS_INFO("Listening for octomap_ground");
     
@@ -59,13 +69,13 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     float curvature_threshold;
     int num_neighbors;
     
-    nh.getParam("/TerrainMap/filter_radius", radius);
-    nh.getParam("/TerrainMap/normal_radius", normal_radius);
-    nh.getParam("/TerrainMap/curvature_threshold", curvature_threshold);
-    nh.getParam("/TerrainMap/smoothness_threshold", smoothness_threshold);
-    nh.getParam("/TerrainMap/num_neighbors", num_neighbors);
-    nh.getParam("/TerrainMap/num_neighbors_avg", num_neighbors_avg);
-    nh.getParam("/TerrainMap/occupancy_threshold", occupancy_threshold_);    
+    private_nh_->getParam("/TerrainMap/filter_radius", radius);
+    private_nh_->getParam("/TerrainMap/normal_radius", normal_radius);
+    private_nh_->getParam("/TerrainMap/curvature_threshold", curvature_threshold);
+    private_nh_->getParam("/TerrainMap/smoothness_threshold", smoothness_threshold);
+    private_nh_->getParam("/TerrainMap/num_neighbors", num_neighbors);
+    private_nh_->getParam("/TerrainMap/num_neighbors_avg", num_neighbors_avg);
+    private_nh_->getParam("/TerrainMap/occupancy_threshold", occupancy_threshold_);    
     
     ROS_INFO("Starting normal estimation");
     pcl::search::Search<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -116,6 +126,10 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     extract_ground.setNegative(true);
     extract_ground.filter(*obstacle_cloudPtr);
     
+    
+    cloud_pub1_ = private_nh_->advertise<sensor_msgs::PointCloud2>("ground_cloud", 100);
+    cloud_pub2_ = private_nh_->advertise<sensor_msgs::PointCloud2>("raw_cloud", 100);    
+
     /*
     std::ofstream log_file;
     log_file.open("/home/justin/ground_pcl.csv", std::ofstream::out);
@@ -147,40 +161,24 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     kdtree.setSortedResults(true);
     
     ROS_INFO("Created KDtree");
-    
-    
-    /*
-    ros::Publisher smooth_pub = nh.advertise<sensor_msgs::PointCloud2>("/smooth_ground", 100);
-    sensor_msgs::PointCloud2 smooth_pcl_msg;
-    unsigned seq = 0;
-    while(ros::ok()){
-      pcl::toROSMsg(pcl_smooth, smooth_pcl_msg);
-      smooth_pcl_msg.header.stamp = ros::Time::now();
-      smooth_pcl_msg.header.seq = seq;
-      
-      smooth_pub.publish(smooth_pcl_msg);
-      
-      ros::spinOnce();
-      loop_rate.sleep();
-      seq++;
-    }
-    */  
-    
+        
     occ_grid_ = occ_grid;
     
-    cols_ = occ_grid_->getSizeInCellsX();
-    rows_ = occ_grid_->getSizeInCellsY();
-    map_res_ = occ_grid_->getResolution();
+    //cols_ = occ_grid_->getSizeInCellsX();
+    //rows_ = occ_grid_->getSizeInCellsY();
+    //map_res_ = occ_grid_->getResolution();
 
-    x_origin_ = occ_grid_->getOriginX();
-    y_origin_ = occ_grid_->getOriginY();
+    //x_origin_ = occ_grid_->getOriginX();
+    //y_origin_ = occ_grid_->getOriginY();
     
+    //Right?
+    //x_origin_ = -15;
+    //y_origin_ = -15;
+    //map_res_ = .1;
+    //cols_ = 300;
+    //rows_ = 300;
     
-    x_origin_ = -15;
-    y_origin_ = -15;
-    map_res_ = .1;
-    cols_ = 300;
-    rows_ = 300;
+    computePclOriginSize();
     
     ROS_INFO("cols %u  rows %u   res %f   x_origin %f   y_origin %f", cols_, rows_, map_res_, x_origin_, y_origin_);
     
@@ -192,7 +190,6 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     
     ROS_INFO("Goind to compute our own occupancy grid");
     //gaussian blur of occ_grid to smooth it out and reduce noise from terrain incorrectly labeled as obstacle.
-    const unsigned char *occupancy_grid = occ_grid->getCharMap();//new unsigned char[rows_*cols_];
     float *temp_occ_grid = new float[rows_*cols_];
     computeOccupancyGrid(obstacle_cloudPtr, temp_occ_grid);
     occ_grid_blur_ = new float[rows_*cols_];
@@ -241,12 +238,48 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
     ROS_INFO("THE GRID IS A BLUR");
 
 
+    /*
+    ros::Publisher smooth_pub = private_nh_->advertise<sensor_msgs::PointCloud2>("/smooth_ground", 100);
+    sensor_msgs::PointCloud2 smooth_pcl_msg;
+    unsigned seq = 0;
+    while(ros::ok()){
+      pcl::toROSMsg(pcl_cloud, smooth_pcl_msg);
+      smooth_pcl_msg.header.stamp = ros::Time::now();
+      smooth_pcl_msg.header.seq = seq;
+      smooth_pcl_msg.header.frame_id = "map";
+      
+      smooth_pub.publish(smooth_pcl_msg);
+
+      sensor_msgs::PointCloud2 cloud_msg;
+      cloud_msg.header.frame_id = "map";
+      cloud_msg.header.seq = seq;
+      cloud_msg.header.stamp = ros::Time::now();
+      
+      pcl::toROSMsg(*ground_cloudPtr, cloud_msg);
+      cloud_pub1_.publish(cloud_msg);
+      
+      pcl::toROSMsg(pcl_cloud, cloud_msg);
+      cloud_pub2_.publish(cloud_msg);
+
+
+      
+      ROS_INFO("Publishing smooth pcl");
+      ros::spinOnce();
+      loop_rate.sleep();
+      seq++;
+    }
+    */
+
+    
+    
+
     float *inflated_occ_grid = new float[rows_*cols_];
     ROS_INFO("Precomputing robot footprint");
     //Not currently working for some reason. I don't get it.
     //computeInflationGrid(occ_grid_blur_, inflated_occ_grid);
     
     
+    /*
     std::ofstream log_file;
     log_file.open("/home/justin/occ_grid.csv", std::ofstream::out);
     log_file << "x,y,inflated,occupancy\n";
@@ -262,23 +295,57 @@ OctoTerrainMap::OctoTerrainMap(costmap_2d::Costmap2D *occ_grid){
         }
     }
     log_file.close();
-    
+    */
     delete temp_elev_map;
     delete inflated_occ_grid;
 }
 
 
 OctoTerrainMap::~OctoTerrainMap(){
+  delete private_nh_;
   delete elev_map_;
   //delete octomap_;
 }
 
+
+void OctoTerrainMap::computePclOriginSize(){
+  float x_min = pcl_cloud.points[0].x;
+  float y_min = pcl_cloud.points[0].y;
+  float x_max = pcl_cloud.points[0].x;
+  float y_max = pcl_cloud.points[0].y;
+  
+  
+  for(unsigned i = 1; i < pcl_cloud.points.size(); i++){
+    if(pcl_cloud.points[i].x < x_min){
+      x_min = pcl_cloud.points[i].x;
+    }
+    if(pcl_cloud.points[i].y < y_min){
+      y_min = pcl_cloud.points[i].y;
+    }
+    if(pcl_cloud.points[i].x > x_max){
+      x_max = pcl_cloud.points[i].x;
+    }
+    if(pcl_cloud.points[i].y > y_max){
+      y_max = pcl_cloud.points[i].y;
+    }
+  }
+
+  map_res_ = .05f;
+  
+  cols_ = (unsigned) ceilf((x_max - x_min) / map_res_);
+  rows_ = (unsigned) ceilf((y_max - y_min) / map_res_);
+  
+  x_origin_ = x_min;
+  y_origin_ = y_min;
+  
+  x_max_ = x_origin_ + (cols_*map_res_);
+  y_max_ = y_origin_ + (rows_*map_res_);
+}
+
 //takes uninflated costmap
-void OctoTerrainMap::computeInflationGrid(float *costmap, float *inflated_costmap){
-    ros::NodeHandle nh;
-    
+void OctoTerrainMap::computeInflationGrid(float *costmap, float *inflated_costmap){    
     float robot_radius;
-    nh.getParam("/move_base/global_costmap/robot_radius", robot_radius);
+    private_nh_->getParam("/move_base/global_costmap/robot_radius", robot_radius);
     
     int radius_cells = ceilf((float)robot_radius/map_res_);
     unsigned side_len = (radius_cells*2) + 1;
@@ -366,6 +433,11 @@ void OctoTerrainMap::computeOccupancyGrid(pcl::PointCloud<pcl::PointXYZ>::Ptr ob
     }
     log_file.close();
     */
+
+    
+    for(unsigned i = 0; i < obstacle_cloud->points.size(); i++){
+        obstacle_cloud->points[i].z = 0;
+    }
     
     pcl::search::KdTree<pcl::PointXYZ>::Ptr obs_tree(new pcl::search::KdTree<pcl::PointXYZ>);
     obs_tree->setInputCloud(obstacle_cloud);
@@ -468,12 +540,14 @@ float OctoTerrainMap::getAltitude(float x, float y, float z_guess) const{
   float sum = 0;
   float dx = neighbors[0][0] - neighbors[1][0];
   float dy = neighbors[0][1] - neighbors[1][1];
+  float dist;
   //float max_dist = sqrtf(dx*dx + dy*dy);
   for(unsigned i = 0; i < 4; i++){
     dx = neighbors[i][0] - col_intrp;
     dy = neighbors[i][1] - row_intrp;
+    dist = dx*dx + dy*dy;
     
-    weight = expf(-.5*(dx*dx + dy*dy)/map_res_); //hopefully this weighting function works.
+    weight = expf(-.5*dist/map_res_); //hopefully this weighting function works.
     sum += weight*neighbors[i][2];
     total_weight += weight;
   }
@@ -500,6 +574,7 @@ float OctoTerrainMap::averageNeighbors(float x, float y, float z_guess) const{
   float dy;
   float dz;
   int num_nearest = kdtree.nearestKSearch(searchPoint, K, pointIdxKNNSearch, pointKNNSquaredDistance);
+  float best_dist = 10;
   if(num_nearest > 0){
     for(unsigned i = 0; i < num_nearest; i++){
       dx = pcl_cloud[pointIdxKNNSearch[i]].x - searchPoint.x;
@@ -507,6 +582,9 @@ float OctoTerrainMap::averageNeighbors(float x, float y, float z_guess) const{
       dz = pcl_cloud[pointIdxKNNSearch[i]].z - searchPoint.z;
       
       dist = sqrtf((dx*dx) + (dy*dy) + (dz*dz)) + 1e-5f; //Prevents divide by zero.
+
+      if(dist < best_dist)
+        best_dist = dist;
       
       weight = 1 / dist; //sqrtf(pointKNNSquaredDistance[i]);
       total_weight += weight;
@@ -517,25 +595,38 @@ float OctoTerrainMap::averageNeighbors(float x, float y, float z_guess) const{
       ROS_INFO("UHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOHUHOH");
   }
   
-  return sum/total_weight;
+  if(best_dist < 1.0f){
+    return sum/total_weight;
+    
+  }
+  else{
+    return -1;
+  }
 }
 
 int OctoTerrainMap::isStateValid(float x, float y) const{
     //look up in the oc_grid_ to see if thing is occupied
     unsigned mx;
     unsigned my;
-
+    
     //might not need this conversion.
+    /*
     if(!occ_grid_->worldToMap(x, y, mx, my)){
       ROS_INFO("worldToMap OOB");
       return 0; //Out of Bounds
     }
+    */
+    if(x < x_origin_ || x > x_max_ || y < y_origin_ || y > y_max_){
+      ROS_INFO("Out of bounds of elevation map");
+      return 0;
+    }
+    
     
     if(occ_grid_blur_[(my*cols_) + mx] > occupancy_threshold_){
       ROS_INFO("Lethal Obstacle Detected");
       return 0; //state is occupied if occupancy > 50%. At least I think thats how it all works.
     }
-
+    
     //ROS_INFO("Returning true from OctoTerrainMap::isStateValid");
     return 1;//(x > Xmin) && (x < Xmax) && (y > Ymin) && (y < Ymax);
 }

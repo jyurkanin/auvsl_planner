@@ -78,14 +78,34 @@
      get points that only lie within planning area and then generate occupancy grid with the window pcls
   5) Run segmentation on updated local point cloud with every new lidar scan? Could be way too slow.
 
+  Status: confirmed that it is following paths.
+  The control system is pretty timid. I should up the gain a shit ton. Also the "reached waypoint threshold" is pretty strict. I should
+  relax it. Uh. I need to fix the visualization in rviz. Its not showing the states and obstacles for some reason. I need to verify
+  that it is able to detect new obstacles and path around them as well.
+  I should experiment with the other method of ground/obstacle segmentation.
+  
+  I noticed that edge costs are only updated once. and the update is 16,000. So lets try to find out why with a fake update.
+  The updateEdge callback is not being called.
+  I replace the topic with /clock and it got called every second as expected.
+  do your own segmentation. rtabmap sucks.
 
+  Reset the rtabmap. It's not publishing. And not aggregating lidar scans. I don't know why. The lidar detects the new obstacle but it
+  doesn't show up in the rtabmap pointcloud.
      
-** TODO Implement or refractor local cost map functions
-** TODO Do not use costmap_ros because it sucks
+** DONE Implement or refractor local cost map functions
+   I believe this is done.
+** DONE Uh, How do I actually cause the local planner to get called???
+   After looking at the source code, I believe the answer is that setting a goal through the goal topic starts everything
+   It causes a callback to be activated, runs the global planner, then starts a loop where the local planner runs.
+   The main loop exits when the goal is reached.
+   Yeah. Except instead of a goal topic, its an actionserver. Which is essentially the same thing I think.
+   
+** DONE Do not use costmap_ros because it sucks
    I need to be get map updates directly and not have to iterate
    the entire map. Also, the resolution of the costmap_ros doesn't
    really match the distance between waypoints anyway. Its just not
    good for what I want.
+
 
 
 * DONE D* algorithm
@@ -125,7 +145,8 @@
    Integrate planners with a control system
    the online loop in D* will have to actually control
    the vehicle and physically follow the D* backpointers
-
+   
+   
    
 
 
@@ -227,6 +248,37 @@
 * <2021-03-18 Thu> Update
   Kinematic model planner is working. Dynamic model planner is not working. Visualizer is working.
   It is cool.
+  
+* <2021-08-25 Wed> Update
+  RRT planning esta completo forget about it.
+  Local planning is difficult because of obstacle detection.
+  Localization has to be really good, or saved ground plane won't
+  match the orientation of the sampled ground plane and the 
+  segmentation code will not work because it will see two planes.
+  Segmentation is tuned for the local planner to be conservative in
+  identifying obstacles so it doesn't classify the ground as obstacle
+  Segmentation/obstacle detection is slow af ~3s to run.
+  It's not currently following b_ptrs or anything. Idk why.
+  Important to note that ros::spin() is located in move_base node.
+  It is always running as long as move_base is running.
+  I wish they used a multithreaded spinner.
+  I think the computeVelocityCommand is not getting called because
+  ros::spin() is spending all its time on segmenting point clouds.
+  I'm going to have to increase the processing speed by down
+  sampling otherwise this is never going to work in realtime.
+  Also getting rid of the publishing will definitely help.
+
+  Vehicle is not publishing velocity commadns. I believe its because
+  ros.spin() is spending all of its time in the updateEdgeCostsCallback
+  and leaving no time for computeVelocityCommands. But idk.
+  
+  You are going to have to rely on point cloud density alone probably.
+  I don't think segmentation can be done fast enough. Region growing
+  isn't fast enough. Maybe voxel filter would fix it but I'm not sure.
+  What I am sure of is that iterating through the point cloud and updating
+  the grid directly by mapping point to grid location would be fast.
+  I can probably make it work.
+
   
 
 * Minimum Viable Product:

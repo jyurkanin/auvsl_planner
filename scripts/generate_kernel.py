@@ -1,11 +1,11 @@
 import math
 
-sigma_sq = 5
+sigma_sq = 12
 kernel = ""
 kernel_size = 5
-for i in range(-kernel_size,kernel_size):
-    for j in range(-kernel_size,kernel_size):
-        dist = (i*i)+(j*j)+1
+for i in range(-kernel_size,kernel_size+1):
+    for j in range(-kernel_size,kernel_size+1):
+        dist = (i*i)+(j*j)
         kernel = kernel + "{:5.4f}".format(math.exp(-.5*dist/sigma_sq)) + " "
 #        kernel = kernel + "{:5.4f}".format(1/dist) + " "
     kernel = kernel + "\n"

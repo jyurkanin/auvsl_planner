@@ -1,15 +1,13 @@
 #include "LocalPlanner.h"
 #include "TerrainMap.h"
+#include "ControlSystem.h"
+#include "utils.h"
 
 #include <Eigen/Dense> //the eigen headers dont end in .h
 #include <rbdl/rbdl.h>
 
 #include <vector>
-#include <X11/keysymdef.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
-#include <X11/Xlib.h>
-#undef Success
+#include <mutex>
 
 // msgs
 #include <nav_msgs/Path.h>
@@ -18,7 +16,7 @@
 #include <visualization_msgs/Marker.h>
 #include <geometry_msgs/PoseWithCovarianceStamped.h>
 #include <geometry_msgs/Twist.h>
-
+#include <sensor_msgs/PointCloud2.h>
 #include <ros/ros.h>
 
 // transforms
@@ -28,8 +26,20 @@
 
 #include <costmap_2d/costmap_2d_ros.h>
 #include <nav_core/base_local_planner.h>
-
 #include <boost/thread/thread.hpp>
+
+#include <pcl/point_types.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/search/organized.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/search/search.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/segmentation/region_growing.h>
+
+#include <rosgraph_msgs/Clock.h>
 
 /*
  * Implementation for this algorithm is from
@@ -57,8 +67,8 @@ struct StateData{
     float min_cost;
     float curr_cost;
     struct StateData *b_ptr;
-    char x;
-    char y;
+    unsigned x;
+    unsigned y;
     TAG tag;
     float occupancy;
 };
@@ -84,12 +94,12 @@ public:
     void runPlanner();
     int stepPlanner(StateData*& robot_state, Vector2f &robot_pos);
     int replan(StateData* robot_state);
-    
+
     void updateEdgeCostsCallback(const sensor_msgs::PointCloud2ConstPtr& msg);
     void getGlobalCloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg);
     void initOccupancyGrid(Vector2f start, Vector2f goal);
-    
-    
+    void segmentPointCloud(pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPtr, pcl::PointCloud<pcl::PointXYZ>::Ptr obstacle_cloudPtr, pcl::PointCloud<pcl::PointXYZ>::Ptr ground_cloudPtr, int local);
+  
     float getEdgeCost(StateData* X, StateData* Y);    //c(X)
     float getPathCost(Vector2f X, Vector2f G);    //h(X)
     float getMinPathCost(Vector2f X, Vector2f G); //Min Path Cost since state was added to open list. This is the "key function"
@@ -101,20 +111,20 @@ public:
     
     //Drawing related functions
     void initWindow();
-    void pressEnter();
     void drawStateType(StateData *state, STATE_TYPE s_type);
     void drawStateTag(StateData *state);
     void drawStateBPtr(StateData *state);
     void drawPath(StateData *start);
     void drawGoal(StateData *state);
     void drawFinishedGraph(StateData *state, std::vector<StateData*> &actual_path);
-    void drawObstacle(StateData *state);
+    void drawObstacle(StateData *state, int clear);
     void drawRobotPos(StateData* state);
+    void drawRobotPos(unsigned x, unsigned y);
     
     //Helper functions
     void getMapIdx(Vector2f X, unsigned &x, unsigned &y);
-    StateData* readStateMap(Vector2f X); //will perform the necessary quantization to go from floating state to grid index
-    Vector2f getRealPosition(int x, int y);
+    StateData* readStateMap(float rx, float ry); //will perform the necessary quantization to go from floating state to grid index
+    Vector2f getRealPosition(unsigned x, unsigned y);
     Vector2f getCurrentPose();
 
     //Costmap related functions
@@ -128,10 +138,12 @@ private:
     float y_range_;
     float y_offset_;
 
+    float occupancy_threshold_;
     float map_res_;
+    
     unsigned width_;
     unsigned height_;
-    
+  
     StateData *state_map_; //states are 8 connected
     //SimpleTerrainMap *terrain_map_;
     std::vector<StateData*> open_list_; //This is going to be sorted by key function.
@@ -141,7 +153,7 @@ private:
     std::vector<Vector2f> global_waypoints_;
     
     //These represent the higher resolution immediate next waypoints to reach.
-    std::mutex mu_;
+    std::mutex wp_mu_;
     unsigned lookahead_len_;
     std::vector<Vector2f> local_waypoints_;
     
@@ -153,26 +165,32 @@ private:
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr local_terrain_cloud_;
     pcl::PointCloud<pcl::PointXYZ>::Ptr local_obstacle_cloud_;
-
-
+    
+    std::ofstream log_file;
+    ControlSystem *control_system_;
     
     volatile int has_pose_;
     float goal_tol_;
 
     volatile int has_init_map_;
     int initialized_;
-
+     
+    int init_curr_wp_;
     
     int planner_failed_;
     
     boost::thread *planner_thread_;
     ros::NodeHandle *private_nh_;
     ros::Subscriber pcl_sub_;
+    ros::CallbackQueue pcl_obs_queue_;
     costmap_2d::Costmap2DROS *costmap_ros_; //This is still useful just for the getRobotPose function
-    
-    Display *dpy;
-    Window w;
-    GC gc;
+  
+    ros::Publisher dstar_visual_pub_;
+    tf::TransformListener tf_listener_;
+    ros::Publisher cloud_pub1_;
+    ros::Publisher cloud_pub2_;
+    ros::Publisher cloud_pub3_;
+  
 };
 
 

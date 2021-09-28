@@ -1,20 +1,21 @@
 <launch>
-  <!-- Following is for some reason required in ROS Noetic. My mistake for using noetic :( -->
+  <!-- Following is for some reason required in ROS Noetic. My mistake for using noetic :( 
   <param name="robot_description" command="$(find xacro)/xacro $(find jackal_description)/urdf/jackal.urdf.xacro"/>
   
   <include file="$(find jackal_gazebo)/launch/hrtac_world.launch">
     <arg name="use_sim_time" value="true"/>
-    <arg name="gui" value="false"/>
-    <arg name="headless" value="false"/>
+    <arg name="gui" value="true"/>
+
     <arg name="joystick" value="false"/>
   </include>
+  -->
   <rosparam file="$(find auvsl_planner)/config/jackal_gazebo_pid.yaml" command="load"/> 
 
+  <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>   
   <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
-  <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>
-  <node name="test_terrain_node" pkg="auvsl_planner" type="test_terrain_node" output="screen" launch-prefix="" required="true"/>
-
-<!--
+  <node name="auvsl_planner" pkg="auvsl_planner" type="test_global_planner_node" output="screen"/>
+  <node name="auvsl_control" pkg="auvsl_control" type="jackal.py" output="screen"/>
+    
   <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen" launch-prefix="">
     <param name="base_global_planner" value="auvsl/GlobalPlanner"/>
     <param name="base_local_planner" value="auvsl/DStarPlanner"/>
@@ -25,14 +26,16 @@
     <rosparam file="$(find auvsl_planner)/config/global_costmap_params.yaml" command="load" /> 
     <rosparam file="$(find auvsl_planner)/config/base_local_planner_params.yaml" command="load" />
   </node>
--->  
+  
     
   <arg name="max_range" default="0"/>
   <arg name="p2n" default="true"/>
   <arg name="pm" default="true"/>
 
+  <node name="velodyne_hack" pkg="velodyne_hack" type="velodyne_hack_node"/>
+
   <group ns="rtabmap">
-    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="screen" args="">
+    <node name="rtabmap" pkg="rtabmap_ros" type="rtabmap" output="log" args="">
       <param name="frame_id" type="string" value="base_link"/>          
       
       <param name="subscribe_odom" type="bool" value="true"/>
@@ -44,7 +47,7 @@
       <param name="subscribe_scan" type="bool" value="false"/>
       <param name="subscribe_scan_cloud" type="bool" value="true"/>  
       
-      <remap from="scan_cloud"  to="/mid/points"/>
+      <remap from="scan_cloud"  to="/velodyne_points_fixed"/>
       <remap from="odom"        to="/odometry/filtered"/>
       <remap from="grid_map"    to="/map"/>
     
@@ -67,11 +70,12 @@
 
       <!-- RTAB-Map's segmentation parameters -->
       <param name="Grid/RangeMax"               type="string" value="100"/>
-      <param name="Grid/MaxGroundAngle"         type="string" value="60"/>
-      <param name="Grid/ClusterRadius"          type="string" value=".1"/>
+      <param name="Grid/MaxGroundAngle"         type="string" value="80"/>
+      <param name="Grid/ClusterRadius"          type="string" value="1"/>
       <param name="Grid/NoiseFilteringMinNeighbors"    type="string" value="20"/>
       <param name="Grid/NormalK"                type="string" value="100"/>
-        
+      <param name="Grid/MinClusterSize"         type="string" value="10"/>
+      
     </node>
 
   </group>    

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <stdlib.h>
+#include <fstream>
 
 
 using namespace RigidBodyDynamics;
@@ -120,11 +121,12 @@ void JackalDynamicSolver::init_model(int debug){
   if(debug_level == 2 && !log_file.is_open()){
       ROS_INFO("DEBUG LEVEL 2");
       log_file.open("/home/justin/xout_file.csv", std::ofstream::out);
+      log_file << "qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qdd4\n";
   }
   
+
   feature_log.open("/home/justin/feature_file.csv", std::ofstream::out);
   feature_log << "x,y,z,qx,qy,qz,q1,q2,q3,q4,qw,vx,vy,vz,ax,ay,az,qd1,qd2,qd3,qd4, vl,vr,zr1,zr2,zr3,zr4,   dx,dy,dz,dqx,dqy,dqz,dq1,dq2,dq3,dq4,dqw,dvx,dvy,dvz,dax,day,daz,dqd1,dqd2,dqd3,dqd4\n";
-  
   //model = NULL;
   Vector3d initial_pos(0,0,0);
   
@@ -441,7 +443,7 @@ float JackalDynamicSolver::get_timestep(){
 void JackalDynamicSolver::log_xout(float *Xout){
   //Log a single row from Xout;
   /*
-//qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qdd4
+//qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qd4
     x_init = [1 0 0 0  0 0 zoff   0 0 0  0 0 0]';
               |______| |_______| |_____| |____|
                |        |        |       |->Linear Velocity in F_1
@@ -468,10 +470,10 @@ qd_init = [0 0 0 0];
   
   Quaternion quat(Xout[3], Xout[4], Xout[5], Xout[10]);
   Vector3d r(Xout[0], Xout[1], Xout[2]);
-
+  
   SpatialTransform X_base1(Quaternion(0,0,0,1).toMatrix(), r);
   SpatialTransform X_base2(quat.toMatrix(), r);
-
+  
   SpatialVector body_vel_lin(0,0,0,Xout[11],Xout[12],Xout[13]);
   SpatialVector body_vel_ang(Xout[14],Xout[15],Xout[16],0,0,0);
   
@@ -536,6 +538,95 @@ void JackalDynamicSolver::log_features(float *Xout, float *Xd){
 }
 
 
+void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const char *joint_state_fn){
+  //================== Step 1. get starting position and orientation ============================
+  std::ifstream odom_file(odom_fn);
+  const int num_odom_cols = 90;
+  std::string line;
+  for(unsigned i = 0; i < 1865; i++){
+    std::getline(odom_file, line);
+  }
+  
+  std::string word; //skip ahead by 4 words
+  for(int i = 0; i < 5; i++){
+    std::getline(odom_file, word, ',');
+    ROS_INFO("Word yo: %s", word.c_str());
+  }
+  
+  float Xn[21];
+  for(int i = 0; i < 21; i++){
+    Xn[i] = 0;
+  }
+  
+  char comma;
+  
+  odom_file >> Xn[0] >> comma;
+  odom_file >> Xn[1] >> comma;
+  odom_file >> Xn[2] >> comma;
+  
+  odom_file >> Xn[3] >> comma;
+  odom_file >> Xn[4] >> comma;
+  odom_file >> Xn[5] >> comma;
+  odom_file >> Xn[10] >> comma;
+
+  //==================== Step 2. Allow vehicle to come to rest/reach equillibrium sinkage before moving =================
+  
+  ROS_INFO("Starting z position: %f", Xn[2]);
+  ROS_INFO("Starting orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
+  float Xn1[21];
+  //hack to allow vehicle to settle and reach a stable sinkage before actually starting.
+  for(int i = 0; i < 10; i++){
+    solve(Xn, Xn1, 0,0, .1f);
+    
+    for(int j = 11; j < 21; j++){
+      Xn[j] = Xn1[j];
+    }
+    Xn[2] = Xn1[2];
+    
+  }
+  ROS_INFO("Settled z position: %f", Xn[2]);
+  ROS_INFO("Starting orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
+  
+  odom_file.close();
+  
+  //================== Step 3. Do the simulation bro  ============================
+  std::ifstream joint_file(joint_state_fn);
+  std::getline(joint_file, line);
+
+  float time;
+  float front_left_vel;
+  float front_right_vel;
+  float back_left_vel;
+  float back_right_vel;
+  
+  while(joint_file.peek() != EOF){
+    joint_file >> time >> comma;
+    joint_file >> front_left_vel >> comma;
+    joint_file >> front_right_vel >> comma;
+    joint_file >> back_left_vel >> comma;
+    joint_file >> back_right_vel >> comma;
+
+    
+    Xn[17] = front_right_vel;
+    Xn[18] = back_right_vel;
+    Xn[19] = front_left_vel;
+    Xn[20] = back_left_vel;
+        
+
+    solve(Xn, Xn1, .1f); //(front_left_vel+back_left_vel)*.5, (front_right_vel+back_right_vel)*.5, .1f);
+    for(int i = 0; i < 21; i++){
+      Xn[i] = Xn1[i];
+    }
+    
+    if(!terrain_map_->isStateValid(Xn[0], Xn[1])){
+      break;
+    }
+  }
+  
+  joint_file.close();
+}
+
+
 void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr, float sim_time){
   int sim_steps = floorf(sim_time/stepsize);
   float Xout[21];
@@ -551,7 +642,6 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
 
   unsigned max_steps = sim_steps + timestep;
   for(; timestep < max_steps; timestep++){
-    //ROS_INFO("Herp %f %f %f %f", Xout[17], Xout[18], Xout[19], Xout[20]);
     step(Xout, Xout_next, vl, vr);
     
     if(debug_level == 2){
@@ -584,6 +674,41 @@ void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
   euler_method(X_now, X_next);
   //runge_kutta_method(X_now, X_next); //runge kutta is fucked rn.
 }
+
+
+
+
+//solve with constant tire rotational speed
+void JackalDynamicSolver::solve(float *x_init, float *x_end, float sim_time){
+  int sim_steps = floorf(sim_time/stepsize);
+  float Xout[21];
+  float Xout_next[21];
+  
+  reset();
+  
+  for(int i = 0; i < 21; i++){
+    Xout[i] = x_init[i];
+  }
+  
+  unsigned max_steps = sim_steps + timestep;
+  for(; timestep < max_steps; timestep++){
+    //runge_kutta_method(Xout, Xout_next);
+    euler_method(Xout, Xout_next);
+    
+    if(debug_level == 2){
+      log_xout(Xout);
+    }
+    
+    for(int i = 0; i < 17; i++){ //dont assign tire velocities, hold them constant
+      Xout[i] = Xout_next[i];
+    } 
+  }
+  
+  for(int i = 0; i < 21; i++){
+    x_end[i] = Xout[i];
+  }
+}
+
 
 void JackalDynamicSolver::apply_force(SpatialVector wrench, int body){
   f_ext[body] = wrench;
@@ -652,7 +777,7 @@ void JackalDynamicSolver::euler_method(float *X, float *Xt1){
   }
   
   float temp[4] = {Xt1[3], Xt1[4], Xt1[5], Xt1[10]};
-  normalize_quat(temp);
+  normalize_quat(temp); //this is needed because the quaternion is updated under a small angle assumption using what is essentially a hack for integratin quaternions and it doesnt preserve the quaternion unit norm property
   Xt1[3] = temp[0];
   Xt1[4] = temp[1];
   Xt1[5] = temp[2];
@@ -663,23 +788,37 @@ void JackalDynamicSolver::runge_kutta_method(float *X, float *Xt1){
   int len = model->q_size + model->qdot_size;
   float ts = stepsize;
   
+  //make sure quaternion is normalized after every step or error will be terrible.
+  auto normalize_helper = [](float *X_temp){
+                            float l2_norm = sqrtf((X_temp[3]*X_temp[3]) + (X_temp[4]*X_temp[4]) + (X_temp[5]*X_temp[5]) + (X_temp[10]*X_temp[10]));
+                            X_temp[3] /= l2_norm;
+                            X_temp[4] /= l2_norm;
+                            X_temp[5] /= l2_norm;
+                            X_temp[10] /= l2_norm;
+                          };
+  
   float temp[len];
-  float k1[len]; ode(X, k1); //Calculate derivative.
-  
+  float k1[len];
+  ode(X, k1); //Calculate derivative.
   for(int i = 0; i < len; i++) temp[i] = X[i]+.5*ts*k1[i];
-  float k2[len]; ode(temp, k2);
+  normalize_helper(temp);
   
+  float k2[len];
+  ode(temp, k2);
   for(int i = 0; i < len; i++) temp[i] = X[i]+.5*ts*k2[i];
-  float k3[len]; ode(temp, k3);
+  normalize_helper(temp);
   
+  float k3[len];
+  ode(temp, k3);
   for(int i = 0; i < len; i++) temp[i] = X[i]+ts*k3[i];
-  float k4[len]; ode(temp, k4);
+  normalize_helper(temp);
   
+  float k4[len];
+  ode(temp, k4);
   for(int i = 0; i < len; i++){
     Xt1[i] = X[i] + (ts/6)*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
   }
-  
-  normalize_quat(&Xt1[3]);
+  normalize_helper(Xt1);
 }
 
 void JackalDynamicSolver::normalize_quat(float *q){

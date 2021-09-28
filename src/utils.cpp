@@ -1,6 +1,18 @@
 #include "utils.h"
 #include <stdio.h>
 
+
+
+
+float getDistance(Eigen::Vector2f vec1, Eigen::Vector2f vec2){
+  float dx = vec1[0] - vec2[0];
+  float dy = vec1[1] - vec2[1];
+  
+  return sqrtf(dx*dx + dy*dy);
+}
+
+
+
 Matrix3d get_box_inertia(float mass, Vector3d v_size){
   Matrix3d temp;
   float v1 = mass*(v_size[1]*v_size[1] + v_size[2]*v_size[2])/12;
@@ -19,6 +31,11 @@ Matrix3d get_tire_inertia(float mass, float radius, float height){
 
   temp << ismall,0,0,   0,ibig,0,   0,0,ismall;
   return temp;
+}
+
+float get_yaw(float qw, float qx, float qy, float qz ){
+  Vector4d quat(qw, qx, qy, qz);
+  return get_yaw(quat);
 }
 
 float get_yaw(Vector4d q){
