@@ -43,13 +43,14 @@ private:
 
 class JackalDynamicSolver{
  public:
-  static const int num_hidden_nodes = 20;
+  static const int num_hidden_nodes = 35;
   static const int num_in_features = 8;
-  static const int num_out_features = 3;
+  static const int num_out_features = 4;
 
   static std::ofstream log_file;
   static std::ofstream temp_log;
-
+  static std::ofstream feature_log;
+    
   JackalDynamicSolver();
   ~JackalDynamicSolver();
 
@@ -77,10 +78,13 @@ class JackalDynamicSolver{
   void ode(float *X, float *Xd);
   void apply_force(SpatialVector wrench, int body);
   void log_xout(float *Xout);
-  void log_features(float *Xout, float vl, float vr);
+  void log_features(float *Xout, float *Xd);
   
   // private:
-  
+
+  float vel_left_;
+  float vel_right_;
+    
   PIDController internal_controller[2];
   
   static const TerrainMap *terrain_map_;

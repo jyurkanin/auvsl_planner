@@ -311,6 +311,32 @@ target_link_libraries(local_planner_lib X11)
 set_target_properties(local_planner_lib PROPERTIES COMPILE_FLAGS "-O3")
 
 
+
+
+
+
+
+add_executable(gen_data_node src/gen_data.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+
+target_link_libraries(gen_data_node ${PCL_LIBRARIES})
+target_link_libraries(gen_data_node ${catkin_LIBRARIES})
+target_link_libraries(gen_data_node ${OMPL_LIBRARIES})
+target_link_libraries(gen_data_node rbdl)
+target_link_libraries(gen_data_node X11)
+
+set_target_properties(gen_data_node PROPERTIES COMPILE_FLAGS "-O3")
+
+
+
+
+
+
 #add_executable(test_planner_node src/test_planner_node.cpp
 #  src/DStarPlanner.cpp
 #  src/GlobalParams.cpp
