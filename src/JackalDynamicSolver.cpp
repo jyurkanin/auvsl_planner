@@ -9,6 +9,8 @@
 #include <fstream>
 
 
+#include <tf/tf.h>
+
 using namespace RigidBodyDynamics;
 using namespace RigidBodyDynamics::Math;
 
@@ -45,7 +47,7 @@ float PIDController::step(float err){
 
 
 
-
+//Function is not actually used.
 SpatialVector get_body_vel(SpatialVector world_vel, float *X){
     Quaternion quat(X[3], X[4], X[5], X[10]);
     Vector3d r(X[0], X[1], X[2]);
@@ -53,7 +55,7 @@ SpatialVector get_body_vel(SpatialVector world_vel, float *X){
     return X_base.apply(world_vel); //transform from world to body coordinates.    
 }
 
-
+//Function is not actually used.
 SpatialVector get_world_force(SpatialVector f_ext_body, float *X){
     Quaternion quat(X[3], X[4], X[5], X[10]);
     Vector3d r(X[0], X[1], X[2]);
@@ -101,12 +103,10 @@ Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> JackalDynamicSolver:
 JackalDynamicSolver::JackalDynamicSolver(){
   stepsize = GlobalParams::get_timestep();
   tau = VectorNd::Zero(model->qdot_size);
-
+  
   
   internal_controller[0] = PIDController(GlobalParams::get_p_gain(),0,0, stepsize);
   internal_controller[1] = PIDController(GlobalParams::get_p_gain(),0,0, stepsize);
-  
-  
   
   
   for(int i = 0; i < model->mBodies.size(); i++){
@@ -123,13 +123,17 @@ void JackalDynamicSolver::init_model(int debug){
       log_file.open("/home/justin/xout_file.csv", std::ofstream::out);
       log_file << "qw,qx,qy,qz,x,y,z,wx,wy,wz,vx,vy,vz,q1,q2,q3,q4,qd1,qd2,qd3,qd4\n";
       
-      temp_log.open("/home/justin/feature_file.csv");
-      temp_log << "zr1,zr2,zr3,zr4\n";
+      //temp_log.open("/home/justin/feature_file.csv");
+      //temp_log << "x,y,z,rx,ry,rz\n";
+  }
+
+  if(log_file.bad()){
+    ROS_INFO("Log FILE BAD BRO 1");
   }
   
-
-  feature_log.open("/home/justin/feature_file.csv", std::ofstream::out);
-  feature_log << "x,y,z,qx,qy,qz,q1,q2,q3,q4,qw,vx,vy,vz,ax,ay,az,qd1,qd2,qd3,qd4, vl,vr,zr1,zr2,zr3,zr4,   dx,dy,dz,dqx,dqy,dqz,dq1,dq2,dq3,dq4,dqw,dvx,dvy,dvz,dax,day,daz,dqd1,dqd2,dqd3,dqd4\n";
+  feature_log.open("/home/justin/features.csv", std::ofstream::out);
+  feature_log << "x,y,z,zx,zy,zz,vx,vy,vz\n";
+  
   //model = NULL;
   Vector3d initial_pos(0,0,0);
   
@@ -180,7 +184,10 @@ void JackalDynamicSolver::init_model(int debug){
   //float ts = .001;
   //solver = new Solver(model, ts, debug);
   load_nn_gc_model();
-  
+
+  if(log_file.bad()){
+    ROS_INFO("Log FILE BAD BRO 2");
+  }
 }
 
 void JackalDynamicSolver::set_terrain_map(const TerrainMap *terrain_map){
@@ -193,19 +200,22 @@ JackalDynamicSolver::~JackalDynamicSolver(){
 
 void JackalDynamicSolver::del_model(){
   //This is probably not a really smart thing to be doing.
+  
   if(model){
+    ROS_INFO("Deleteing Model");
+    ROS_INFO("Deleteing Model");
+    ROS_INFO("Deleteing Model");
     delete model;
     model = 0;
   }
   else{
     return;
   }
-  if(debug_level == 2){
+  if(debug_level == 2 && log_file.is_open()){
     log_file.close();
-    temp_log.close();
   }
 
-  feature_log.close();
+  //feature_log.close();
 }
 
 
@@ -234,76 +244,163 @@ Eigen::Matrix<float,JackalDynamicSolver::JackalDynamicSolver::num_out_features,1
  * For intersection with the soil. It's going to have to return the highest sinkage
  * Found. It's not going to consider multiple contacts with the soil. Thats not
  * What the bekker soil model is good at.
- * cpt_X[i] is the spatial transform from the contact point to the base frame.
+ * cpt_X[i] is the spatial transform from the world frame to the contact point frame.
+ * tire_X[i] is the spatial transform from the world frame to the center of the tire frame, with a rotation aligned with the contact point frame.
+ * This makes sense, because later I apply the transpose of the transform on the tire wrench.
+ * This transforms the tire wrench into the world frame. According to the spatial v2 transform cheat sheet.
  */
-void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinkages, SpatialTransform *cpt_X){
+void JackalDynamicSolver::get_tire_sinkages_and_cpts_simple(float *X, float *tire_sinkages, SpatialTransform *cpt_X, SpatialTransform *tire_X){
     Quaternion quat(X[3], X[4], X[5], X[10]);
     Vector3d r(X[0], X[1], X[2]);
-    
-    Matrix3d vehicle_rot = quat.toMatrix();
+
+    //quat.toMatrix() is the rotation that transforms from world
+    //to vehicle coordinates.
+    //vehicle_rot is the rotation that transforms a vector
+    //expressed in the vehicle frame to a vector in world frame
+    //coordinates.
+    Matrix3d vehicle_rot = quat.toMatrix().transpose();
     Matrix3d test_rot;
     
     Vector3d center_of_tire;
-    Vector3d radius_vec(0,0,tire_radius);
+    Vector3d radius_vec(0,0,-tire_radius);
     Vector3d cpt; //contact_point
     
-    double theta_limit = -M_PI*.25;
-    int max_checks = 5;
+    double theta_limit = -M_PI*.5;
+    int max_checks = 100;
     float test_sinkage;
     
     for(int i = 0; i < 4; i++){
       //3 is the front right tire.
-      center_of_tire = r + (vehicle_rot.transpose()*model->GetJointFrame(3+i).r);
-
+      //r is vehicle position
+      //Transforms the position of the joint frame into the world frame
+      center_of_tire = r + (vehicle_rot*model->GetJointFrame(3+i).r);
+      
       tire_sinkages[i] = -1;
-      cpt_X[i].r = Vector3d(0,0,0);
-      cpt_X[i].E = Matrix3dIdentity;
+      //cpt_X[i].r = Vector3d(0,0,0);
+      cpt_X[i].r = center_of_tire + vehicle_rot*radius_vec;
+      tire_sinkages[i] = terrain_map_->getAltitude(cpt_X[i].r[0], cpt_X[i].r[1], cpt_X[i].r[2]) - cpt_X[i].r[2];
+      //vehicle_rot.transpose() is quat.toMatrix(),
+      //the transform from world to vehicle coordinates.
+      cpt_X[i].E = vehicle_rot.transpose();
+      
+      tire_X[i].r = center_of_tire;
+      tire_X[i].E = vehicle_rot.transpose();
+      
+    }
 
-      //if(i==0)
+    /*
+    feature_log << terrain_map_->getAltitude(cpt_X[0].r[0], cpt_X[0].r[1], cpt_X[0].r[2]) << ',' <<
+      terrain_map_->getAltitude(cpt_X[1].r[0], cpt_X[1].r[1], cpt_X[1].r[2]) << ',' <<
+      terrain_map_->getAltitude(cpt_X[2].r[0], cpt_X[2].r[1], cpt_X[2].r[2]) << ',' <<
+      terrain_map_->getAltitude(cpt_X[3].r[0], cpt_X[3].r[1], cpt_X[3].r[2]) << '\n';
+    */
+}
+
+
+void JackalDynamicSolver::get_tire_sinkages_and_cpts(float *X, float *tire_sinkages, SpatialTransform *cpt_X, SpatialTransform *tire_X){
+    Quaternion quat(X[3], X[4], X[5], X[10]);
+    Vector3d r(X[0], X[1], X[2]);
+
+    //quat.toMatrix() is the rotation that transforms from world
+    //to vehicle coordinates.
+    //vehicle_rot is the rotation that transforms a vector
+    //expressed in the vehicle frame to a vector in world frame
+    //coordinates.
+    Matrix3d vehicle_rot = quat.toMatrix().transpose();
+    Matrix3d test_rot;
+    
+    Vector3d center_of_tire;
+    Vector3d radius_vec(0,0,-tire_radius);
+    Vector3d cpt; //contact_point
+    
+    double theta_limit = -M_PI*.25;
+    int max_checks = 100;
+    float test_sinkage;
+    
+    for(int i = 0; i < 4; i++){
+      //3 is the front right tire.
+      //r is vehicle position
+      //Transforms the position of the joint frame into the world frame
+      center_of_tire = r + (vehicle_rot*model->GetJointFrame(3+i).r);
+      
+      tire_sinkages[i] = -1;
+      //cpt_X[i].r = Vector3d(0,0,0);
+      cpt_X[i].r = center_of_tire + vehicle_rot*radius_vec;
+      //vehicle_rot.transpose() is quat.toMatrix(),
+      //the transform from world to vehicle coordinates.
+      cpt_X[i].E = vehicle_rot.transpose();
+      
+      tire_X[i].r = center_of_tire;
+      tire_X[i].E = vehicle_rot.transpose();
       
       for(int j = 0; j < max_checks; j++){
         test_rot = roty(theta_limit - (2*theta_limit*j/((float)(max_checks - 1))));
         
-        Matrix3d temp_rot = (vehicle_rot*test_rot).transpose();     //Rot vector from cpt frame to world.
-        cpt = center_of_tire - (temp_rot*radius_vec); //Translate vector from cpt frame to world
-        //ROS_INFO("Tire Contact Point <%f %f %f>     Sinkage %f", cpt[0], cpt[1], cpt[2],    test_sinkage);
+        Matrix3d temp_rot = vehicle_rot*test_rot;     //Rot vector from cpt frame to world.
+        cpt = center_of_tire + (temp_rot*radius_vec); //Translate vector from cpt frame to world
         test_sinkage = terrain_map_->getAltitude(cpt[0], cpt[1], cpt[2]) - cpt[2];
-        //if(i==0)
-        
         
         if(test_sinkage > tire_sinkages[i]){
           tire_sinkages[i] = test_sinkage;
+          //temp_rot is the orientation of the contact point frame. Transform from cpt frame to world.
+          //temp_rot.transpose() will rotate vectors from world to cpt and tire reaction force frame          
+          tire_X[i].E = temp_rot.transpose();
           cpt_X[i].E = temp_rot.transpose();
           cpt_X[i].r = cpt;
         }
       }
-      
     }
     
-    //ROS_INFO("best tire cpt  r <%f %f %f>  E*z <%f %f %f>   sinkage %f",  cpt_X[0].r[0], cpt_X[0].r[1], cpt_X[0].r[2],    z_rot[0], z_rot[1], z_rot[2],    tire_sinkages[0]);
+    //ROS_INFO("Best angles %f %f %f %f", best_angle[0], best_angle[1], best_angle[2], best_angle[3]);
+    
+    // //ROS_INFO(" ");
+    // Vector3d z_vec(0,0,1);
+    // //rotate normal vector from contact point frame to world for debugging.
+    // Vector3d z_rot = cpt_X[0].E.transpose() * z_vec;
+    // Vector3d v_rot = vehicle_rot * z_vec;    
+    // if(tire_sinkages[0] > 0){
+    //   feature_log << cpt_X[0].r[0] << ',' << cpt_X[0].r[1] << ',' << cpt_X[0].r[2] << ',' << z_rot[0] << ',' << z_rot[1] << ',' << z_rot[2] << ',' << v_rot[0] << ',' << v_rot[1] << ',' << v_rot[2] << '\n';
+    // }
+    
+    /*
+    feature_log << cpt_X[0].r[0] << ',' << cpt_X[0].r[1] << ',' << cpt_X[0].r[2]
+                << ',' << cpt_X[1].r[0] << ',' << cpt_X[1].r[1] << ',' << cpt_X[1].r[2]
+                << ',' << cpt_X[2].r[0] << ',' << cpt_X[2].r[1] << ',' << cpt_X[2].r[2]
+                << ',' << cpt_X[3].r[0] << ',' << cpt_X[3].r[1] << ',' << cpt_X[3].r[2] << '\n';
+    */
+    //ROS_INFO("best tire cpt  r <%f %f %f>  E*z <%f %f %f>  VehicleRot*z <%f %f %f>   rotation %f",  cpt_X[0].r[0], cpt_X[0].r[1], cpt_X[0].r[2],    z_rot[0], z_rot[1], z_rot[2],    v_rot[0], v_rot[1], v_rot[2]);
 }
+
+
 
 void JackalDynamicSolver::get_tire_vels(float *X, Vector3d *tire_vels, SpatialTransform *cpt_X){
   Quaternion quat(X[3], X[4], X[5], X[10]);
   Vector3d r(X[0], X[1], X[2]);
-  
+
+  //body 1 is an intermediate body connected to world by 3 translational DOF
+  //orientation and translation of body 1 relative to world
+  //This transform doesn't actually do anything to a pure linear spatial velocity
   SpatialTransform X_base1(Quaternion(0,0,0,1).toMatrix(), r);
+  //body 2 is an intermediate body connected to body 1 by 3 rotational DOF
+  //quat.toMatrix() is the rotation that transforms from world to vehicle frame
+  //r is the translation from world to vehicle frame.
+  //(These are the correct arguments)
+  //you can verify with SpatialOperators.h contructor and ::apply()
   SpatialTransform X_base2(quat.toMatrix(), r);
   
   SpatialVector body_vel_lin(0,0,0,X[11],X[12],X[13]);
   SpatialVector body_vel_ang(X[14],X[15],X[16],0,0,0);
-  
+
+  //X_base1 and X_base2 transform from world to body frames.
+  //inverse of these transforms from body to world frames.
   SpatialVector sp_vel_world = X_base2.inverse().apply(body_vel_ang) + X_base1.inverse().apply(body_vel_lin);
   
   for(int i = 0; i < 4; i++){
+    //cpt_X is transform from world to cpt frame.
     SpatialVector sp_vel_cp = cpt_X[i].apply(sp_vel_world); 
     Vector3d lin_vel(sp_vel_cp[3], sp_vel_cp[4], sp_vel_cp[5]);
-    //Vector3d ang_vel(sp_vel_cp[0], sp_vel_cp[1], sp_vel_cp[2]);
-    
-    tire_vels[i] = lin_vel;// + VectorCrossMatrix(ang_vel)*cpt_X[i].r;
+    tire_vels[i] = lin_vel;
   }
-
-  //ROS_INFO("Tire 0 Velocity Vector <%f, %f, %f>", tire_vels[0][0],tire_vels[0][1],tire_vels[0][2]);
 }
 
 void JackalDynamicSolver::get_tire_f_ext(float *X){
@@ -318,10 +415,14 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> labels;
     Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> scaled_features;
     Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> features;
-    
+
+    SpatialTransform tire_X[4];
     SpatialTransform cpt_X[4];
     float sinkages[4];
-    get_tire_sinkages_and_cpts(X, sinkages, cpt_X);
+    get_tire_sinkages_and_cpts(X, sinkages, cpt_X, tire_X);
+    
+    //SpatialVector temp_wrench = tire_X[0].applyTranspose(SpatialVector(0,0,0, 0,0,1));
+    //OS_INFO("tire Wrench %f, %f, %f", temp_wrench[3], temp_wrench[4], temp_wrench[5]);
     
     sinkages_[0] = sinkages[0];
     sinkages_[1] = sinkages[1];
@@ -331,20 +432,22 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     Vector3d tire_vels[4];
     get_tire_vels(X, tire_vels, cpt_X);
     
-    SpatialTransform X_tire;
     BekkerData ts_data;
     
     //ROS_INFO("Sinkage %f %f %f %f\n", sinkages[0], sinkages[1], sinkages[2], sinkages[3]);
-    
     for(int i = 0; i < 4; i++){    
-      //cpt_X[i].r = r + quat.toMatrix().transpose() * model->GetJointFrame(3+i).r;
-      //cpt_X[i].E = quat.toMatrix();
+      //tire_X[i].r = r + quat.toMatrix().transpose() * model->GetJointFrame(3+i).r;
+      //tire_X[i].E = quat.toMatrix();
       
-        features[0] = sinkages[i]; //.0026;        
+        features[0] = sinkages[i];
+        
         if(sinkages[i] <= 0){ //Tire is not in contact with the ground.
-            f_ext[3+i] = cpt_X[i].applyTranspose(SpatialVector(0,0,0,0,0,0));
+            //tire_X is the transform from world to tire.
+            //the following 0-wrench is in the tire frame.
+            f_ext[3+i] = tire_X[i].applyTranspose(SpatialVector(0,0,0,0,0,0));
             continue;
         }
+        
         
         if(X[17+i] == 0){
             if(tire_vels[i][0] == 0){
@@ -377,24 +480,18 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         features(5) = ts_data.n0;
         features(6) = ts_data.n1;
         features(7) = ts_data.phi;
+
         
         scaled_features = scale_input(features);
-        
         layer0_out = (weight0*scaled_features) + bias0;
         layer0_out = layer0_out.unaryExpr(&tanhf);
         layer2_out = (weight2*layer0_out) + bias2;
         layer2_out = layer2_out.unaryExpr(&tanhf);
-	//        layer4_out = (weight4*layer2_out) + bias4;
-	//        layer4_out = layer4_out.unaryExpr(&tanhf);
-        layer4_out = (weight4*layer2_out) + bias4;
-        
+        layer4_out = (weight4*layer2_out) + bias4;        
         labels = scale_output(layer4_out);
-
-        //printf("features %f %f %f", features[0], features[1], features[2]);
-        //printf("   labels %f %f %f\n", labels[0], labels[1], labels[2]);
-	
+        
+        
         tire_wrench = SpatialVector(0,labels[3],0,labels[0],labels[1],labels[2]);
-        //tire_wrench = SpatialVector(0,0,0,0,0,41.65);
         //float Ty = -.9*((tire_radius*X[17+i]) - tire_vels[i][0]);
         //tire_wrench = SpatialVector(0,Ty,0,labels[0],labels[1],labels[2]);
         
@@ -421,16 +518,18 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         if(tire_wrench[5] < 0){ //Fz should never point down. But the neural net might not know that.
             tire_wrench[5] = 0;
         }
-	
-        f_ext[3+i] = cpt_X[i].applyTranspose(tire_wrench);
+        
+        //tire_X is the transform from world to tire.
+        //the following 0-wrench is in the tire frame.
+        f_ext[3+i] = tire_X[i].applyTranspose(tire_wrench);
+        
+        //if(i == 0){
+        //feature_log << features[0] << ',' << features[1] << ',' << features[2] << ',' << tire_wrench[3] << ',' << tire_wrench[4] << ',' << tire_wrench[5] << '\n';
+        //}
     }
-
     
+    //ROS_INFO(" ");
     
-    //int forgetme;
-    //std::cin >> forgetme;
-    //printf("\n");
-    //wait_for_x();
 }
 
 //This doesn't actually do anything because the PID controllers are actually PD controllers
@@ -444,6 +543,7 @@ float JackalDynamicSolver::get_timestep(){
   return timestep*stepsize;
 }
 
+//this equation has no effect on dynamics
 void JackalDynamicSolver::log_xout(float *Xout){
   //Log a single row from Xout;
   /*
@@ -462,6 +562,7 @@ void JackalDynamicSolver::log_xout(float *Xout){
 q_init = [0 .4 .8 1.2];
 qd_init = [0 0 0 0];
 */
+
   
   float temp[21];
   temp[0] = Xout[10];
@@ -512,6 +613,10 @@ qd_init = [0 0 0 0];
   temp[18] = Xout[18];
   temp[19] = Xout[19];
   temp[20] = Xout[20];
+
+  if(log_file.bad()){
+    ROS_INFO("Log FILE BAD BRO");
+  }
   
   for(int i = 0; i < 20; i++){
       log_file << temp[i] << ',';
@@ -522,25 +627,21 @@ qd_init = [0 0 0 0];
 
 
 void JackalDynamicSolver::log_features(float *Xout, float *Xd){
-  if(timestep%10 == 0){
+  //if(timestep%10 == 0){
 
-    for(int i = 0; i < 21; i++){
-      feature_log << Xout[i] << ',';
-    }
+  //for(int i = 0; i < 21; i++){
+  //  feature_log << Xout[i] << ',';
+  //}
 
-    feature_log << vel_left_ << ',';
-    feature_log << vel_right_ << ',';
+  //feature_log << vel_left_ << ',';
+  //feature_log << vel_right_ << ',';
 
-    feature_log << fmax(0,sinkages_[0]) << ',';
-    feature_log << fmax(0,sinkages_[1]) << ',';
-    feature_log << fmax(0,sinkages_[2]) << ',';
-    feature_log << fmax(0,sinkages_[3]) << ',';
-
-    for(int i = 0; i < 20; i++){
-      feature_log << Xd[i] << ',';
-    }
-    feature_log << Xd[20] << '\n';
-  }
+    feature_log << sinkages_[0] << ',';
+    feature_log << sinkages_[1] << ',';
+    feature_log << sinkages_[2] << ',';
+    feature_log << sinkages_[3] << '\n';
+    
+    //}
 
 }
 
@@ -550,22 +651,19 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
   std::ifstream odom_file(odom_fn);
   const int num_odom_cols = 90;
   std::string line;
-  for(unsigned i = 0; i < 1; i++){
-    std::getline(odom_file, line);
-  }
-  
-  std::string word; //skip ahead by 4 words
-  for(int i = 0; i < 5; i++){
-    std::getline(odom_file, word, ',');
-    ROS_INFO("Word yo: %s", word.c_str());
-  }
+  std::getline(odom_file, line);
   
   float Xn[21];
+  float Xn1[21];
   for(int i = 0; i < 21; i++){
     Xn[i] = 0;
   }
   
+  float ignoreme;
+  
   char comma;
+  
+  odom_file >> ignoreme >> comma; //index.
   
   odom_file >> Xn[0] >> comma;
   odom_file >> Xn[1] >> comma;
@@ -575,46 +673,41 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
   odom_file >> Xn[4] >> comma;
   odom_file >> Xn[5] >> comma;
   odom_file >> Xn[10] >> comma;
-    
+  
+  //Xn[0] += ((float) rand()/RAND_MAX);
+  //Xn[1] += ((float) rand()/RAND_MAX);
+  
   //==================== Step 2. Allow vehicle to come to rest/reach equillibrium sinkage before moving =================
   
   ROS_INFO("Starting z position: %f %f %f", Xn[0], Xn[1], Xn[2]);
-  ROS_INFO("Starting orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
-  float Xn1[21];
-  //hack to allow vehicle to settle and reach a stable sinkage before actually starting.
-  for(int i = 0; i < 10; i++){
-    solve(Xn, Xn1, 0,0, .1f);
-    
-    for(int j = 11; j < 21; j++){
-      Xn[j] = Xn1[j];
-    }
-    Xn[2] = Xn1[2];
-    
-    Xn[3] = Xn1[3];
-    Xn[4] = Xn1[4];
-    Xn[5] = Xn1[5];
-    Xn[10] = Xn1[10];
-    
+  // ROS_INFO("Starting orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
+  
+  stabilize_sinkage(Xn, Xn1);
+  //solve(Xn, Xn1, 10.0f);
+  for(int i = 0; i < 21; i++){
+    Xn[i] = Xn1[i];
   }
-  ROS_INFO("Settled z position: %f %f %f", Xn[0], Xn[1], Xn[2]);
-  ROS_INFO("Starting orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
+  // ROS_INFO("Final z position: %f %f %f", Xn[0], Xn[1], Xn[2]);
+  // ROS_INFO("Final orientation %f %f %f %f", Xn[3], Xn[4], Xn[5], Xn[10]);
   
   odom_file.close();
 
-  /*
-  for(int i = 0; i < 21; i++){
-    Xn[i] = 0;
-  }
-  */
+  
   
   //Kinematics:
-  //Xn[2] = 2.1; //get_yaw(Xn[10], Xn[3], Xn[4], Xn[5]);
+  //tf::Quaternion quat(Xn[3], Xn[4], Xn[5], Xn[10]);
+  //tf::Matrix3x3 mat(quat);
+  //double roll, pitch, yaw;
+  //mat.getRPY(roll, pitch, yaw);
+  //Xn[2] = yaw;
   //ROS_INFO("Calculated initial yaw: %f", Xn[2]);
   
   //================== Step 3. Do the simulation bro  ============================
   std::ifstream joint_file(joint_state_fn);
-  std::getline(joint_file, line);
-
+  for(int i = 0; i < 1; i++){
+    std::getline(joint_file, line);
+  }
+  
   float time;
   float front_left_vel;
   float front_right_vel;
@@ -626,7 +719,8 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
     joint_file >> front_left_vel >> comma;
     joint_file >> front_right_vel >> comma;
     joint_file >> back_left_vel >> comma;
-    joint_file >> back_right_vel;// >> comma; //ends the line without a comma. its not necessary.
+    joint_file >> back_right_vel;
+
     
     //ROS_INFO("joint file, vel: %f %f %f %f", front_left_vel, front_right_vel, back_left_vel, back_right_vel);
     
@@ -635,8 +729,8 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
     Xn[19] = front_left_vel;
     Xn[20] = back_left_vel;
     
-
-    solve(Xn, Xn1, .02f); //(front_left_vel+back_left_vel)*.5, (front_right_vel+back_right_vel)*.5, .1f);
+    
+    solve(Xn, Xn1, .02f); //, (front_left_vel + back_left_vel)*.5, (front_right_vel + back_right_vel)*.5, .02f);
     for(int i = 0; i < 21; i++){
       Xn[i] = Xn1[i];
     }
@@ -676,7 +770,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
     
     if(debug_level == 2){
       log_xout(Xout);
-      //log_features(Xout, vl, vr);
+      //log_features(Xout, 0);
 
     }
     
@@ -693,18 +787,20 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
 void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
   float right_err = vr - (X_now[17] + X_now[18])/2;
   float left_err = vl - (X_now[19] + X_now[20])/2;
-
+  
   //X_now[17] = X_now[18] = vr;
   //X_now[19] = X_now[20] = vl;
-
+  
   vel_left_ = vl;
   vel_right_ = vr;
   
   tau[6] = tau[7] = std::min(std::max(internal_controller[0].step(right_err), -20.0f), 20.0f);
   tau[8] = tau[9] = std::min(std::max(internal_controller[1].step(left_err), -20.0f), 20.0f);
   
+  //ROS_INFO("%f   %f   %f   %f", tau[6],tau[7],tau[8],tau[9]);
+  
   //euler_method(X_now, X_next);
-  runge_kutta_method(X_now, X_next); //runge kutta is fucked rn.
+  runge_kutta_method(X_now, X_next);
 }
 
 
@@ -724,14 +820,14 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float sim_time){
   
   unsigned max_steps = sim_steps + timestep;
   for(; timestep < max_steps; timestep++){
-    runge_kutta_method(Xout, Xout_next);
-    //euler_method(Xout, Xout_next);
-    
     if(debug_level == 2){
       log_xout(Xout);
-      //log_features(Xout, 0, 0);
+      //log_features(Xout, 0);
     }
-    
+        
+    runge_kutta_method(Xout, Xout_next);
+    //euler_method(Xout, Xout_next);
+        
     for(int i = 0; i < 17; i++){ //dont assign tire velocities, hold them constant
       Xout[i] = Xout_next[i];
     } 
@@ -765,12 +861,13 @@ void JackalDynamicSolver::ode_kinematic(float *X, float *Xd){
   
   Xd[0] = vf*cosf(X[2]);
   Xd[1] = vf*sinf(X[2]);
-  Xd[2] = (vr-vl)/.646;
+  Xd[2] = (vr-vl)/.323;
   
   
 }
 
-void JackalDynamicSolver::ode(float *X, float *Xd){
+
+void JackalDynamicSolver::ode_stabilize(float *X, float *Xd){
   VectorNd Q = VectorNd::Zero(model->q_size);
   VectorNd QDot = VectorNd::Zero(model->qdot_size);
   VectorNd QDDot = VectorNd::Zero(model->qdot_size);
@@ -788,37 +885,161 @@ void JackalDynamicSolver::ode(float *X, float *Xd){
   get_tire_f_ext(X);
   
   ForwardDynamics(*model, Q, QDot, tau, QDDot, &f_ext);
-
-  //2D simplification. Ignore Fz. Assume constant sinkage.
-  //QDDot[2] = 0; // Corresponds to Z-acceleration
-  //QDDot[3] = 0; // roll
-  //QDDot[4] = 0; // pitch
-
-  //for(int i = 6; i < 10; i++){
-  //  printf("%f ", QDDot[i]);
-  //}
-  //printf("\n");
   
   Quaternion quat(Q[3],Q[4],Q[5],Q[10]);
-  Vector3d omega(QDot[3], QDot[4], QDot[5]);
-  Eigen::Vector4d qnd = quat.omegaToQDot(omega); //get quaternion derivative.
-
-  //qnd = get_qnd(quat, omega);
+  Vector3d omega_b(QDot[3], QDot[4], QDot[5]);
+  //quat.toMatrix().transpose() is the rotation from vehicle to world
+  Vector3d omega_w = quat.toMatrix().transpose()*omega_b;
+  omega_w[2] = 0; //Do not yaw in world frame.
+  omega_b = quat.toMatrix()*omega_w;
   
-  //check main.cpp for the order of X and Xd
+  QDot[3] = omega_b[0];
+  QDot[4] = omega_b[1];
+  QDot[5] = omega_b[2];
+  
+  Eigen::Vector4d qnd = quat.omegaToQDot(omega_b); //get quaternion derivative.
+  
   for(int i = 0; i < model->qdot_size; i++){
     Xd[i] = QDot[i];
   }
   
-  Xd[3] = qnd[0]; //quaternion derivative. Not even going to use a loop for this dum shit
+  Xd[3] = qnd[0];
+  Xd[4] = qnd[1];
+  Xd[5] = qnd[2];
+  Xd[10] = qnd[3];
+  
+  for(int i = 0; i < model->qdot_size; i++){
+    Xd[i+model->q_size] = QDDot[i];
+  }  
+}
+
+
+
+void JackalDynamicSolver::ode(float *X, float *Xd){
+  VectorNd Q = VectorNd::Zero(model->q_size);
+  VectorNd QDot = VectorNd::Zero(model->qdot_size);
+  VectorNd QDDot = VectorNd::Zero(model->qdot_size);
+  
+  SpatialTransform temp;
+  SpatialVector tire_wrench;
+  
+  for(int i = 0; i < model->q_size; i++){
+    Q[i] = X[i];
+    //ROS_INFO("Q[%d]  %f", i, Q[i]);
+  }
+  for(int i = 0; i < model->qdot_size; i++){
+    //ROS_INFO("QDot[%d]  %f", i, QDot[i]);
+    QDot[i] = X[i+model->q_size];
+  }
+  
+  for(int i = 0; i < model->mBodies.size(); i++){
+    //ROS_INFO("<%f %f %f   %f %f %f>", f_ext[i][0], f_ext[i][1], f_ext[i][2],  f_ext[i][3], f_ext[i][4], f_ext[i][5]);
+  }
+  
+  get_tire_f_ext(X);
+  
+  ForwardDynamics(*model, Q, QDot, tau, QDDot, &f_ext);
+  
+  //2D simplification. Ignore Fz. Assume constant sinkage.
+  QDDot[2] = 0; // Corresponds to Z-acceleration
+  QDDot[3] = 0; // roll
+  QDDot[4] = 0; // pitch
+  
+  Quaternion quat(Q[3],Q[4],Q[5],Q[10]);
+  Vector3d omega(QDot[3], QDot[4], QDot[5]);
+  Eigen::Vector4d qnd = quat.omegaToQDot(omega); //get quaternion derivative.
+  
+  //check main.cpp for the order of X and Xd
+  //Its because ForwardDynamics gives me rotational acceleration, but not quaternion derivative
+  for(int i = 0; i < model->qdot_size; i++){
+    Xd[i] = QDot[i];
+  }
+  
+  Xd[3] = qnd[0]; //quaternion derivative.
   Xd[4] = qnd[1];
   Xd[5] = qnd[2];
   Xd[10] = qnd[3]; //qw is at the end for literally no reason. thanks rbdl.
   
   for(int i = 0; i < model->qdot_size; i++){
     Xd[i+model->q_size] = QDDot[i];
-  }
+  }  
 }
+
+//achieve a vehicle orientation that is steady state
+//only allow vehicle to translate up and down, roll and pitch
+//DO not yaw or move in x and y
+void JackalDynamicSolver::stabilize_sinkage(float *X, float *Xt1){
+  int len = model->q_size + model->qdot_size;
+  float ts = stepsize*.1;
+  float vel_mag;
+  float Xn1[21];
+  float Xn[21];
+  float Xd[21];
+  
+  for(int i = 0; i < len; i++){
+    Xn[i] = X[i];
+  }
+  
+  //start vehicle above ground.
+  Xn[2] = .16 + terrain_map_->getAltitude(X[0], X[1], X[2]);
+  
+  //do{
+  for(int ii = 0; ii < 10000; ii++){
+    log_xout(Xn);
+    ode_stabilize(Xn, Xd);
+    
+    for(int i = 0; i < len; i++){
+      Xn1[i] = Xn[i] + Xd[i]*ts; 
+    }
+    
+    //ROS_INFO("Quat: %f %f %f %f", Xd[3], Xd[4], Xd[5], Xd[10]);
+    //ROS_INFO("Xd ang acc: %f %f %f", Xd[14], Xd[15], Xd[16]);
+    //ROS_INFO("Xn %f %f %f      Xn1 %f %f %f", Xn[0], Xn[1], Xn[2],   Xn1[14], Xn1[15], Xn1[16]);
+    
+    float temp[4] = {Xn1[3], Xn1[4], Xn1[5], Xn1[10]};
+    normalize_quat(temp); //this is needed because the quaternion is updated under a small angle assumption using what is essentially a hack for integratin quaternions and it doesnt preserve the quaternion unit norm property
+    
+    Xn1[3] = temp[0];
+    Xn1[4] = temp[1];
+    Xn1[5] = temp[2];
+    Xn1[10] = temp[3];
+    
+    Xn[2] = Xn1[2]; //z
+    
+    //vel_mag = sqrtf((Xn1[13]*Xn1[13]) + (Xn1[14]*Xn1[14]) + (Xn1[15]*Xn1[15]));
+
+    Xn[11] = Xn1[11]; //Vx
+    Xn[12] = Xn1[12]; //Vy
+    Xn[13] = Xn1[13]; //Vz
+    Xn[14] = Xn1[14]; //Wx
+    Xn[15] = Xn1[15]; //Wy
+    
+    Xn[3] = Xn1[3];
+    Xn[4] = Xn1[4];
+    Xn[5] = Xn1[5];
+    Xn[10] = Xn1[10];
+    
+    for(int i = 17; i < 21; i++){
+      Xn[i] = Xn1[i];
+      //Xn[i-11] = Xn1[i-11];
+    }
+  } //while(vel_mag > .01);
+
+  for(int i = 0; i < 21; i++){
+    Xt1[i] = 0;
+  }
+  
+  Xt1[0] = Xn[0];
+  Xt1[1] = Xn[1];
+  Xt1[2] = Xn[2];
+
+  Xt1[3] = Xn[3];
+  Xt1[4] = Xn[4];
+  Xt1[5] = Xn[5];
+  Xt1[10] = Xn[10];
+  
+}
+
 
 void JackalDynamicSolver::euler_method(float *X, float *Xt1){
   int len = model->q_size + model->qdot_size;
@@ -826,14 +1047,14 @@ void JackalDynamicSolver::euler_method(float *X, float *Xt1){
   float Xd[len];
   
   ode(X, Xd);
-  log_features(X, Xd);
   
   for(int i = 0; i < len; i++){
     Xt1[i] = X[i] + Xd[i]*ts; 
   }
   
   float temp[4] = {Xt1[3], Xt1[4], Xt1[5], Xt1[10]};
-  normalize_quat(temp); //this is needed because the quaternion is updated under a small angle assumption using what is essentially a hack for integratin quaternions and it doesnt preserve the quaternion unit norm property
+  //this is needed because the quaternion is updated under a small angle assumption using what is essentially a hack for integratin quaternions and it doesnt preserve the quaternion unit norm property
+  normalize_quat(temp); 
   Xt1[3] = temp[0];
   Xt1[4] = temp[1];
   Xt1[5] = temp[2];
@@ -1235,4 +1456,139 @@ out_mean << -24.245327789699125, -4.972238784710127, 858.4484288696027, -1.61730
 out_std << 106.60507509883607, 342.38221052518674, 505.27382432744236, 6.871454392023513;
 in_mean << 0.04755175580815579, -0.10310912487916579, -0.00822193571007142, 59.96615465535339, 1989.5623071836276, 0.8023074986664168, 0.0998446902747603, 0.34080175360478987;
 in_std << 0.028762000257431117, 0.5305530689625024, 0.9490676466883241, 23.21776169763347, 869.4323970393215, 0.29001461209388496, 0.057700841504368966, 0.10050279338464484;
+}
+
+//Old
+void JackalDynamicSolver::load_nn_gc_model_new(){
+weight0 << -3.0757e-01,  4.5158e-01, -8.6971e-01, -9.4187e-03, -1.4703e-02,
+         2.4411e-02,  4.1082e-02, -8.3041e-02,  2.6301e-01, -6.7464e-01,
+         6.4491e-03,  1.3034e-01,  2.4910e-01, -6.4585e-01,  2.2633e-01,
+        -6.4997e-02,  1.2865e-01,  8.0372e-01,  9.4947e-01,  3.5665e-03,
+         8.6763e-03, -3.6471e-02,  3.2657e-04,  4.5787e-02, -2.4430e-01,
+        -4.2582e-01, -1.2725e-02, -1.0841e-01, -2.1472e-01,  4.9610e-01,
+         2.3274e-01,  2.9815e-02, -1.2027e+00,  3.0974e-01,  1.8968e-02,
+        -2.6923e-01, -5.2283e-01,  1.8559e+00, -4.8907e-02,  7.2780e-02,
+        -1.1636e-01,  6.3620e-02,  5.1191e+00, -9.1471e-03, -2.0971e-02,
+         8.0658e-02,  2.3246e-02, -7.5882e-03, -1.3940e-01,  1.4406e-01,
+        -1.2218e-02, -5.2722e-01, -9.7825e-01,  9.0007e-01, -8.9577e-03,
+         1.8498e-02, -2.5601e-01, -1.5812e+00,  1.7300e+00, -8.8535e-03,
+        -1.3572e-02, -6.4284e-02,  4.0104e-03, -7.9490e-02,  1.6481e-02,
+        -3.1891e-01, -7.8703e-01,  3.2874e-02,  5.8721e-02, -2.7756e-01,
+         4.0584e-03, -9.0753e-02,  1.0853e-03,  1.1744e-01,  2.1227e-02,
+        -9.1870e-02, -1.7518e-01,  5.7496e-01, -1.9094e-03,  1.4005e-02,
+        -3.1393e-01, -9.3394e-02,  1.8764e-02,  1.6336e-02,  2.8101e-02,
+        -3.0056e-01,  1.0791e-03, -1.9911e-02, -1.4277e-01, -4.1306e-02,
+        -6.3734e-03,  5.5870e-03,  1.0692e-02,  1.1983e-02, -7.4318e-04,
+        -1.1866e-01, -1.6848e-01,  2.7657e-01, -2.4399e-01, -1.4805e-02,
+        -2.4987e-02,  1.7792e-01,  3.3442e-03, -6.9257e-02,  8.4286e-02,
+        -3.5089e-01, -6.2389e-01,  6.6779e-04,  1.0996e-03, -1.1581e-01,
+        -1.0911e-02,  2.0002e-01, -3.5730e-01,  3.7346e-02, -3.3559e-01,
+        -1.9614e-02, -3.6473e-02,  2.7896e-01,  2.3536e-03,  9.7601e-02,
+        -1.7027e+00,  6.0427e-02,  3.6799e-02, -2.4301e-02, -3.3986e-02,
+         2.4305e-01,  1.3463e-02,  8.1703e-02,  8.6335e-02,  8.1211e-01,
+        -5.7705e-02, -3.2795e-02, -5.2858e-02,  1.8470e-01,  4.5316e-02,
+         6.8549e-02, -3.0211e-01,  4.3771e-04,  2.9658e-02,  3.8798e-03,
+         8.4882e-03, -1.3085e-02,  1.8031e-03,  4.9406e-02,  2.3156e-01,
+         2.0355e-01, -3.6413e-01,  2.1225e-02,  4.1485e-02, -2.1657e-01,
+        -1.2900e-03, -2.6266e-02, -2.7016e-01, -3.2048e-01,  9.0620e-01,
+         5.8255e-03,  1.2003e-02, -6.5937e-02, -4.4583e-03, -1.5083e-01;
+bias0 <<  0.2365,  1.7241, -0.5457, -1.7475, -1.5611,  0.1750, -2.3015,  0.5107,
+         0.1806, -0.2466, -1.8114,  0.4330, -0.4945,  1.0216,  0.5284, -2.6947,
+         0.6773,  0.1596, -0.7357,  0.5587;
+weight2 <<  6.3841e-01,  1.0913e-01,  8.8629e-01,  5.6885e-02,  3.2797e-01,
+        -9.6149e-02, -9.5561e-02, -2.2513e-01, -1.3071e-01,  1.1713e-01,
+         5.3334e-01,  2.7876e-01, -5.0397e-01,  1.4510e-01,  1.4175e-01,
+        -1.0400e-01, -5.8599e-01,  4.3520e-01, -2.3931e-01, -4.0993e-02,
+         5.3444e-01,  1.1707e+00,  8.4216e-02, -1.5766e+00,  1.2735e+00,
+        -4.4264e-01,  1.1395e+00, -1.7643e-01,  1.1465e-01,  5.1482e-01,
+        -1.3857e-01,  8.1581e-01, -1.5213e-01, -5.8023e-01,  4.5505e-01,
+         1.0688e+00, -5.3727e-01, -2.4968e-01,  9.6358e-02,  9.6716e-02,
+         6.9882e-01,  1.4896e-01,  3.0196e-01, -8.7884e-02, -2.5827e-01,
+        -5.0188e-01,  1.5196e-01, -2.2371e-01, -2.6923e-01,  8.7836e-01,
+        -9.3726e-01,  1.1642e+00, -4.3215e-01,  3.9516e-02,  7.0848e-02,
+         7.2571e-01, -5.3598e-01,  6.2107e-01,  1.3951e+00, -1.7713e-01,
+         4.9164e-04,  2.6033e-01,  9.1808e-02, -3.1758e-01,  2.2699e-01,
+         6.0231e-02,  2.5400e-01, -1.8620e-02,  1.4248e-01,  2.2707e-01,
+        -1.7587e+00, -7.3367e-01,  2.9391e-01, -9.0699e-02, -1.2770e-01,
+         2.3392e-01, -3.5882e-01, -7.5737e-01,  4.9512e-02,  3.6311e-02,
+        -4.4186e-01, -2.5864e-01,  1.1929e-01,  2.3552e-01, -6.8349e-01,
+        -4.7598e-01, -1.2326e-01,  1.7547e-01, -1.2610e+00, -3.2279e-01,
+         1.1724e+00,  3.8397e-01, -1.0983e+00,  1.8815e-02,  1.1902e+00,
+        -9.7368e-01,  6.7346e-01, -4.5400e-01,  8.3197e-01, -7.5918e-01,
+         3.1066e-01,  4.2173e-01,  1.4428e+00, -3.0529e-01, -1.3797e-01,
+         2.3798e-01,  2.0153e-01, -4.7514e-01, -9.0637e-01,  1.0092e+00,
+        -5.4790e-01,  1.7044e+00, -7.0156e-01, -4.0925e-01, -1.2339e+00,
+         9.7696e-01, -7.5380e-01,  1.1807e+00, -1.0154e-01, -3.4981e-01,
+        -5.5482e-01, -7.9721e-01, -7.0261e-01,  8.8843e-01, -4.5356e-01,
+         9.0197e-01, -5.7364e-01, -2.3764e-02, -3.3345e-01, -5.3837e-01,
+         5.1479e-01, -7.7475e-01, -9.4408e-02, -5.6572e-02, -5.0043e-01,
+        -8.3901e-01,  5.9377e-01,  9.5993e-01, -3.5356e-01, -2.7602e-01,
+         1.0550e+00,  5.8723e-01, -2.2779e-01, -7.9331e-01,  3.0435e-01,
+        -8.0489e-01,  4.6054e-01, -5.9280e-01, -9.5758e-01,  1.0040e+00,
+         2.1531e-01,  7.3787e-01, -1.5650e+00, -5.5854e-01,  8.9461e-01,
+         1.0102e+00, -6.0759e-01, -7.1512e-02,  1.3246e+00, -2.5983e-01,
+        -2.5970e-01, -3.0016e-01, -1.0718e+00,  8.1976e-01, -5.4447e-01,
+        -3.7831e-01, -5.4951e-01,  1.0760e-01, -8.2371e-03, -4.0568e-01,
+        -1.8806e-01, -3.9994e-01, -4.4272e-01, -7.9957e-01, -3.7531e-01,
+        -4.9762e-01,  2.0456e-01, -6.8291e-01,  4.7991e-01, -1.1082e-01,
+        -1.1519e-01,  5.7396e-01,  1.7426e+00, -4.7058e-01, -5.7818e-02,
+         7.8449e-01,  2.5659e-01, -7.8117e-01, -9.5348e-01,  1.1451e+00,
+        -1.2526e+00,  3.1607e+00, -1.9496e+00, -4.0261e-01, -1.4683e+00,
+         1.0433e+00, -7.2029e-01,  1.5367e+00, -9.3137e-01, -9.0326e-01,
+        -2.6219e-01,  1.1565e+00,  7.9025e-01, -1.3614e+00,  1.2234e+00,
+         6.3717e-01,  1.0774e+00, -2.0316e-01, -6.4238e-02,  9.6123e-01,
+         2.9007e-02,  1.7216e+00,  3.8757e-01,  6.8946e-01,  2.9859e-01,
+         1.1079e+00, -4.2236e-01,  3.8743e-01,  3.4634e-01,  8.7941e-02,
+         3.0811e-01, -1.0556e+00, -4.8165e-01,  1.0292e+00, -6.5805e-01,
+        -6.8760e-01, -7.5331e-01,  2.5880e-01, -1.3755e-01, -1.2938e+00,
+         8.3125e-01,  1.2847e+00, -1.1660e+00,  9.4490e-02, -5.1085e-01,
+        -8.1267e-01,  8.1055e-01, -2.3783e-01,  5.0223e-01, -2.2424e-02,
+         2.2988e-01, -1.2762e+00, -5.0109e-01,  1.2978e+00, -1.5649e+00,
+        -6.4074e-01, -1.0377e+00,  2.6521e-01,  4.3253e-01,  4.7807e-01,
+         1.2646e-01, -6.3078e-01, -1.0196e+00, -9.0059e-01, -8.8785e-02,
+        -1.1611e+00,  5.1011e-01,  1.0618e+00,  1.2482e-01, -1.0296e-01,
+         3.3332e-01,  6.2145e-01, -4.4998e-03, -8.7578e-01,  1.3705e-01,
+        -5.9887e-02,  9.5999e-01, -1.4830e-01,  3.1013e-01,  2.1291e+00,
+        -2.0053e-01,  2.2676e-01, -1.2066e-01, -2.4791e-01, -1.3112e-01,
+         1.0269e+00, -5.6121e-01,  1.5415e+00,  8.0892e-01,  5.0821e-01,
+        -6.3694e-01, -3.0000e-01, -1.0056e+00, -3.6133e-02, -3.4362e-01,
+         9.2529e-02,  5.3726e-02,  3.1067e-01,  1.9102e-02, -3.4483e-01,
+         1.4069e+00,  6.4720e-01,  4.1809e-01, -4.9726e-02, -1.8258e-01,
+         1.0818e-01,  7.5863e-01, -8.6315e-01, -9.3980e-01, -2.8580e-01,
+         1.8502e-02, -6.3593e-01, -1.4531e-01,  7.3905e-01, -1.8928e-01,
+        -5.8085e-02, -5.4844e-01, -1.1270e-02, -2.0540e-01, -1.4852e+00,
+        -5.0052e-01,  1.6684e-01, -9.5706e-01,  1.7594e-01,  1.5994e-02,
+        -7.1521e-01,  5.4138e-01, -1.5469e+00,  1.7135e-01, -4.6655e-03,
+        -4.5301e-01, -3.5370e-01, -1.2060e-02,  3.8223e-01, -1.2700e-01,
+        -2.9121e-02, -2.9646e-01, -4.0691e-03,  5.8960e-01, -1.0624e+00,
+         2.9538e-01, -8.5763e-01, -3.1151e-01, -2.0163e-01,  8.5392e-01,
+        -8.4575e-01,  5.6019e-01, -9.9658e-01, -1.1399e+00, -1.5484e-01,
+        -2.4357e-01, -1.5341e+00,  5.5112e-02,  1.8636e+00, -1.6528e+00,
+         2.3577e-01, -1.5884e+00,  1.6281e-01, -1.5038e-01, -1.8446e-01,
+         8.5134e-01,  7.1016e-01, -3.3512e-01,  8.7143e-01, -6.4924e-01,
+        -1.0678e+00,  6.7112e-01,  5.3996e-02, -1.3424e-02, -9.2855e-02,
+         2.4030e-01, -1.5934e+00, -8.4078e-01,  1.8547e+00, -1.7199e+00,
+        -3.4308e-01, -1.5988e+00, -2.0446e-02, -2.4151e-01, -4.8027e-01,
+         6.2702e-01, -2.1684e-01, -1.2652e+00, -3.8348e-01, -2.6925e-01,
+        -1.0955e+00,  5.7520e-01, -3.2857e-01,  1.3948e-01, -6.0062e-02,
+        -8.0515e-01, -7.1633e-01, -9.6545e-01,  6.1169e-01, -5.4998e-01,
+         1.1438e-01, -7.1973e-01,  3.4134e-01,  2.3326e-01, -4.0983e-01,
+         7.7852e-01, -1.3596e+00, -6.9100e-01, -2.7822e-01, -4.7841e-01,
+        -8.5512e-01,  1.1862e+00,  9.7414e-01, -1.2394e+00,  1.3948e-01;
+bias2 <<  0.6844,  0.4367,  1.2892,  0.3388, -2.0143,  2.0785, -1.2678,  1.8999,
+        -0.6035,  1.0766,  0.2994, -0.6204, -1.0561,  1.0236, -0.3963, -0.6886,
+        -0.6433, -0.9638, -0.8384, -2.3682;
+weight4 <<  1.8663,  0.2278,  0.8404,  1.1222,  2.2349,  3.0787,  1.9501,  1.3459,
+        -1.2015, -1.9207, -0.7448,  0.0819, -1.4413, -1.8322,  2.6974, -1.5895,
+         1.6025,  0.2821,  0.9728, -2.3731, -0.1802,  2.1299,  1.1524, -0.2279,
+        -0.3123, -0.2980,  1.1065, -0.4806, -0.3937,  0.0579, -2.7544, -0.8982,
+        -1.3661,  0.2456, -0.0526,  0.1802,  0.2202,  2.6727, -1.9103,  0.3105,
+         0.1030,  0.0885, -0.0791,  1.5541,  0.0292, -0.0296, -0.0827,  0.0146,
+        -0.0482, -0.0250,  0.1108, -0.0401,  0.0103, -0.1111,  0.0167,  1.1322,
+         0.0578,  0.2452,  0.3156,  0.0421;
+ bias4 << -0.2535, -0.1371, -1.4202;
+ out_mean << -24.245327789699125, -4.972238784710126, 858.4484288696027;
+ out_std << 106.60507509883605, 342.38221052518674, 505.27382432744236;
+ in_mean << 0.04755175580815579, -0.1031091248791658, -0.00822193571007142, 59.96615465535339, 1989.5623071836276, 0.8023074986664168, 0.0998446902747603, 0.34080175360478987;
+ in_std << 0.028762000257431114, 0.5305530689625024, 0.9490676466883241, 23.21776169763347, 869.4323970393215, 0.29001461209388496, 0.05770084150436896, 0.10050279338464481;
 }

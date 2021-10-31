@@ -74,7 +74,7 @@ void PlannerVisualizer::threadFunction(){
     drawTree(planner_data);
     drawGoal();
     drawElevation();
-    drawOccupancy();  
+    //drawOccupancy();  
     
     if(has_solution){
       drawSolution();
@@ -100,11 +100,19 @@ void PlannerVisualizer::drawElevation(){
   float x;
   float y;
   float alt = 0;
-  for(int j = 0; j < global_map_->rows_; j++){
-      for(int i = 0; i < global_map_->cols_; i++){
+  float Xmax, Xmin, Ymax, Ymin;
+  global_map_->getBounds(Xmax, Xmin, Ymax, Ymin);
+  
+  for(float x = Xmin; x < Xmax; x+=.1f){
+    for(float y = Ymin; y < Ymax; y+=.1f){
+      /*
+        for(int j = 0; j < global_map_->rows_; j++){
+        for(int i = 0; i < global_map_->cols_; i++){
+        
         x = (i*global_map_->map_res_) + global_map_->x_origin_;
         y = (j*global_map_->map_res_) + global_map_->y_origin_;
-        
+        */
+          
         alt = global_map_->getAltitude(x, y, alt);
 
         geometry_msgs::Point pt;
@@ -117,7 +125,7 @@ void PlannerVisualizer::drawElevation(){
 
   
   visualization_msgs::Marker point_list;
-  point_list.header.frame_id = "map";
+  point_list.header.frame_id = "odom";
   point_list.header.stamp = ros::Time::now();
   point_list.ns = "points_and_lines";
   point_list.action = visualization_msgs::Marker::ADD;
@@ -141,10 +149,16 @@ void PlannerVisualizer::drawOccupancy(){
   float x;
   float y;
   int occ;
-  for(int j = 0; j < global_map_->rows_; j++){
-      for(int i = 0; i < global_map_->cols_; i++){
-        x = (i*global_map_->map_res_) + global_map_->x_origin_;
-        y = (j*global_map_->map_res_) + global_map_->y_origin_;
+  float Xmax, Xmin, Ymax, Ymin;
+  global_map_->getBounds(Xmax, Xmin, Ymax, Ymin);
+  
+  for(float x = Xmin; x < Xmax; x+=.1f){
+    for(float y = Ymin; y < Ymax; y+=.1f){
+      //  for(int j = 0; j < global_map_->rows_; j++){
+      //      for(int i = 0; i < global_map_->cols_; i++){
+
+      //x = (i*global_map_->map_res_) + global_map_->x_origin_;
+      //y = (j*global_map_->map_res_) + global_map_->y_origin_;
         
         occ = global_map_->isStateValid(x, y);
         
@@ -160,7 +174,7 @@ void PlannerVisualizer::drawOccupancy(){
 
   
   visualization_msgs::Marker point_list;
-  point_list.header.frame_id = "map";
+  point_list.header.frame_id = "odom";
   point_list.header.stamp = ros::Time::now();
   point_list.ns = "points_and_lines";
   point_list.action = visualization_msgs::Marker::ADD;
@@ -179,25 +193,26 @@ void PlannerVisualizer::drawOccupancy(){
 
 
 void PlannerVisualizer::drawGoal(){
+  
   float goal_x = goal_[0];
   float goal_y = goal_[1];
   float temp_x, temp_y;
   
   visualization_msgs::Marker line_list;
-  line_list.header.frame_id = "map";
+  line_list.header.frame_id = "odom";
   line_list.header.stamp = ros::Time::now();
   line_list.ns = "points_and_lines";
   line_list.action = visualization_msgs::Marker::ADD;
   line_list.pose.orientation.w = 1.0;
   line_list.id = 3;
   line_list.type = visualization_msgs::Marker::SPHERE;
-  line_list.scale.x = 0.1;
-  line_list.scale.y = 0.1;
-  line_list.scale.z = 0.1;
+  line_list.scale.x = 0.2;
+  line_list.scale.y = 0.2;
+  line_list.scale.z = 0.2;
   
-  line_list.color.r = 1.0;
+  line_list.color.r = 0.0;
   line_list.color.g = 0.0;
-  line_list.color.b = 0.0;
+  line_list.color.b = 1.0;
   line_list.color.a = 1.0;
   line_list.pose.position.x = goal_x;
   line_list.pose.position.y = goal_y;
@@ -211,14 +226,14 @@ void PlannerVisualizer::drawGoal(){
 void PlannerVisualizer::drawTree(const ompl::base::PlannerData &planner_data){
   draw_pts_.clear();
   
-  ROS_INFO("Num frontier nodes %lu", frontier_nodes_.size());
+  //ROS_INFO("Num frontier nodes %lu", frontier_nodes_.size());
   
   drawSubTree(planner_data, planner_data.getStartIndex(0));
   
   visualization_msgs::Marker line_list;
-  line_list.header.frame_id = "map";
+  line_list.header.frame_id = "odom";
   line_list.header.stamp = ros::Time::now();
-  line_list.ns = "points_and_lines";
+  line_list.ns = "planner_tree";
   line_list.action = visualization_msgs::Marker::ADD;
   line_list.pose.orientation.w = 1.0;
   line_list.id = 2;

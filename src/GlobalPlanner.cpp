@@ -19,7 +19,7 @@
 #include <ompl/control/SimpleDirectedControlSampler.h>
 
 #include <assert.h>
-
+#include <string>
 
 //Register this plugin with move_base
 PLUGINLIB_EXPORT_CLASS(auvsl::GlobalPlanner, nav_core::BaseGlobalPlanner)
@@ -35,11 +35,12 @@ namespace auvsl{
 
 
 //statics
-const OctoTerrainMap *GlobalPlanner::global_map_;
+const TerrainMap *GlobalPlanner::global_map_;
 ompl::base::StateSpacePtr GlobalPlanner::space_ptr_;
 
 ompl::control::DirectedControlSamplerPtr allocCustomDirectedControlSampler(const ompl::control::SpaceInformation *si){
   return std::make_shared<DirectedVehicleControlSampler>(si, GlobalParams::get_num_control_samples());
+  //return;
 }
 
 
@@ -61,12 +62,12 @@ bool GlobalPlanner::isStateValid(const ompl::base::State *state){
   RigidBodyDynamics::Math::Quaternion quat(state_vector[3], state_vector[4], state_vector[5], state_vector[6]);
   RigidBodyDynamics::Math::Vector3d vec = quat.rotate(RigidBodyDynamics::Math::Vector3d(0,0,1));
   if(vec[2] < 0){ //you could put a number slightly greater than zero here. But I'll leave it as zero for now.
-    //ROS_INFO("RRT INVALID STATE: ROllOVER");
+    ROS_INFO("RRT INVALID STATE: ROllOVER");
     return false; //if the vehicle has rotated so the z axis of the body frame is pointing down in the world frame, then it fucked up
   }
   
   if(!space_ptr_->satisfiesBounds(state)){
-    //ROS_INFO("RRT INVALID STATE: OOB");
+      ROS_INFO("RRT INVALID STATE: OMPL OOB");
       return false;
   }
   
@@ -77,15 +78,15 @@ bool GlobalPlanner::isStateValid(const ompl::base::State *state){
 
 GlobalPlanner::~GlobalPlanner(){
   ROS_INFO("RRT Destruct GP");
-    
+  
 }
 
 
 void GlobalPlanner::getWaypoints(std::vector<ompl::control::Control*> &controls, std::vector<double> &durations, std::vector<ompl::base::State*> states, std::vector<geometry_msgs::PoseStamped> &waypoints, unsigned &num_waypoints){
   waypoints.clear();
-
+  
   JackalDynamicSolver::init_model(2);
-
+  
   unsigned vehicle_state_len = 21;
 
   ompl::base::State *start_state = si_->allocState();
@@ -143,30 +144,31 @@ void GlobalPlanner::getWaypoints(std::vector<ompl::control::Control*> &controls,
 
 void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costmap_ros){
     ROS_INFO("RRT GlobalPlanner::initialize");
+    ros::NodeHandle nh;
+    GlobalParams::load_params(&nh);
+    ompl::RNG::setSeed(GlobalParams::get_seed());
+
     
-    
-    global_map_ = new OctoTerrainMap(costmap_ros->getCostmap());
-    costmap_ros->stop();
-    JackalDynamicSolver::set_terrain_map((TerrainMap*) global_map_);
+    //global_map_ = new SimpleTerrainMap();
+    std::string site_cloud_fn;
+    nh.getParam("/TerrainMap/site_cloud_filename", site_cloud_fn);
+    global_map_ =  new OctoTerrainMap(site_cloud_fn.c_str());
+    JackalDynamicSolver::set_terrain_map(global_map_);
 
     float max_x, max_y, min_x, min_y;
     global_map_->getBounds(max_x, min_x,  max_y, min_y);
     ROS_INFO("RRT Bounds %f %f  %f %f", min_x, max_x, min_y, max_y);
-    
-    ros::NodeHandle nh;
-    GlobalParams::load_params(&nh);
-    ompl::RNG::setSeed(GlobalParams::get_seed());
+      
   
-  
-    ompl::base::VehicleStateSpace *space = new ompl::base::VehicleStateSpace(17);
+    ompl::base::VehicleStateSpace *space = new ompl::base::VehicleStateSpace(17); 
     ompl::base::RealVectorBounds bounds(17);
     bounds.setLow(0, min_x); bounds.setHigh(0, max_x); //x
     bounds.setLow(1, min_y); bounds.setHigh(1, max_y); //y
     bounds.setLow(2, -100); bounds.setHigh(2, 100); //z
-    bounds.setLow(3, -1.01); bounds.setHigh(3, 1.01); //quaterion has to stay on the unit 4-ball, so its components max is 1, and min is -1
-    bounds.setLow(4, -1.01); bounds.setHigh(4, 1.01); //The .01 is like an epsilon.
-    bounds.setLow(5, -1.01); bounds.setHigh(5, 1.01);
-    bounds.setLow(6, -1.01); bounds.setHigh(6, 1.01);
+    bounds.setLow(3, -2.01); bounds.setHigh(3, 2.01); //quaterion has to stay on the unit 4-ball, so its components max is 1, and min is -1
+    bounds.setLow(4, -2.01); bounds.setHigh(4, 2.01); //The .01 is like an epsilon.
+    bounds.setLow(5, -2.01); bounds.setHigh(5, 2.01);
+    bounds.setLow(6, -2.01); bounds.setHigh(6, 2.01);
 
     for(unsigned i = 7; i < 17; i++){
       bounds.setLow(i, -2000);
@@ -174,8 +176,9 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
     }
 
     space->setBounds(bounds);
-    //space_ptr_.reset(space); //no me gusta shared ptrs
     space_ptr_ = ompl::base::StateSpacePtr(space);
+    //space_ptr_.reset(space); //no me gusta shared ptrs
+    
     
     ompl::control::RealVectorControlSpace *cspace = new ompl::control::RealVectorControlSpace(space_ptr_, 2);
     ompl::base::RealVectorBounds cbounds(2);
@@ -185,9 +188,10 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
     cbounds.setLow(1, 0);
     cbounds.setHigh(1, GlobalParams::get_fuzzy_constant_speed());
     cspace->setBounds(cbounds);
+    ompl::control::ControlSpacePtr cspace_ptr(cspace);
     
     
-    si_ = ompl::control::SpaceInformationPtr(new ompl::control::SpaceInformation(space_ptr_, ompl::control::ControlSpacePtr(cspace)));
+    si_ = ompl::control::SpaceInformationPtr(new ompl::control::SpaceInformation(space_ptr_, cspace_ptr));
     dynamic_model_ptr_ = ompl::control::StatePropagatorPtr(new JackalStatePropagator(si_));
     si_->setStatePropagator(dynamic_model_ptr_);
     si_->setPropagationStepSize(GlobalParams::get_propagation_step_size());
@@ -210,6 +214,7 @@ void GlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS* costm
     
     
     planner_->clear();
+    //delete rrt_planner;
     ROS_INFO("RRT planner_ cleared");
 }
 
@@ -227,6 +232,7 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     }
     
     ROS_INFO("RRT makePlan started");
+    ROS_INFO("Goalp frame %s", goalp.header.frame_id.c_str());
     ompl::base::ScopedState<> start(space_ptr_);
     
     start[0] = startp.pose.position.x;
@@ -243,9 +249,10 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     }
     
     RigidBodyDynamics::Math::Vector2d goal_pos(goalp.pose.position.x, goalp.pose.position.y);
-    float goal_tol = .5;
+    float goal_tol = .0001;
     
     // construct the state space we are planning in
+    //    ompl::base::GoalPtr goal_ptr(new ompl::base::GoalSpace(si_));
     ompl::base::GoalSpace *goal = new ompl::base::GoalSpace(si_);
     ompl::base::VehicleStateSpace *gspace = new ompl::base::VehicleStateSpace(17);
     ompl::base::RealVectorBounds gbounds(17);
@@ -258,12 +265,13 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
         gbounds.setLow(i, -1000); gbounds.setHigh(i, 1000);
     }
     gspace->setBounds(gbounds);
-    
     ompl::base::StateSpacePtr gspace_ptr(gspace);
+    
     goal->setSpace(gspace_ptr);
+    ompl::base::GoalPtr goal_ptr(goal);
+    
     pdef_->addStartState(start);
     
-    ompl::base::GoalPtr goal_ptr(goal);
     pdef_->setGoal(goal_ptr);
     planner_->setProblemDefinition(pdef_);
 
@@ -303,7 +311,9 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& startp,
     else{
         return false;
     }
-  
+
+    delete global_map_;
+    
 }
 
 

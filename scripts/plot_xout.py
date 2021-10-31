@@ -3,46 +3,73 @@ from matplotlib import cm
 from matplotlib.ticker import LinearLocator
 import pandas as pd
 from mpl_toolkits.mplot3d import axes3d, Axes3D
-
+import numpy as np
 
 
 #fig = plt.figure()
 #ax = Axes3D(fig)
 
 #df = pd.read_csv("/home/justin/elev.csv")
-#ax.scatter(df['x'][::10], df['y'][::10], df['alt'][::10])
+#df = df[df['x'] < 10]
+#df = df[df['x'] > -10]
+#df = df[df['y'] < 10]
+#df = df[df['y'] > -10]
+#skip = 100
+#ax.scatter(df['x'][::skip], df['y'][::skip], df['alt'][::skip])
+#plt.show()
 
-#idx = 1000
+#idx = 1
 #stop_idx = -1
 #df = pd.read_csv("/home/justin/xout_file.csv")
-#ax.scatter(df['x'][idx:stop_idx], df['y'][idx:stop_idx], df['z'][idx:stop_idx])
+#df = df[df['x'] < 10]
+#df = df[df['y'] > -10]
+#ax.scatter(df['x'][::100], df['y'][::100], df['z'][::100], c='r')
+#plt.show()
 
-#df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/odom_10hz.csv")
-#ax.scatter(df['field.pose.pose.position.x'][idx::stop_idx], df['field.pose.pose.position.y'][idx::stop_idx], df['field.pose.pose.position.z'][idx::stop_idx])
+#plt.plot(df['x'], .1*df['x'])
+#plt.plot(df['x'], df['z'])
+#plt.show()
 
-idx = 1
-stop_idx = 2969
+#df = pd.read_csv("/home/justin/alt_file.csv")
+#plt.plot(df['r'], df['alt'])
+#plt.show()
+
+#df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul2/rantoul_circles_odom.csv")
+#ax.scatter(df['field.pose.pose.position.x'], df['field.pose.pose.position.y'], df['field.pose.pose.position.z'])
+#plt.plot(df['field.pose.pose.position.z'])
+#plt.show()
+
+
 
 
 df = pd.read_csv("/home/justin/xout_file.csv")
+sim_len = df.shape[0]
+sim_x = df['x'][sim_len-1]
+sim_y = df['y'][sim_len-1]
+plt.plot(df['x'], df['y'])#,  alpha=.1, s = 1)
+
+
+df = pd.read_csv("/home/justin/kinematic_long.csv")
 df = df[::20]
-print(df.shape)
-plt.plot(df['x'][idx:stop_idx], df['y'][idx:stop_idx])
+plt.plot(df['x'], df['y'])
 
 
-df = pd.read_csv("/home/justin/kinematic_xout.csv")
-df = df[::20]
-print(df.shape)
-plt.plot(df['x'][idx:stop_idx], df['y'][idx:stop_idx])
+df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul2/rantoul_long_odom.csv")
+plt.plot(df['field.pose.pose.position.x'], df['field.pose.pose.position.y'])
+odom_len = df.shape[0]
 
+dx = df['field.pose.pose.position.x'][odom_len-1] - sim_x
+dy = df['field.pose.pose.position.y'][odom_len-1] - sim_y
+print("Final Error ", np.sqrt((dx*dx)+(dy*dy)))
 
-
-df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul/bags/rantoul_odom_2.csv")
-print(df.shape)
-plt.plot(df['field.pose.pose.position.x'][idx:stop_idx], df['field.pose.pose.position.y'][idx:stop_idx])
+dx = df['field.pose.pose.position.x'][odom_len-1]
+dy = df['field.pose.pose.position.y'][odom_len-1]
+print("Distance Start to End ", np.sqrt((dx*dx)+(dy*dy)))
 
 plt.xlabel("m");
 plt.ylabel("m");
-plt.title("Comparison of Dynamic Model, Kinematic Model, and Odometry Trajectories at 1m/s")
+plt.title("Comparison of Dynamic Model, Kinematic Model, and Odometry Trajectories at 2m/s")
 plt.legend(["Dynamic Model","Kinematic Model","Odometry"])
+plt.text(30,-30,"4.88m error after 120.5m path", fontsize=12)
 plt.show()
+

@@ -24,5 +24,6 @@ class JackalStatePropagator : public ompl::control::StatePropagator{
   static Vector3d get_base_velocity(float *Xout);
 
  private:
+  //ControlSystem *control_system_;
   //JackalDynamicSolver solver;
 };

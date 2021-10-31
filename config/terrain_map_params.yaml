@@ -1,13 +1,16 @@
 TerrainMap:
     filter_radius: .5
-    elevation_map_res: .1
+    elevation_map_res: 10
     normal_radius: .5
-    smoothness_threshold: .03
+    smoothness_threshold: .05
     curvature_threshold: .5
     num_neighbors: 30
-    num_neighbors_avg: 5
+    num_neighbors_avg: 40
     plot_res: 4
-    occupancy_threshold: .05
+    occupancy_threshold: 4
+    site_cloud_filename: /home/justin/Documents/RTAB-Map/rantoul_long.pcd
+    reprocess_global_cloud: 0
+    path_to_global_cloud: "/home/justin/.ros/"
 LocalMap:
     occupancy_threshold: .05
     smoothness_threshold: .03

@@ -13,7 +13,7 @@
  */
 
 
-using namespace Eigen;
+//using namespace Eigen; //For the love of god, dont use using in a header file. Trust me.
 namespace auvsl{
 
 class ControlSystem{
@@ -23,7 +23,7 @@ public:
 
  
   virtual int initialize() = 0;
-  virtual int computeVelocityCommand(std::vector<Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) = 0;
+  virtual int computeVelocityCommand(std::vector<Eigen::Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) = 0;
 };
 
 
@@ -33,7 +33,7 @@ public:
   SimpleControlSystem();
   ~SimpleControlSystem();
   int initialize() override;
-  int computeVelocityCommand(std::vector<Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) override;
+  int computeVelocityCommand(std::vector<Eigen::Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) override;
 };
   
 
@@ -43,7 +43,7 @@ public:
   AnfisControlSystem();
   ~AnfisControlSystem();
   int initialize() override;
-  int computeVelocityCommand(std::vector<Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) override;
+  int computeVelocityCommand(std::vector<Eigen::Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular) override;
   ros::ServiceClient client_;
 };
   

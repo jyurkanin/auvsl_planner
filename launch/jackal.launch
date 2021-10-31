@@ -7,8 +7,8 @@
        <arg name="gui" value="true"/>
        <arg name="headless" value="false"/>
        <arg name="joystick" value="false"/>
-       
        </include>
+       
        <rosparam file="$(find auvsl_planner)/config/jackal_gazebo_pid.yaml" command="load"/> 
 
 </launch>

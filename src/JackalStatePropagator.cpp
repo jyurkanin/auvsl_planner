@@ -1,4 +1,5 @@
 #include <ros/ros.h>
+#include <geometry_msgs/Pose.h>
 #include "JackalStatePropagator.h"
 #include "auvsl_planner_node.h"
 #include <stdio.h>
@@ -103,11 +104,19 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
   convert_to_model_space(val, x_start);
   
   float Vf = control_vector[1];//GlobalParams::get_fuzzy_constant_speed();
+  float Wz = control_vector[0];
   float base_width = solver.base_size[0];
-  float vl = (Vf - control_vector[0]*(base_width/2.0))/solver.tire_radius;
-  float vr = (Vf + control_vector[0]*(base_width/2.0))/solver.tire_radius;
+  float vl = (Vf - Wz*(base_width/2.0))/solver.tire_radius;
+  float vr = (Vf + Wz*(base_width/2.0))/solver.tire_radius;
+
+  
+  //ROS_INFO("Solver control: <%f %f>", control_vector[0], control_vector[1]);
+  //ROS_INFO("Solver start: <%f %f>     control: <%f %f>     <%f %f>", x_start[0], x_start[1],   control_vector[0], control_vector[1],   vl, vr);
+  //ROS_INFO("Duration %f", duration);
   
   solver.solve(x_start, x_end, vl, vr, (float) duration);
+
+  //ROS_INFO("Solver end: <%f %f>\n", x_end[0], x_end[1]);
   
   convert_to_planner_space(result_val, x_end);
 }
@@ -115,8 +124,85 @@ void JackalStatePropagator::propagate(const ompl::base::State *state, const ompl
 
 
 bool JackalStatePropagator::steer(const ompl::base::State *from, const ompl::base::State *to, ompl::control::Control *result, double &duration) const{
-  printf("Steer Function Not Implemented\n"); //Should never happen.
   return false;
+  /*
+  const double* start_state = from->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+  const double* goal_state = to->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+  double* result_state = result->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+
+  //ignore this.
+  double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
+  control_vector[0] = 0;
+  control_vector[1] = 0; //Not interested.
+  
+  float X_start[21];
+  float X_end[21];
+  float X_best[21];
+  float best_err = 1000000;
+  float err = 1;
+  
+  float x_goal = goal_state[0];
+  float y_goal = goal_state[1];
+  
+  JackalDynamicSolver solver;
+  convert_to_model_space(val, X_start);
+
+  float base_width = solver.base_size[0];
+  float Vf;
+  float Wz;
+  
+  std::vector<Vector2f> waypoints;
+  waypoints.push_back(Vector2f(X_start[0], X_start[1]));
+  waypoints.push_back(Vector2f(X_end[0], X_end[1]));
+  waypoints.push_back(Vector2f(X_end[0], X_end[1]));
+
+  geometry_msgs::Pose pose;
+  pose.position.x = X_start[0];
+  pose.position.y = X_start[1];
+  pose.position.z = X_start[2];
+
+  pose.orientation.x = X_start[3];
+  pose.orientation.y = X_start[4];
+  pose.orientation.z = X_start[5];
+  pose.orientation.w = X_start[10];
+
+  float timestep = .1f; //this is like the rate at which the control system gets called.
+  float elapsed_time = 0;
+  
+  do{
+    wayypoints[0][0] = X_start[0];
+    wayypoints[0][1] = X_start[1];
+    control_system_->computeVelocityCommand(waypoints, pose, Vf, Wz);
+    
+    float vl = (Vf - Wz*(base_width/2.0))/solver.tire_radius;
+    float vr = (Vf + Wz*(base_width/2.0))/solver.tire_radius;
+    
+    solver.solve(X_start, X_end, vl, vr, timestep);
+
+    float dx = X_end[0] - x_goal;
+    float dy = X_end[1] - y_goal;
+    
+    err = sqrtf((dx*dx)+(dy*dy));
+    if(err < best_err){
+      best_err = err;
+      for(unsigned i = 0; i < 21; i++){
+        X_best[i] = X_end[i];
+      }
+    }
+
+    for(unsigned i = 0; i < 21; i++){
+      X_start[i] = X_end[i];
+    }
+
+    elapsed_time += timestep;
+  } while(err > .1 && elapsed_time < duration);
+
+  ROS_INFO("best_err");
+
+  convert_to_planner_space(result_val, X_best);
+  duration = elapsed_time;
+  return false;
+  */
 }
 
 bool JackalStatePropagator::canPropagateBackward() const{

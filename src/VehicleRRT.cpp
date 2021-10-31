@@ -36,12 +36,17 @@
   
 #include "VehicleRRT.h"
 #include "GlobalParams.h"
+#include "JackalDynamicSolver.h"
 
 #include "ompl/base/goals/GoalSampleableRegion.h"
 #include "ompl/tools/config/SelfConfig.h"
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/control/spaces/RealVectorControlSpace.h>
 #include <limits>
 #include <ros/ros.h>
+#include <eigen3/Eigen/Dense>
+#include <unistd.h>
+
 
 ompl::control::VehicleRRT::VehicleRRT(const SpaceInformationPtr &si) : base::Planner(si, "VehicleRRT")
 {
@@ -49,13 +54,16 @@ ompl::control::VehicleRRT::VehicleRRT(const SpaceInformationPtr &si) : base::Pla
   siC_ = si.get();
   
   Planner::declareParam<double>("goal_bias", this, &VehicleRRT::setGoalBias, &VehicleRRT::getGoalBias, "0.:.05:1.");
-  Planner::declareParam<bool>("intermediate_states", this, &VehicleRRT::setIntermediateStates, &VehicleRRT::getIntermediateStates,
-                              "0,1");
+  Planner::declareParam<bool>("intermediate_states", this, &VehicleRRT::setIntermediateStates, &VehicleRRT::getIntermediateStates, "0,1");
+  
+  control_system_ = new auvsl::AnfisControlSystem();
+  control_system_->initialize();
 }
   
 ompl::control::VehicleRRT::~VehicleRRT()
 {
   freeMemory();
+  delete control_system_;
 }
   
 void ompl::control::VehicleRRT::setup()
@@ -79,6 +87,7 @@ void ompl::control::VehicleRRT::clear()
   
 void ompl::control::VehicleRRT::freeMemory()
 {
+  ROS_INFO("FREE Memory");
   if (nn_)
     {
       std::vector<Motion *> motions;
@@ -93,9 +102,146 @@ void ompl::control::VehicleRRT::freeMemory()
         }
     }
 }
+
+unsigned ompl::control::VehicleRRT::controlWhileValid(const ompl::base::State *state, ompl::base::State *goal, unsigned steps, std::vector<base::State*> &result){
+  double signedStepSize = siC_->getPropagationStepSize();
   
-ompl::base::PlannerStatus ompl::control::VehicleRRT::solve(const base::PlannerTerminationCondition &ptc)
-{
+  ROS_INFO("Propagation step size %f", signedStepSize);
+  
+  const ompl::control::StatePropagatorPtr &statePropagator = siC_->getStatePropagator();
+  
+  result.resize(steps);
+  
+  int st = 0;
+  float Vf, Wz, dx, dy;
+  float err, best_err;
+  unsigned best_idx = 0;
+  
+  std::vector<Eigen::Vector2f> waypoints;
+  geometry_msgs::Pose pose;
+  
+  double *result_values;
+  ompl::control::Control *control = siC_->allocControl();
+  
+  const double *start_values = state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+  const double *goal_values = goal->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+  
+  if(st < steps){
+    result[st] = si_->allocState();
+    
+    waypoints.push_back(Eigen::Vector2f(start_values[0], start_values[1]));
+    waypoints.push_back(Eigen::Vector2f(goal_values[0], goal_values[1]));
+    waypoints.push_back(Eigen::Vector2f(goal_values[0], goal_values[1]));
+    
+    pose.position.x = start_values[0];
+    pose.position.y = start_values[1];
+    pose.position.z = start_values[2];
+    
+    pose.orientation.x = start_values[3];
+    pose.orientation.y = start_values[4];
+    pose.orientation.z = start_values[5];
+    pose.orientation.w = start_values[6];
+    
+    control_system_->computeVelocityCommand(waypoints, pose, Vf, Wz);
+    
+    double *control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
+    control_vector[0] = Wz;
+    control_vector[1] = Vf;
+    statePropagator->propagate(state, control, signedStepSize, result[st]);
+    
+    if (si_->isValid(result[st])) {
+      result_values = result[st]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+      
+      dx = result_values[0] - goal_values[0];
+      dy = result_values[1] - goal_values[1];
+      
+      err = sqrtf((dx*dx) + (dy*dy));
+      best_idx = st;
+      best_err = err;
+      
+      ++st;
+      while (st < steps) {
+        result[st] = si_->allocState();
+        
+        result_values = result[st - 1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+        
+        pose.position.x = result_values[0];
+        pose.position.y = result_values[1];
+        pose.position.z = result_values[2];
+        
+        pose.orientation.x = result_values[3];
+        pose.orientation.y = result_values[4];
+        pose.orientation.z = result_values[5];
+        pose.orientation.w = result_values[6];
+        
+        waypoints[0][0] = pose.position.x;
+        waypoints[0][1] = pose.position.y;
+        
+        //ROS_INFO("result[st-1] Position %f %f", result_values[0], result_values[1]);
+        //ROS_INFO("result[st-1] Orientation %f %f %f   %f", result_values[3], result_values[4], result_values[5], result_values[6]);
+        
+        
+        //ROS_INFO("Way Points[0] %f %f", waypoints[0][0], waypoints[0][1]);
+        //ROS_INFO("Way Points[1] %f %f", waypoints[1][0], waypoints[1][1]);
+        //ROS_INFO("Way Points[2] %f %f", waypoints[2][0], waypoints[2][1]);
+        
+        control_system_->computeVelocityCommand(waypoints, pose, Vf, Wz);
+        control_vector = control->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
+        control_vector[0] = Wz;
+        control_vector[1] = Vf;
+        
+        statePropagator->propagate(result[st - 1], control, signedStepSize, result[st]);
+
+        if(!si_->isValid(result[st])){
+          si_->freeState(result[st]);
+          result.resize(st);
+          break;
+        }
+        
+        result_values = result[st]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+        
+        dx = result_values[0] - goal_values[0];
+        dy = result_values[1] - goal_values[1];
+        
+        err = sqrtf((dx*dx) + (dy*dy));
+        if(err < best_err){
+          best_idx = st;
+          best_err = err;
+        }
+        
+        ++st;
+      }
+      
+      /*
+      for(unsigned i = best_idx+1; i < st; i++){
+        si_->freeState(result[i]);
+      }
+      st = best_idx+1;
+      result.resize(st);
+      */
+      result_values = result[st-1]->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+
+      //ROS_INFO("Orientation %f %f %f %f", start_values[3], start_values[4], start_values[5], start_values[6]);
+      ROS_INFO("Start: <%f %f>", start_values[0], start_values[1]);
+      ROS_INFO("Final State at idx %u: <%f %f>", st, result_values[0], result_values[1]);
+      ROS_INFO("Goal: <%f %f>", goal_values[0], goal_values[1]);
+      ROS_INFO("Best Error %f\n\n\n", best_err);
+      
+    }
+    else {
+      si_->freeState(result[st]);
+      result.resize(st);
+    }
+  }
+  
+  siC_->freeControl(control);
+  
+  
+  
+  return st;
+}
+
+ompl::base::PlannerStatus ompl::control::VehicleRRT::solve(const base::PlannerTerminationCondition &ptc) {
   checkValidity();
   base::Goal *goal = pdef_->getGoal().get();
   auto *goal_s = dynamic_cast<base::GoalSampleableRegion *>(goal);
@@ -150,88 +296,88 @@ ompl::base::PlannerStatus ompl::control::VehicleRRT::solve(const base::PlannerTe
           sampler_->sampleUniform(rstate);
         }
       }
-         
+      double *control_vector = rctrl->as<ompl::control::RealVectorControlSpace::ControlType>()->values;
+      control_vector[0] = 0;
+      control_vector[1] = 0; //Not using these because of the control system.
+      
       /* find closest state in the tree */
       Motion *nmotion = nn_->nearest(rmotion);
   
       /* sample a random control that attempts to go towards the random state, and also sample a control duration */
-      unsigned int cd = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
-  
-      if (addIntermediateStates_)
-        {
-          // this code is contributed by Jennifer Barry
-          std::vector<base::State *> pstates;
-          cd = siC_->propagateWhileValid(nmotion->state, rctrl, cd, pstates, true);
-  
-          if (cd >= siC_->getMinControlDuration())
-            {
-              Motion *lastmotion = nmotion;
-              bool solved = false;
-              size_t p = 0;
-              for (; p < pstates.size(); ++p)
-                {
-                  /* create a motion */
-                  auto *motion = new Motion();
-                  motion->state = pstates[p];
-                  // we need multiple copies of rctrl
-                  motion->control = siC_->allocControl();
-                  siC_->copyControl(motion->control, rctrl);
-                  motion->steps = 1;
-                  motion->parent = lastmotion;
-                  lastmotion = motion;
-                  nn_->add(motion);
-                  double dist = 0.0;
-                  solved = goal->isSatisfied(motion->state, &dist);
-                  if (solved)
-                    {
-                      approxdif = dist;
-                      solution = motion;
-                      break;
-                    }
-                  if (dist < approxdif)
-                    {
-                      approxdif = dist;
-                      approxsol = motion;
-                    }
-                }
-  
-              // free any states after we hit the goal
-              while (++p < pstates.size())
-                si_->freeState(pstates[p]);
-              if (solved)
-                break;
+      //=//unsigned int cd = controlSampler_->sampleTo(rctrl, nmotion->control, nmotion->state, rmotion->state);
+      //No need to sample a control, we have a control system
+      unsigned cd = ceilf(10.0f / siC_->getPropagationStepSize());
+      
+      if(addIntermediateStates_){
+        std::vector<base::State*> pstates;
+        //=//cd = siC_->propagateWhileValid(nmotion->state, rctrl, cd, pstates, true);
+        cd = controlWhileValid(nmotion->state, rmotion->state, cd, pstates);
+        
+        if (cd >= siC_->getMinControlDuration()){
+          Motion *lastmotion = nmotion;
+          bool solved = false;
+          size_t p = 0;
+          for (; p < pstates.size(); ++p){
+            /* create a motion */
+            auto *motion = new Motion();
+            motion->state = pstates[p];
+            // we need multiple copies of rctrl
+            motion->control = siC_->allocControl();
+            siC_->copyControl(motion->control, rctrl);
+            motion->steps = 1;
+            motion->parent = lastmotion;
+            lastmotion = motion;
+            nn_->add(motion);
+            double dist = 0.0;
+            solved = goal->isSatisfied(motion->state, &dist);
+            if (solved) {
+              approxdif = dist;
+              solution = motion;
+              break;
             }
-          else
-            for (auto &pstate : pstates)
-              si_->freeState(pstate);
-        }
-      else
-        {
-          if (cd >= siC_->getMinControlDuration())
-            {
-              /* create a motion */
-              auto *motion = new Motion(siC_);
-              si_->copyState(motion->state, rmotion->state);
-              siC_->copyControl(motion->control, rctrl);
-              motion->steps = cd;
-              motion->parent = nmotion;
-  
-              nn_->add(motion);
-              double dist = 0.0;
-              bool solv = goal->isSatisfied(motion->state, &dist);
-              if (solv)
-                {
-                  approxdif = dist;
-                  solution = motion;
-                  break;
-                }
-              if (dist < approxdif)
-                {
-                  approxdif = dist;
-                  approxsol = motion;
-                }
+            if (dist < approxdif) {
+              approxdif = dist;
+              approxsol = motion;
             }
+          }
+  
+          // free any states after we hit the goal
+          while (++p < pstates.size()){
+            si_->freeState(pstates[p]);
+          }
+          if (solved)
+            break;
         }
+        else{
+          //ROS_INFO("Trajectory too small");
+          for (auto &pstate : pstates){
+            si_->freeState(pstate);
+          }
+        }
+      }
+      else {
+        if (cd >= siC_->getMinControlDuration()) {
+          /* create a motion */
+          auto *motion = new Motion(siC_);
+          si_->copyState(motion->state, rmotion->state);
+          siC_->copyControl(motion->control, rctrl);
+          motion->steps = cd;
+          motion->parent = nmotion;
+  
+          nn_->add(motion);
+          double dist = 0.0;
+          bool solv = goal->isSatisfied(motion->state, &dist);
+          if (solv) {
+            approxdif = dist;
+            solution = motion;
+            break;
+          }
+          if (dist < approxdif) {
+            approxdif = dist;
+            approxsol = motion;
+          }
+        }
+      }
     }
   
   bool solved = false;
@@ -264,7 +410,7 @@ ompl::base::PlannerStatus ompl::control::VehicleRRT::solve(const base::PlannerTe
       solved = true;
       pdef_->addSolutionPath(path, approximate, approxdif, getName());
     }
-  
+
   if (rmotion->state)
     si_->freeState(rmotion->state);
   if (rmotion->control)

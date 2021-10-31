@@ -5,7 +5,7 @@
 #include <tf/tf.h>
 
 using namespace auvsl;
-
+using namespace Eigen;
 
 ControlSystem::ControlSystem(){
 
@@ -82,6 +82,8 @@ int AnfisControlSystem::initialize(){
 
 int AnfisControlSystem::computeVelocityCommand(std::vector<Vector2f> waypoints, geometry_msgs::Pose pose, float &v_forward, float &v_angular){
   auvsl_control::AnfisControl srv;
+  srv.request.pose = pose;
+  
   srv.request.current_x = waypoints[0][0];
   srv.request.current_y = waypoints[0][1];
   
@@ -106,7 +108,7 @@ int AnfisControlSystem::computeVelocityCommand(std::vector<Vector2f> waypoints, 
   
   v_forward = srv.response.cmd_vel.linear.x;
   v_angular = srv.response.cmd_vel.angular.z;
-
+  
   return 1;
 }
 

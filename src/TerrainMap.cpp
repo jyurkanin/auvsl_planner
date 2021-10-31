@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <algorithm>
+#include <stdlib.h>
 
 #include <ros/ros.h>
 #include <ompl/util/RandomNumbers.h>
@@ -38,10 +39,12 @@ SimpleTerrainMap::~SimpleTerrainMap(){
 }
 
 
-BekkerData soil_table[3] = {
-    {29.76, 2083, .8,  0, 22.5*M_PI/180.0, "Medium Soil"},
-    {102,   5301, .8, .2, 31.1*M_PI/180.0, "Sand"},
-    {30.08, 499.7, .7, 0, 14.0*M_PI/180.0, "Clay"}
+BekkerData soil_table[5] = {
+    {29.76, 2083,   .8,  0, 22.5*M_PI/180.0, "Medium Soil"},
+    {102,   5301,   .8, .2, 31.1*M_PI/180.0, "Sand"},
+    {30.08, 499.7,  .7,  0, 14.0*M_PI/180.0, "Clay"},
+    {33.0,  2100.0, .71, 0, .37, "Rantoul"},
+    {33.0,  2100.0, .72, 0, .40, "Dataset"}
 };
 
 BekkerData lookup_soil_table(int index){
@@ -52,14 +55,17 @@ BekkerData lookup_soil_table(int index){
 BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y) const{
   const int search_depth = 0;
   const float threshold = .5;
-  //octomap::OcTreeNode* node = ocTree->search(val[0], val[1], 0, search_depth);
-  //TODO. THis.
-  return lookup_soil_table(0);
+  return lookup_soil_table(4);
+  //return test_bekker_data_;
 }
 
 
 float SimpleTerrainMap::getAltitude(float x, float y, float z_guess) const{
-  return 0;//.1*sinf(x*.2);//fmax(0.0f,sinf(x*.6))-.16;//(4 / (2*sqrtf((x*x) + (y*y))+1));
+  //return .2*x;//x;//.1*sinf(x*.2);//
+  //return fmax(0.0f,sinf(x*.5));//(4 / (2*sqrtf((x*x) + (y*y))+1));
+  //return fmax(0, x-2);//sinf(x*.5);
+  //return (1e-3f*rand()/RAND_MAX);
+  return 0;
 }
 
 void SimpleTerrainMap::generateObstacles(){
@@ -191,4 +197,13 @@ int SimpleTerrainMap::isStateValid(float x, float y) const{
     //ROS_INFO("INVALID STATE: OFF MAP %f %f", x, y);
     return 0;
   }
+}
+
+
+void SimpleTerrainMap::getBounds(float &max_x, float &min_x, float &max_y, float &min_y) const{
+  max_x = Xmax; //(cols_*map_res_) + x_origin_;
+  min_x = Xmin;
+
+  max_y = Ymax; //(rows_*map_res_) + y_origin_;
+  min_y = Ymin;
 }

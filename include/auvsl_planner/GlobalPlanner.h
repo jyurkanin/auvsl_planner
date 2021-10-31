@@ -52,7 +52,7 @@ public:
                 ) override;
     
 private:
-  static const OctoTerrainMap *global_map_; //don't want to make changes to the terrain map in the global planner.
+  static const TerrainMap *global_map_; //don't want to make changes to the terrain map in the global planner.
 
   ompl::control::SpaceInformationPtr si_;
   ompl::base::ProblemDefinitionPtr pdef_;

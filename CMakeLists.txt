@@ -1,0 +1,437 @@
+cmake_minimum_required(VERSION 3.0.2)
+project(auvsl_planner)
+
+## Compile as C++11, supported in ROS Kinetic and newer
+# add_compile_options(-std=c++11)
+
+## Find catkin macros and libraries
+## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
+## is used, also find other catkin packages
+
+## System dependencies are found with CMake's conventions
+# find_package(Boost REQUIRED COMPONENTS system)
+
+
+## Uncomment this if the package has a setup.py. This macro ensures
+## modules and global scripts declared therein get installed
+## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
+# catkin_python_setup()
+
+################################################
+## Declare ROS messages, services and actions ##
+################################################
+
+## To declare and build messages, services or actions from within this
+## package, follow these steps:
+## * Let MSG_DEP_SET be the set of packages whose message types you use in
+##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
+## * In the file package.xml:
+##   * add a build_depend tag for "message_generation"
+##   * add a build_depend and a exec_depend tag for each package in MSG_DEP_SET
+##   * If MSG_DEP_SET isn't empty the following dependency has been pulled in
+##     but can be declared for certainty nonetheless:
+##     * add a exec_depend tag for "message_runtime"
+## * In this file (CMakeLists.txt):
+##   * add "message_generation" and every package in MSG_DEP_SET to
+##     find_package(catkin REQUIRED COMPONENTS ...)
+##   * add "message_runtime" and every package in MSG_DEP_SET to
+##     catkin_package(CATKIN_DEPENDS ...)
+##   * uncomment the add_*_files sections below as needed
+##     and list every .msg/.srv/.action file to be processed
+##   * uncomment the generate_messages entry below
+##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
+
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  std_msgs
+  geometry_msgs
+  message_generation
+  auvsl_control
+)
+
+
+## Generate messages in the 'msg' folder
+add_message_files(
+   FILES
+   
+)
+
+## Generate services in the 'srv' folder
+ add_service_files(
+   FILES
+   
+ )
+
+## Generate actions in the 'action' folder
+# add_action_files(
+#   FILES
+#   Action1.action
+#   Action2.action
+# )
+
+## Generate added messages and services with any dependencies listed here
+generate_messages(
+   DEPENDENCIES
+   std_msgs
+   geometry_msgs
+ )
+
+################################################
+## Declare ROS dynamic reconfigure parameters ##
+################################################
+
+## To declare and build dynamic reconfigure parameters within this
+## package, follow these steps:
+## * In the file package.xml:
+##   * add a build_depend and a exec_depend tag for "dynamic_reconfigure"
+## * In this file (CMakeLists.txt):
+##   * add "dynamic_reconfigure" to
+##     find_package(catkin REQUIRED COMPONENTS ...)
+##   * uncomment the "generate_dynamic_reconfigure_options" section below
+##     and list every .cfg file to be processed
+
+## Generate dynamic reconfigure parameters in the 'cfg' folder
+# generate_dynamic_reconfigure_options(
+#   cfg/DynReconf1.cfg
+#   cfg/DynReconf2.cfg
+# )
+
+###################################
+## catkin specific configuration ##
+###################################
+## The catkin_package macro generates cmake config files for your package
+## Declare things to be passed to dependent projects
+## INCLUDE_DIRS: uncomment this if your package contains header files
+## LIBRARIES: libraries you create in this project that dependent projects also need
+## CATKIN_DEPENDS: catkin_packages dependent projects also need
+## DEPENDS: system dependencies of this project that dependent projects also need
+catkin_package(
+#  INCLUDE_DIRS include
+#  LIBRARIES auvsl_planner
+CATKIN_DEPENDS roscpp rospy std_msgs octomap pcl_conversions auvsl_control message_runtime
+#  DEPENDS rbdl ompl octomap  #One day I may have to figure this out.
+)
+
+###########
+## Build ##
+###########
+
+set(CMAKE_CXX_FLAGS "-Wl,--no-undefined")
+
+## Specify additional locations of header files
+## Your package locations should be listed before other locations
+include_directories(
+# include
+${catkin_INCLUDE_DIRS}
+)
+
+## Declare a C++ library
+# add_library(${PROJECT_NAME}
+#   src/${PROJECT_NAME}/auvsl_planner.cpp
+# )
+
+## Add cmake target dependencies of the library
+## as an example, code may need to be generated before libraries
+## either from message generation or dynamic reconfigure
+# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+## Declare a C++ executable
+## With catkin_make all packages are built within a single CMake context
+## The recommended prefix ensures that target names across packages don't collide
+
+## Rename C++ executable without prefix
+## The above recommended prefix causes long target names, the following renames the
+## target back to the shorter version for ease of user use
+## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
+# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
+
+
+## Add cmake target dependencies of the executable
+## same as for the library above
+# 
+
+## Specify libraries to link a library or executable target against
+# target_link_libraries(${PROJECT_NAME}_node
+#   ${catkin_LIBRARIES}
+# )
+
+include_directories(include/auvsl_planner)
+
+
+find_package(pluginlib REQUIRED)
+include_directories(${PLUGINLIB_INCLUDE_DIRS})
+
+find_package(costmap_2d REQUIRED)
+include_directories(${COSTMAP_2D_INCLUDE_DIRS})
+
+find_package(move_base REQUIRED)
+include_directories(${MOVE_BASE_INCLUDE_DIRS})
+
+find_package(octomap REQUIRED NO_CMAKE_SYSTEM_PATH)
+include_directories(${OCTOMAP_INCLUDE_DIRS})
+link_directories(${OCTOMAP_LIBRARY_DIRS})
+
+find_package(ompl REQUIRED)
+include_directories(${OMPL_INCLUDE_DIRS})
+
+find_package(PCL REQUIRED)
+find_package(pcl_ros REQUIRED)
+find_package(pcl_conversions REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS} /opt/ros/noetic/include/pcl_conversions)
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+
+add_executable(${PROJECT_NAME}_node src/auvsl_planner_node.cpp
+src/GlobalParams.cpp
+  )
+
+
+
+
+
+target_link_libraries(${PROJECT_NAME}_node ${PCL_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${pluginlib_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${costmap_2d_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${move_base_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ompl)
+target_link_libraries(${PROJECT_NAME}_node ${catkin_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node rbdl)
+target_link_libraries(${PROJECT_NAME}_node X11)
+
+set_target_properties(${PROJECT_NAME}_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+add_executable(test_global_planner_node
+  src/test_global_planner.cpp
+  src/OctoTerrainMap.cpp
+  src/DStarPlanner.cpp
+  src/ControlSystem.cpp
+  src/GlobalParams.cpp
+  src/GlobalPlanner.cpp
+  src/PlannerVisualizer.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp  
+  )
+
+
+
+
+
+target_link_libraries(test_global_planner_node ${PCL_LIBRARIES})
+target_link_libraries(test_global_planner_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_global_planner_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_global_planner_node ${move_base_LIBRARIES})
+target_link_libraries(test_global_planner_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_global_planner_node ompl)
+target_link_libraries(test_global_planner_node ${catkin_LIBRARIES})
+target_link_libraries(test_global_planner_node rbdl)
+target_link_libraries(test_global_planner_node X11)
+
+set_target_properties(test_global_planner_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+
+add_executable(test_terrain_node src/test_terrain_map.cpp
+  src/OctoTerrainMap.cpp
+  src/DStarPlanner.cpp
+  src/ControlSystem.cpp
+  src/GlobalParams.cpp
+  src/GlobalPlanner.cpp
+  src/PlannerVisualizer.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
+  )
+
+target_link_libraries(test_terrain_node ${PCL_LIBRARIES})
+target_link_libraries(test_terrain_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_terrain_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_terrain_node ${move_base_LIBRARIES})
+target_link_libraries(test_terrain_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_terrain_node ${OMPL_LIBRARIES})
+target_link_libraries(test_terrain_node ${catkin_LIBRARIES})
+target_link_libraries(test_terrain_node rbdl)
+target_link_libraries(test_terrain_node X11)
+set_target_properties(test_terrain_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+add_dependencies(test_terrain_node ${test_terrain_node_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+
+
+
+
+add_library(global_planner_lib
+  src/OctoTerrainMap.cpp
+  src/GlobalParams.cpp
+  src/GlobalPlanner.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/PlannerVisualizer.cpp
+  src/utils.cpp
+  src/VehicleStateSpace.cpp
+  src/VehicleStateProjections.cpp
+  src/VehicleControlSampler.cpp
+  src/DirectedVehicleControlSampler.cpp
+  src/VehicleRRT.cpp
+  src/ControlSystem.cpp
+  )
+
+
+add_dependencies(global_planner_lib ${global_planner_lib_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+
+target_link_libraries(global_planner_lib ${PCL_LIBRARIES})
+target_link_libraries(global_planner_lib ${pluginlib_LIBRARIES})
+target_link_libraries(global_planner_lib ${costmap_2d_LIBRARIES})
+target_link_libraries(global_planner_lib ${move_base_LIBRARIES})
+target_link_libraries(global_planner_lib ${OCTOMAP_LIBRARIES})
+target_link_libraries(global_planner_lib ompl)
+target_link_libraries(global_planner_lib ${catkin_LIBRARIES})
+target_link_libraries(global_planner_lib rbdl)
+target_link_libraries(global_planner_lib X11)
+
+set_target_properties(global_planner_lib PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+add_library(local_planner_lib
+  src/ControlSystem.cpp
+  src/DStarPlanner.cpp
+  src/GlobalParams.cpp
+  src/JackalStatePropagator.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+add_dependencies(local_planner_lib ${local_planner_lib_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+target_link_libraries(local_planner_lib ${PCL_LIBRARIES})
+target_link_libraries(local_planner_lib ${pluginlib_LIBRARIES})
+target_link_libraries(local_planner_lib ${costmap_2d_LIBRARIES})
+target_link_libraries(local_planner_lib ${move_base_LIBRARIES})
+target_link_libraries(local_planner_lib ${OCTOMAP_LIBRARIES})
+target_link_libraries(local_planner_lib ompl)
+target_link_libraries(local_planner_lib ${catkin_LIBRARIES})
+target_link_libraries(local_planner_lib rbdl)
+target_link_libraries(local_planner_lib X11)
+
+
+set_target_properties(local_planner_lib PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+
+
+
+#add_executable(test_planner_node src/test_planner_node.cpp
+#  src/DStarPlanner.cpp
+#  src/GlobalParams.cpp
+#  src/GlobalPlanner.cpp
+#  src/JackalStatePropagator.cpp
+#  src/TerrainMap.cpp
+#  src/JackalDynamicSolver.cpp
+#  src/PlannerVisualizer.cpp
+#  src/utils.cpp
+#  src/VehicleStateSpace.cpp
+#  src/VehicleStateProjections.cpp
+#  src/VehicleControlSampler.cpp
+#  src/DirectedVehicleControlSampler.cpp
+#  src/VehicleRRT.cpp
+#  )
+
+
+
+
+
+
+add_executable(test_cs_node
+  src/test_control_system.cpp
+  src/GlobalParams.cpp
+  src/ControlSystem.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+)
+
+add_dependencies(test_cs_node ${test_cs_node_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+target_link_libraries(test_cs_node ${PCL_LIBRARIES})
+target_link_libraries(test_cs_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_cs_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_cs_node ${move_base_LIBRARIES})
+target_link_libraries(test_cs_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_cs_node ompl)
+target_link_libraries(test_cs_node ${catkin_LIBRARIES})
+target_link_libraries(test_cs_node rbdl)
+target_link_libraries(test_cs_node X11)
+
+set_target_properties(test_cs_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+add_executable(test_LD3_dataset_node src/test_LD3_dataset.cpp
+  src/GlobalParams.cpp
+  src/PlannerVisualizer.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(test_LD3_dataset_node ${PCL_LIBRARIES})
+target_link_libraries(test_LD3_dataset_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_LD3_dataset_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_LD3_dataset_node ${move_base_LIBRARIES})
+target_link_libraries(test_LD3_dataset_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_LD3_dataset_node ${OMPL_LIBRARIES})
+target_link_libraries(test_LD3_dataset_node ${catkin_LIBRARIES})
+target_link_libraries(test_LD3_dataset_node rbdl)
+target_link_libraries(test_LD3_dataset_node X11)
+set_target_properties(test_LD3_dataset_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+
+add_executable(test_CV3_dataset_node src/test_CV3_dataset.cpp
+  src/GlobalParams.cpp
+  src/PlannerVisualizer.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(test_CV3_dataset_node ${PCL_LIBRARIES})
+target_link_libraries(test_CV3_dataset_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_CV3_dataset_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_CV3_dataset_node ${move_base_LIBRARIES})
+target_link_libraries(test_CV3_dataset_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_CV3_dataset_node ${OMPL_LIBRARIES})
+target_link_libraries(test_CV3_dataset_node ${catkin_LIBRARIES})
+target_link_libraries(test_CV3_dataset_node rbdl)
+target_link_libraries(test_CV3_dataset_node X11)
+set_target_properties(test_CV3_dataset_node PROPERTIES COMPILE_FLAGS "-O3 -g")

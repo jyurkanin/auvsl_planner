@@ -33,7 +33,7 @@ class PlannerVisualizer{
   PlannerVisualizer(const PlannerVisualizer &) = delete;
   PlannerVisualizer &operator=(const PlannerVisualizer &) = delete;
 
-  PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr &planner, const OctoTerrainMap *global_map, double period = 0.5)
+  PlannerVisualizer(ompl::control::SpaceInformationPtr sic, ompl::base::PlannerPtr &planner, const TerrainMap *global_map, double period = 0.5)
     : sic_(sic), planner_(planner),  period_(period), shouldMonitor_(false), global_map_(global_map){
     const ompl::base::RealVectorBounds &bounds = static_cast<const ompl::base::VehicleStateSpace*>(sic_->getStateSpace().get())->getBounds();
     min_state_x_ = bounds.low[0];
@@ -62,7 +62,7 @@ class PlannerVisualizer{
  private:
   void threadFunction();
 
-  const OctoTerrainMap *global_map_;
+  const TerrainMap *global_map_;
   
   int has_solution;
   ompl::control::SpaceInformationPtr sic_;

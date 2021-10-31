@@ -18,6 +18,9 @@
   move_base/navigation.
   organize the code you have written a bit better into different files.
   
+* TODO Look Into Quaternion Integration
+  Specifically, theres a function in rbdl, that allows me to 
+  use a different scheme for quaternion integration.
 * DONE Dynamic planning
   1. Clean up existing global planner code into a single class.
   2. Create main file that includes both global and local planners. Integrate them.
@@ -289,6 +292,132 @@
   Need to find answer to "what amount of accuracy is necessary/acceptable/standard"
   Need to retrain tire network to add Ty to the output instead of the current stupid hack that you are doing
 
+* <2021-09-29 Wed> Update
+  Well, I tuned the dynamic model to achieve good performance.
+  Next step is to go back to rantoul or whatever and collect data from a longer test.
+  Also more tests involving circular paths and measuring radius.
+  Also test global planner.
+  See if I can go to some place nearby as well. 
+  Driving to Rantoul is pretty annoying.
+  Maybe I can go to Grainge grove. Probably not. Also no extension chord there.
+  
+  Wait. I don't need to go anywhere to test the global planner.
+  I can just run that on my computer. Retard.
+  I guess I need to tune the occupancy grid and thats all.
+  Actually, I should run the gp on the jackal, not my desktop.
+  I think I will need to install ompl.
+
+  New Idea. Modify Global Planner.
+  Use steering instead of random propagation.
+  Implement steering function, using ANFIS control system
+  Instead of sampling a few random ass controls, use anfis to steer
+  to sampled points. I've noticed the RRT gets stuck a lot by 
+  choosing the same stupid paths and its unable to reach the new points.
+  So hopefully this helps with that. Could result in speed up because
+  it won't have to sample a bunch of random ass controls and run trajectories
+  to see which random ass control was best.
+
+  Will implement a function in vehicleRRT called steerWhileValid()
+  
+  Current problem: it doesn't seem to be approaching the goal in rviz.
+  It's moving perpendicular to it. Sometimes it claims to reach the goal though, which is odd.
+  
+* <2021-10-08 Fri> Update
+  I did all that shit in the last update.
+  I then tested dynamic model on data/map from rantoul 120m trajectory
+  Also the circle. test.
+  long test was great. circle test not great. Possibly bad odometry (I dont really thnk so)
+  Probably just bad dynamic model estimation blah blah blah.
+  I don't know how to fucking improve this shit. SO let it ride.
+  
+  next step is to think of a way to use surface normals instead of
+  iterating.
+  Also need to profile code and see where its slow.
+  Decided I'm not going to do either of these.
+  I still need to iterate to find exactly where the tire intersects
+  the soil. I could actually use surface normals to solve this.
+  But I won't bother.
+  
+  Don't need to profile really.
+  I think I'm done here. tbh.
+  Focus on the paper and try to make the vectornav imu work.
+  Also, go ahead and play with neural network for dynamic model.
+  
+  
+* <2021-10-20 Wed> Update
+  Model performance seems very inconsistent.
+  for different elevation map_res_, can get very different results.
+  I am pretty sure I have got all my transforms correct this time.
+  Don't bother changing the interpolation code.
+  DOn't add any new features. Just finish it and move on.
+  You can go back to writing the paper.
+  Thursday, record more tests.
+  
+* <2021-10-21 Thu> Update
+  Big problems.
+  I assume the map is poorly made. Unfortunate.
+  This is due possibly to imu localization being bad because the map is on a slope
+  might not actually exist. Also, imu noise affects the lidar transformation to
+  world frame and possibly also fucks things up. Will wait for vectornav IMU
+  and hopefully that improves things.
+  Will work on the paper for now.
+  
+  Vehicle Takes a stupid sharp turn when using map res of .1
+  Lets find out why by plotting altitude under each tire.
+  I plotted altitude and there are some sharp changes in altitude that could be
+  causing the problem. Also there are some slopes as well. But I cant say for sure
+  wtf is causing the vehicle to turn like it is. Its possible that some of the 
+  tires lose traction. That could be it. I'm going to plot sinkage.
+  Not sure what causes it to turn. I looked at the sinkage and altitude and didn't
+  see anything amiss.
+  I'm sure that all my transformations are correct.
+  One important thing to note is that the error improves when I decrease the map
+  resolution as expected, things become more smoothed out.
+
+  I am going to test all the components.
+  I am going to test the gaussian blur by creating a terrain map that
+  is just alternating -1 and 1 so it should blur to zero.
+  Gaussian blur smoothed things out to around 0.
+
+  I get the lowest error when I use th flat map and complex cpt.
+  I can validate the rot_y(theta) part by adding an angle offset
+  of like pi/4 and I should see the vehicle sink a lot more when
+  I animate it in matlab.
+  I did this, and plotted the cpt and vehicle normals, and it
+  there was a pi/4 degree angle between the vectors as I expect.
+  Angle was around y axis.
+
+* TODO Stick IMU to jackal
+  Compare to the vectornav imu odometry msg to ekf_localization
+  odom message.
+  Add vectornav imu odom to ekf_localization compare to ekf
+  without.
+  Will need to create 2 ekf nodes.
+  Will need to attach the vectornav imu. with duct tape or something.
+  
+2 problems  
+* Inconsistent with different elevations
+  Very bad error sometimes.
+  Even altitude differences on the order of floating point error 1e-5
+  result in significant trajectory deviations. I can't even believe this.
+  Will test by adding Random noise to elevation map.
+  Checks out. ADding noise on order 1e-4 results in meter differences
+  of the final trajectory.
+  Will need to demonstrate the chaotic nature of the problem in paper.
+  Need to validate tire transforms. Plot all 4 cpt positions. Done.
+  To demonstrate chaotic nature of the model,
+  Plot long trajectory multiple times, adding noise to the initial x y position.
+
+  
+* Different results depending on loading pcl from file. 
+  This is due to floating point error in the file.
+  I believe. Code runs the same as long as I load the
+  point clouds from file. Diff of the elevation maps shows
+  that floating point error exists.
+  
+* DONE Verified all spatial and homogenous transformations.
+
+  
 * Minimum Viable Product:
 ** DONE RRT Algorithm
    Do it with ompl

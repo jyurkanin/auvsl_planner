@@ -31,9 +31,9 @@
 #include <vector>
 
 
-class OctoTerrainMap : TerrainMap{
+class OctoTerrainMap : public TerrainMap{
 public:
-    OctoTerrainMap(costmap_2d::Costmap2D *occ_grid);
+    OctoTerrainMap(const char *site_cloud_fn);
     ~OctoTerrainMap();
     
     BekkerData getSoilDataAt(float x, float y) const override;
@@ -48,7 +48,7 @@ public:
     void computePclOriginSize();
   
     float getMapRes();
-    void getBounds(float &max_x, float &min_x, float &max_y, float &min_y) const;
+    void getBounds(float &max_x, float &min_x, float &max_y, float &min_y) const override;
   
     static void get_cloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg);
 
@@ -67,7 +67,6 @@ public:
     float *elev_map_;
     
 private:
-    costmap_2d::Costmap2D *occ_grid_;
     octomap::OcTree* octomap_;
     
     int occupancy_threshold_;

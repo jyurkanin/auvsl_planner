@@ -38,7 +38,9 @@
 
 #include "ompl/control/planners/PlannerIncludes.h"
 #include "ompl/datastructures/NearestNeighbors.h"
-  
+#include "ControlSystem.h"
+
+
  namespace ompl
  {
      namespace control
@@ -49,7 +51,9 @@
              VehicleRRT(const SpaceInformationPtr &si);
   
              ~VehicleRRT() override;
-  
+
+             unsigned controlWhileValid(const ompl::base::State *state, ompl::base::State *goal, unsigned steps, std::vector<base::State*> &result);
+           
              base::PlannerStatus solve(const base::PlannerTerminationCondition &ptc) override;
   
              void clear() override;
@@ -87,7 +91,9 @@
              }
   
              void setup() override;
-  
+           
+           auvsl::ControlSystem *control_system_;
+           
          protected:
              class Motion
              {

@@ -22,6 +22,7 @@ public:
     virtual float getAltitude(float x, float y, float z_guess) const = 0;
     virtual int isStateValid(float x, float y) const = 0;
     virtual std::vector<Rectangle*> getObstacles() const = 0;
+    virtual void getBounds(float &max_x, float &min_x, float &max_y, float &min_y) const = 0;
 };
 
 
@@ -35,7 +36,8 @@ public:
 
   int detectObstacles(float x, float y);
   void detectAllObstacles();
-  
+
+  void getBounds(float &max_x, float &min_x, float &max_y, float &min_y) const override;
   BekkerData getSoilDataAt(float x, float y) const override;
   float getAltitude(float x, float y, float z_guess) const override;
   int isStateValid(float x, float y) const override; //Only 2D obstacle collision checking for now.
@@ -51,4 +53,6 @@ public:
 
   std::vector<Rectangle*> obstacles;
   std::vector<Rectangle*> unknown_obstacles;
+
+  BekkerData test_bekker_data_;
 };

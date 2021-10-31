@@ -10,6 +10,7 @@
 #include <move_base_msgs/MoveBaseAction.h>
 
 #include "GlobalParams.h"
+#include "GlobalPlanner.h"
 
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
@@ -44,9 +45,52 @@ void get_pos_callback(const geometry_msgs::PoseWithCovarianceStamped::ConstPtr& 
 }
 
 
-//<node name="test_cs" pkg="auvsl_planner" type="test_cs_node" output="screen"/>
-//1. Solve Global Path Plan
-//2. Run Local Path Planner and try to follow global path plan
+//no move base. just call global planner
+int main_no_move_bas(int argc, char **argv){
+  ROS_INFO("Starting up auvsl_planner_node\n");
+  ros::init(argc, argv, "auvsl_global_planner");
+  ros::NodeHandle nh;
+  GlobalParams::load_params(&nh);
+  ros::Rate loop_rate(10);
+
+  std::vector<geometry_msgs::PoseStamped> plan;
+  geometry_msgs::PoseStamped startp;
+  geometry_msgs::PoseStamped goalp;
+
+  startp.pose.position.x = 0;
+  startp.pose.position.y = 0;
+  startp.pose.position.z = .16;
+
+  startp.pose.orientation.x = 0;
+  startp.pose.orientation.y = 0;
+  startp.pose.orientation.z = 0;
+  startp.pose.orientation.w = 1;
+
+
+  goalp.pose.position.x = 0;
+  goalp.pose.position.y = 10;
+  goalp.pose.position.z = .16;
+
+  goalp.pose.orientation.x = 0;
+  goalp.pose.orientation.y = 0;
+  goalp.pose.orientation.z = 0;
+  goalp.pose.orientation.w = 1;
+
+  
+  auvsl::GlobalPlanner planner;
+  planner.initialize("shit pooper", NULL);
+  planner.makePlan(startp, goalp, plan);
+
+  return 1;
+}
+
+
+
+
+
+
+
+
 
 int main(int argc, char **argv){
   ROS_INFO("Starting up auvsl_planner_node\n");
@@ -56,6 +100,9 @@ int main(int argc, char **argv){
   
   ros::Rate loop_rate(10);
 
+  GlobalParams::load_params(&nh);
+  
+  
   ros::Publisher cmd_vel_pub = nh.advertise<geometry_msgs::Twist>("/cmd_vel", 100);
   geometry_msgs::Twist msg;
   
@@ -84,7 +131,7 @@ int main(int argc, char **argv){
   ros::ServiceClient g_planner_srv = nh.serviceClient<nav_msgs::GetPlan>("/move_base/make_plan");
   nav_msgs::GetPlan get_plan_srv;
   
-  get_plan_srv.request.start.pose.position.x = 8;
+  get_plan_srv.request.start.pose.position.x = 0;
   get_plan_srv.request.start.pose.position.y = 0;
   get_plan_srv.request.start.pose.position.z = .16;
   
@@ -96,8 +143,8 @@ int main(int argc, char **argv){
   get_plan_srv.request.start.header.frame_id = "map";
   
   
-  get_plan_srv.request.goal.pose.position.x = 8;
-  get_plan_srv.request.goal.pose.position.y = 0;
+  get_plan_srv.request.goal.pose.position.x = 0;
+  get_plan_srv.request.goal.pose.position.y = 10;
   get_plan_srv.request.goal.pose.position.z = .16;
   
   get_plan_srv.request.goal.pose.orientation.x = 0;
