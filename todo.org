@@ -407,7 +407,14 @@
   Need to validate tire transforms. Plot all 4 cpt positions. Done.
   To demonstrate chaotic nature of the model,
   Plot long trajectory multiple times, adding noise to the initial x y position.
+* TODO DO this:
+  train new network. pick best soil params for test data.
+  Generate plots for CV and Long Distance.
+  Done.
 
+  Figure out a god damn odom solution for the jackal.
+  Start with vectornav.
+  Maybe then try realsense.
   
 * Different results depending on loading pcl from file. 
   This is due to floating point error in the file.

@@ -26,7 +26,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 
 #include <string>
-
+#include <fenv.h>
 
 
 
@@ -231,6 +231,8 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
 
 
 int main(int argc, char **argv){
+  //feenableexcept(FE_INVALID | FE_OVERFLOW);
+  
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
   
@@ -261,7 +263,7 @@ int main(int argc, char **argv){
   
   simple_terrain_map.test_bekker_data_ = lookup_soil_table(4);
   //144
-  for(int i = 50; i <= 50; i++){
+  for(int i = 100; i <= 144; i++){
     memset(odom_fn, 0, 100);
     sprintf(odom_fn, "/home/justin/Downloads/CV3/extracted_data/odometry/%04d_odom_data.txt", i);
     ROS_INFO("Reading Odom File %s", odom_fn);

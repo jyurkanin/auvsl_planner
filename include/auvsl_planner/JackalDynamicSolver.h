@@ -59,6 +59,9 @@ class JackalDynamicSolver{
   static void del_model();
   static void load_nn_gc_model();
   static void load_nn_gc_model_new();
+
+  SpatialVector tire_model_bekker(const Eigen::Matrix<float,num_in_features,1> &features);
+  SpatialVector tire_model_nn(const Eigen::Matrix<float,num_in_features,1> &features);
   
   void get_tire_sinkages_and_cpts(float *X, float *tire_sinkages, SpatialTransform *cpt_X, SpatialTransform *tire_X); //in body frame.
   void get_tire_sinkages_and_cpts_simple(float *X, float *tire_sinkages, SpatialTransform *cpt_X, SpatialTransform *tire_X); //in body frame.
@@ -106,7 +109,8 @@ class JackalDynamicSolver{
   float sinkages_[4];
   
   static float tire_radius;
-
+  static float tire_thickness;
+  
   static Eigen::Matrix<float,num_hidden_nodes,num_in_features> weight0;
   static Eigen::Matrix<float,num_hidden_nodes,1> bias0;
   static Eigen::Matrix<float,num_hidden_nodes,num_hidden_nodes> weight2;

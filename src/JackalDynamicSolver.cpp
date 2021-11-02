@@ -2,12 +2,13 @@
 #include "auvsl_planner_node.h"
 #include <unistd.h>
 #include <math.h>
+#include <cmath>
 #include <stdio.h>
 #include <iostream>
 #include <algorithm>
 #include <stdlib.h>
 #include <fstream>
-
+#include <cfenv>
 
 #include <tf/tf.h>
 
@@ -15,9 +16,188 @@ using namespace RigidBodyDynamics;
 using namespace RigidBodyDynamics::Math;
 
 
+//nuclear option for debugging floats
+//#pragma STDC FENV_ACCESS ON
+void check_fp_exceptions(){
+  if(std::fetestexcept(FE_DIVBYZERO)){
+    ROS_INFO("divide by zero");
+  }
+  if(std::fetestexcept(FE_INEXACT)){
+    ROS_INFO("inexact");
+  }
+  if(std::fetestexcept(FE_INVALID)){
+    ROS_INFO("invalid");
+  }
+  if(std::fetestexcept(FE_OVERFLOW)){
+    ROS_INFO("overflow");
+  }
+  if(std::fetestexcept(FE_UNDERFLOW)){
+    ROS_INFO("underflow");
+  }
+}
+
 
 void break_on_me(){}
     
+
+struct BekkerModel{
+public:
+  static constexpr float k0 = 2195;
+  static constexpr float Au = 192400;
+  static constexpr float K = .0254;
+  static constexpr float density = 1681;
+  static constexpr float c = 8.62;
+  static constexpr float pg = 100; //15psi
+  
+  static float zr;
+  static float slip_ratio;
+  static float slip_angle;
+  
+  static float kc;
+  static float kphi;
+  static float n0;
+  static float n1;
+  static float phi;
+
+  static float n;
+  static float pgc;
+  static float R;
+  static float b;
+  static float ze;
+  static float zu;
+  static float ku;
+  
+  static float theta_f;
+  static float theta_r;
+  static float theta_c;
+  
+  static const int num_steps = 100;
+  
+  static float sigma_x_cf(float theta){
+    //in some cases, cosf - cosf can return negative due to theta != theta_f, but very close.
+    float diff = cosf(theta) - cosf(theta_f);//std::max(0.0f,cosf(theta) - cosf(theta_f));
+    float temp = ((kc/b) + kphi)*std::pow(R*(diff), n);
+    return temp;
+  }
+  static float sigma_x_cc(float theta){return ((kc/b)+kphi)*std::pow(ze, n); }
+  static float sigma_x_cr(float theta){
+    float diff = cosf(theta) - cosf(theta_r);
+    float temp = ku*std::pow(R*(diff), n);
+    return temp;
+  }
+  
+  static float jx_cf(float theta){
+    float temp = R*((theta - theta_f) - (1 - slip_ratio)*(sinf(theta)-sinf(theta_f)));
+    return temp;
+  }
+  static float jx_cc(float theta){return R*((theta_c - theta_f) + (1 - slip_ratio)*sinf(theta_f) - sinf(theta_c) + (slip_ratio*cosf(theta_c)*tanf(theta))); }
+  static float jx_cr(float theta){return R*((2*theta_c + theta - theta_f) - (1 - slip_ratio)*(sinf(theta) - sinf(theta_f)) - 2*sinf(theta_c)); }
+  
+  static float jy_cf(float theta){
+    return R*(1-slip_ratio) * tanf(slip_angle) * (theta_f - theta);
+  }
+  static float jy_cc(float theta){return R*(1-slip_ratio) * tanf(slip_angle) * (theta_f - theta + sinf(theta_c) - cosf(theta_c)*tanf(theta)); }
+  static float jy_cr(float theta){return R*(1-slip_ratio) * tanf(slip_angle) * (theta_f - theta - 2*theta_c + 2*sinf(theta_c)); }
+  
+  static float j_cf(float theta){
+    float temp = sqrtf(std::pow(jy_cf(theta), 2) + std::pow(jx_cf(theta), 2));
+    return temp;
+  }
+  static float j_cc(float theta){return sqrtf(std::pow(jy_cc(theta), 2) + std::pow(jx_cc(theta), 2)); }
+  static float j_cr(float theta){return sqrtf(std::pow(jy_cr(theta), 2) + std::pow(jx_cr(theta), 2)); }
+  
+  static float tau_x_cf(float theta){
+    //smart divide
+    float j_cf_theta = j_cf(theta);
+    float temp = j_cf_theta == 0 ? 0 : jx_cf(theta)/j_cf_theta;
+    return (-temp) * (c + (sigma_x_cf(theta)*tanf(phi))) * (1 - (exp(-j_cf_theta/K)));
+  }
+  static float tau_x_cc(float theta){
+    float j_cc_theta = j_cc(theta);
+    float temp = j_cc_theta == 0 ? 0 : jx_cc(theta)/j_cc_theta;
+    return (-temp) * (c + (sigma_x_cc(theta)*tanf(phi))) * (1 - (exp(-j_cc_theta/K)));
+  } 
+  static float tau_x_cr(float theta){
+    float j_cr_theta = j_cr(theta);
+    float temp = j_cr_theta == 0 ? 0 : jx_cr(theta)/j_cr_theta;
+    return (-temp) * (c + (sigma_x_cr(theta)*tanf(phi))) * (1 - (exp(-j_cr_theta/K)));
+  }
+  
+  static float tau_y_cf(float theta){
+    float j_cf_theta = j_cf(theta);
+    float temp = j_cf_theta == 0 ? 0 : jy_cf(theta)/j_cf_theta;
+    return (-temp) * (c + (sigma_x_cf(theta)*tanf(phi))) * (1 - (exp(-j_cf_theta/K)));
+  }
+  static float tau_y_cc(float theta){
+    float j_cc_theta = j_cc(theta);
+    float temp = j_cc_theta == 0 ? 0 : jy_cc(theta)/j_cc_theta;
+    return (-temp) * (c + (sigma_x_cc(theta)*tanf(phi))) * (1 - (exp(-j_cc_theta/K)));
+  }
+  static float tau_y_cr(float theta){
+    float j_cr_theta = j_cr(theta);
+    float temp = j_cr_theta == 0 ? 0 : jy_cr(theta)/j_cr_theta;
+    return (-temp) * (c + (sigma_x_cr(theta)*tanf(phi))) * (1 - (exp(-j_cr_theta/K)));
+  }
+
+
+  static float Fy_eqn3(float theta){return tau_y_cc(theta)*std::pow(1.0f/cosf(theta), 2); }
+  
+  static float Fz_eqn1(float theta){return (sigma_x_cf(theta)*cosf(theta)) + (tau_x_cf(theta)*sinf(theta)); }
+  static float Fz_eqn2(float theta){return (sigma_x_cr(theta)*cosf(theta)) + (tau_x_cr(theta)*sinf(theta)); }
+  
+  static float Fx_eqn1(float theta){return (tau_x_cf(theta)*cosf(theta)) - (sigma_x_cf(theta)*sinf(theta)); } 
+  static float Fx_eqn2(float theta){return (tau_x_cr(theta)*cosf(theta)) - (sigma_x_cr(theta)*sinf(theta)); }
+  static float Fx_eqn3(float theta){return tau_x_cc(theta)*(std::pow(1.0f/cosf(theta), 2)); }
+  
+  static float Ty_eqn1(float theta){return tau_x_cc(theta)*(std::pow(1.0f/cosf(theta), 2)); }
+
+  static float integrate(float (*func)(float), float upper_b, float lower_b){
+    float dtheta = (upper_b - lower_b) / num_steps;
+    float eps = dtheta*.1; //adaptive machine epsilon
+    
+    //trapezoidal rule.
+    float sum = 0;
+    for(float theta = lower_b; theta < (upper_b - eps - dtheta); theta += dtheta){
+      sum += .5*dtheta*(func(theta + dtheta) + func(theta));
+    }
+
+    //last iteration is different to ensure no floating point error occurs.
+    //This ensures integration goes exactly to the upper bound and does not exceed it in the slightest.
+    sum += .5*dtheta*(func(upper_b) + func(upper_b - dtheta));
+    
+    return sum;
+  }
+};
+
+
+
+
+
+float BekkerModel::zr;
+float BekkerModel::slip_ratio;
+float BekkerModel::slip_angle;
+  
+float BekkerModel::kc;
+float BekkerModel::kphi;
+float BekkerModel::n0;
+float BekkerModel::n1;
+float BekkerModel::phi;
+
+float BekkerModel::n;
+float BekkerModel::pgc;
+float BekkerModel::R;
+float BekkerModel::b;
+float BekkerModel::ze;
+float BekkerModel::zu;
+float BekkerModel::ku;
+  
+float BekkerModel::theta_f;
+float BekkerModel::theta_r;
+float BekkerModel::theta_c;
+
+
+
+
 
 
 PIDController::PIDController(float P, float I, float D, float step){
@@ -79,6 +259,7 @@ int JackalDynamicSolver::debug_level;
 Model* JackalDynamicSolver::model = 0;
 float JackalDynamicSolver::stepsize;
 float JackalDynamicSolver::tire_radius;
+float JackalDynamicSolver::tire_thickness;
 
 const TerrainMap* JackalDynamicSolver::terrain_map_;
 
@@ -134,7 +315,6 @@ void JackalDynamicSolver::init_model(int debug){
   feature_log.open("/home/justin/features.csv", std::ofstream::out);
   feature_log << "x,y,z,zx,zy,zz,vx,vy,vz\n";
   
-  //model = NULL;
   Vector3d initial_pos(0,0,0);
   
   unsigned int base_id;
@@ -145,19 +325,18 @@ void JackalDynamicSolver::init_model(int debug){
   
   Joint tire_joints[4];
   Joint floating_joint;
-
+  
   if(model){
     return;
   }
   
   model = new Model();
-  
-  
   model->gravity = Vector3d(0., 0., -9.8); //gravity off. lmao
   
   float base_mass = 13; //kg
   float tire_mass = 1;
-  float tire_thickness = .05;
+  
+  tire_thickness = .05;
   tire_radius = .1;
   
   base_size = Vector3d(.428, .323, .180);
@@ -403,17 +582,108 @@ void JackalDynamicSolver::get_tire_vels(float *X, Vector3d *tire_vels, SpatialTr
   }
 }
 
+
+
+SpatialVector JackalDynamicSolver::tire_model_bekker(const Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> &features){
+  SpatialVector tire_wrench;
+  float Fx = 0;
+  float Fy = 0;
+  float Fz = 0;
+  float Ty = 0;
+
+  BekkerModel bekker_model;
+  bekker_model.R = tire_radius;
+  bekker_model.b = tire_thickness;
+  
+  bekker_model.zr = features[0];
+  bekker_model.slip_ratio = features[1];
+  bekker_model.slip_angle = features[2];
+  
+  bekker_model.kc = features[3];
+  bekker_model.kphi = features[4];
+  bekker_model.n0 = features[5];
+  bekker_model.n1 = features[6];
+  bekker_model.phi = features[7];
+  
+  bekker_model.n = bekker_model.n0 + (bekker_model.n1 * fabs(bekker_model.slip_ratio));
+  bekker_model.pgc = ((bekker_model.kc/bekker_model.b) + bekker_model.kphi) * std::pow(bekker_model.zr, bekker_model.n);
+  
+  bekker_model.ze;
+  bekker_model.zu;
+  bekker_model.ku;
+  
+  
+  if(bekker_model.pgc < bekker_model.pg){
+    bekker_model.ze = bekker_model.zr;
+  }
+  else{
+    bekker_model.ze = std::pow(bekker_model.pg/((bekker_model.kc/bekker_model.b) + bekker_model.kphi), 1.0f/bekker_model.n);
+  }
+  
+  bekker_model.ku = bekker_model.k0 + (bekker_model.Au*bekker_model.ze);
+  bekker_model.zu = std::pow(((bekker_model.kc/bekker_model.b) + bekker_model.kphi) / bekker_model.ku, 1.0f/bekker_model.n) * bekker_model.ze;
+  
+  float theta_f = bekker_model.theta_f =  acosf(1 - (bekker_model.zr/bekker_model.R));
+  float theta_r = bekker_model.theta_r = -acosf(1 - ((bekker_model.zu + bekker_model.zr - bekker_model.ze)/bekker_model.R));
+  float theta_c = bekker_model.theta_c =  acosf(1 - ((bekker_model.zr - bekker_model.ze)/bekker_model.R));
+
+  //seems legit
+  //ROS_INFO("f %f     r %f     c %f", theta_f*180.0f/M_PI, theta_r*180.0f/M_PI, theta_c*180.0f/M_PI);
+  
+  float bt_R = bekker_model.R * bekker_model.b;
+  float bt_RR = bekker_model.R * bekker_model.R * bekker_model.b;
+  
+  Fx = bt_R*bekker_model.integrate(&bekker_model.Fx_eqn1, theta_f, theta_c) +
+       bt_R*cosf(theta_c)*bekker_model.integrate(&bekker_model.Fx_eqn3, theta_c, -theta_c) +
+       bt_R*bekker_model.integrate(&bekker_model.Fx_eqn2, -theta_c, theta_r);
+  
+  Fy = bt_R*bekker_model.integrate(&bekker_model.tau_y_cf, theta_f, theta_c) +
+       bt_R*cosf(theta_c)*bekker_model.integrate(&bekker_model.Fy_eqn3, theta_c, -theta_c) + //original matlab code has a bug here. In the matlab code I integrated from -theta_c to theta_c which gives a negative result.
+       bt_R*bekker_model.integrate(&bekker_model.tau_y_cr, -theta_c, theta_r);
+  
+  Fz = bt_R*bekker_model.integrate(&bekker_model.Fz_eqn1, theta_f, theta_c) +
+       bt_R*bekker_model.integrate(&bekker_model.Fz_eqn2, -theta_c, theta_r) +
+     2*bt_R*sinf(theta_c)*bekker_model.pg;
+  
+  Ty = -bt_RR*bekker_model.integrate(&bekker_model.tau_x_cf, theta_f, theta_c) + 
+       -bt_RR*bekker_model.integrate(&bekker_model.tau_x_cr, -theta_c, theta_r) +
+       -bt_RR*cosf(theta_c)*cosf(theta_c)*bekker_model.integrate(&bekker_model.Ty_eqn1, theta_c, -theta_c);
+  
+  tire_wrench = 1000*SpatialVector(0,Ty,0,Fx,Fy,Fz);
+  
+  return tire_wrench;
+}
+
+
+
+
+//return body wrench from features
+SpatialVector JackalDynamicSolver::tire_model_nn(const Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> &features){
+  Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer0_out;
+  Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer2_out;
+  Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> layer4_out;
+  Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> labels;
+  Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> scaled_features;
+  
+  scaled_features = scale_input(features);
+  layer0_out = (weight0*scaled_features) + bias0;
+  layer0_out = layer0_out.unaryExpr(&tanhf);
+  layer2_out = (weight2*layer0_out) + bias2;
+  layer2_out = layer2_out.unaryExpr(&tanhf);
+  layer4_out = (weight4*layer2_out) + bias4;        
+  labels = scale_output(layer4_out);
+  
+  SpatialVector tire_wrench = SpatialVector(0,labels[3],0,labels[0],labels[1],labels[2]);
+  
+  return tire_wrench;
+}
+
 void JackalDynamicSolver::get_tire_f_ext(float *X){
     SpatialVector tire_wrench;
     
     Quaternion quat(X[3], X[4], X[5], X[10]);
     Vector3d r(X[0], X[1], X[2]);
     
-    Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer0_out;
-    Eigen::Matrix<float,JackalDynamicSolver::num_hidden_nodes,1> layer2_out;
-    Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> layer4_out;
-    Eigen::Matrix<float,JackalDynamicSolver::num_out_features,1> labels;
-    Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> scaled_features;
     Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> features;
 
     SpatialTransform tire_X[4];
@@ -421,24 +691,12 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     float sinkages[4];
     get_tire_sinkages_and_cpts(X, sinkages, cpt_X, tire_X);
     
-    //SpatialVector temp_wrench = tire_X[0].applyTranspose(SpatialVector(0,0,0, 0,0,1));
-    //OS_INFO("tire Wrench %f, %f, %f", temp_wrench[3], temp_wrench[4], temp_wrench[5]);
-    
-    sinkages_[0] = sinkages[0];
-    sinkages_[1] = sinkages[1];
-    sinkages_[2] = sinkages[2];
-    sinkages_[3] = sinkages[3];
-    
     Vector3d tire_vels[4];
     get_tire_vels(X, tire_vels, cpt_X);
     
     BekkerData ts_data;
     
-    //ROS_INFO("Sinkage %f %f %f %f\n", sinkages[0], sinkages[1], sinkages[2], sinkages[3]);
     for(int i = 0; i < 4; i++){    
-      //tire_X[i].r = r + quat.toMatrix().transpose() * model->GetJointFrame(3+i).r;
-      //tire_X[i].E = quat.toMatrix();
-      
         features[0] = sinkages[i];
         
         if(sinkages[i] <= 0){ //Tire is not in contact with the ground.
@@ -448,29 +706,29 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
             continue;
         }
         
-        
         if(X[17+i] == 0){
             if(tire_vels[i][0] == 0){
-                features(1) = 0; //otherwise would be 1 - 0/0 = 1. Which would be wrong.
+              features(1) = 0; //otherwise would be 1 - 0/0 = 1. Which would be wrong.
             }
             else{
-                features(1) = 1 - (tire_vels[i][0]/NUM_HACK);
+              features(1) = 1 - (tire_vels[i][0]/NUM_HACK);
             }
         }
         else{
             if(tire_vels[i][0] == 0){
-                features(1) = 1 - (NUM_HACK/(tire_radius*X[17+i]));
+              features(1) = 1 - (NUM_HACK/(tire_radius*X[17+i]));
             }
             else{
-                features(1) = 1 - (tire_vels[i][0]/(tire_radius*X[17+i]));
+              features(1) = 1 - (tire_vels[i][0]/(tire_radius*X[17+i]));
             }
         }
-	
+        
+        
         if(tire_vels[i][0] == 0){ //prevent dividing by zero
-            features(2) = atanf(tire_vels[i][1]/(NUM_HACK+tire_vels[i][0]));
+          features(2) = atanf(tire_vels[i][1]/(NUM_HACK+fabs(tire_vels[i][0])));
         }
         else{
-            features(2) = atanf(tire_vels[i][1]/tire_vels[i][0]);
+          features(2) = atanf(tire_vels[i][1]/fabs(tire_vels[i][0]));
         }
         
         ts_data = terrain_map_->getSoilDataAt(cpt_X[i].r[0], cpt_X[i].r[1]);
@@ -480,56 +738,38 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         features(5) = ts_data.n0;
         features(6) = ts_data.n1;
         features(7) = ts_data.phi;
+        
+        tire_wrench = tire_model_bekker(features);
 
-        
-        scaled_features = scale_input(features);
-        layer0_out = (weight0*scaled_features) + bias0;
-        layer0_out = layer0_out.unaryExpr(&tanhf);
-        layer2_out = (weight2*layer0_out) + bias2;
-        layer2_out = layer2_out.unaryExpr(&tanhf);
-        layer4_out = (weight4*layer2_out) + bias4;        
-        labels = scale_output(layer4_out);
-        
-        
-        tire_wrench = SpatialVector(0,labels[3],0,labels[0],labels[1],labels[2]);
-        //float Ty = -.9*((tire_radius*X[17+i]) - tire_vels[i][0]);
-        //tire_wrench = SpatialVector(0,Ty,0,labels[0],labels[1],labels[2]);
-        
         //Sign corrections.
         if(X[17+i] > 0){
-            tire_wrench[3] = tire_wrench[3]*1;
-            tire_wrench[1] = tire_wrench[1]*1;
+          tire_wrench[3] = tire_wrench[3]*1;
+          tire_wrench[1] = tire_wrench[1]*1;
         }
         else{
-            tire_wrench[3] = tire_wrench[3]*-1;
-            tire_wrench[1] = tire_wrench[1]*-1;
+          tire_wrench[3] = tire_wrench[3]*-1;
+          tire_wrench[1] = tire_wrench[1]*-1;
         }
         
         if(tire_vels[i][1] > 0){
-            tire_wrench[4] = -fabs(tire_wrench[4]);
+          tire_wrench[4] = tire_wrench[4];
         }
         else{
-            tire_wrench[4] = fabs(tire_wrench[4]);
+          tire_wrench[4] = tire_wrench[4];
         }
         
         if(tire_vels[i][2] > 0){ //prevent bouncing. If tire is moving upwards, no Fz. 
-            tire_wrench[5] *= .1;//fmin(tire_wrench[5], 10); //add code to artificially increase other forces when high sinkage is detected
+          tire_wrench[5] *= .1;//fmin(tire_wrench[5], 10); //add code to artificially increase other forces when high sinkage is detected
         }
         if(tire_wrench[5] < 0){ //Fz should never point down. But the neural net might not know that.
-            tire_wrench[5] = 0;
+          tire_wrench[5] = 0;
         }
+
         
         //tire_X is the transform from world to tire.
         //the following 0-wrench is in the tire frame.
         f_ext[3+i] = tire_X[i].applyTranspose(tire_wrench);
-        
-        //if(i == 0){
-        //feature_log << features[0] << ',' << features[1] << ',' << features[2] << ',' << tire_wrench[3] << ',' << tire_wrench[4] << ',' << tire_wrench[5] << '\n';
-        //}
     }
-    
-    //ROS_INFO(" ");
-    
 }
 
 //This doesn't actually do anything because the PID controllers are actually PD controllers
@@ -721,8 +961,7 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
     joint_file >> back_left_vel >> comma;
     joint_file >> back_right_vel;
 
-    
-    //ROS_INFO("joint file, vel: %f %f %f %f", front_left_vel, front_right_vel, back_left_vel, back_right_vel);
+    ROS_INFO("joint file, vel: %f %f %f %f", front_left_vel, front_right_vel, back_left_vel, back_right_vel);
     
     Xn[17] = front_right_vel;
     Xn[18] = back_right_vel;
@@ -941,9 +1180,9 @@ void JackalDynamicSolver::ode(float *X, float *Xd){
   ForwardDynamics(*model, Q, QDot, tau, QDDot, &f_ext);
   
   //2D simplification. Ignore Fz. Assume constant sinkage.
-  QDDot[2] = 0; // Corresponds to Z-acceleration
-  QDDot[3] = 0; // roll
-  QDDot[4] = 0; // pitch
+  //QDDot[2] = 0; // Corresponds to Z-acceleration
+  //QDDot[3] = 0; // roll
+  //QDDot[4] = 0; // pitch
   
   Quaternion quat(Q[3],Q[4],Q[5],Q[10]);
   Vector3d omega(QDot[3], QDot[4], QDot[5]);

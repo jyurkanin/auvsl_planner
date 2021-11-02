@@ -55,7 +55,7 @@ BekkerData lookup_soil_table(int index){
 BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y) const{
   const int search_depth = 0;
   const float threshold = .5;
-  return lookup_soil_table(4);
+  return lookup_soil_table(0);
   //return test_bekker_data_;
 }
 
