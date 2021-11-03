@@ -9,17 +9,17 @@ df = pd.read_csv("/home/justin/Downloads/CV3/localization_ground_truth/0100_CV_g
 plt.plot(df[1], df[2], color='r')
 
 df = pd.read_csv("/home/justin/xout_file.csv")
-plt.scatter(df['x'], df['y'], color='b', s=1)
+plt.plot(df['x'], df['y'], color='b')
 
 plt.xlabel('m')
 plt.ylabel('m')
 plt.legend(['Odometry', 'Simulation'])
-plt.title('Rantoul Long Test Simulation vs Odometry')
+plt.title('Simulation vs Dataset Odometry')
 plt.show()
 
 
 
 
-df = pd.read_csv("/home/justin/Downloads/CV3/extracted_data/odometry/0050_odom_data.txt", header=None)
-plt.plot()
-plt.show()
+#df = pd.read_csv("/home/justin/Downloads/CV3/extracted_data/odometry/0050_odom_data.txt", header=None)
+#plt.plot()
+#plt.show()

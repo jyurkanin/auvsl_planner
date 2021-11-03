@@ -343,10 +343,10 @@ void JackalDynamicSolver::init_model(int debug){
   Vector3d wheel_offset(base_size[0]*.4, (base_size[1] + tire_thickness)/2, .06);
   Vector3d tire_trans[4];
   
-  tire_trans[0] = Vector3d(wheel_offset[0], -wheel_offset[1], -wheel_offset[2]);  
-  tire_trans[1] = Vector3d(-wheel_offset[0], -wheel_offset[1], -wheel_offset[2]);
-  tire_trans[2] = Vector3d(wheel_offset[0], wheel_offset[1], -wheel_offset[2]);
-  tire_trans[3] = Vector3d(-wheel_offset[0], wheel_offset[1], -wheel_offset[2]);
+  tire_trans[0] = Vector3d(wheel_offset[0], -wheel_offset[1], -wheel_offset[2]);  //front left
+  tire_trans[1] = Vector3d(-wheel_offset[0], -wheel_offset[1], -wheel_offset[2]); //back left
+  tire_trans[2] = Vector3d(wheel_offset[0], wheel_offset[1], -wheel_offset[2]);   //front right
+  tire_trans[3] = Vector3d(-wheel_offset[0], wheel_offset[1], -wheel_offset[2]);  //back right
   
   floating_joint = Joint(JointTypeFloatingBase);
   floating_base = Body(base_mass, Vector3d(0,0,0), get_box_inertia(base_mass, base_size));
@@ -595,7 +595,7 @@ SpatialVector JackalDynamicSolver::tire_model_bekker(const Eigen::Matrix<float,J
   bekker_model.R = tire_radius;
   bekker_model.b = tire_thickness;
   
-  bekker_model.zr = features[0];
+  bekker_model.zr = std::min(features[0], tire_radius);
   bekker_model.slip_ratio = features[1];
   bekker_model.slip_angle = features[2];
   
@@ -711,12 +711,12 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
               features(1) = 0; //otherwise would be 1 - 0/0 = 1. Which would be wrong.
             }
             else{
-              features(1) = 1 - (tire_vels[i][0]/NUM_HACK);
+              features(1) = 1 - (tire_vels[i][0]/1.0e-3f);
             }
         }
         else{
             if(tire_vels[i][0] == 0){
-              features(1) = 1 - (NUM_HACK/(tire_radius*X[17+i]));
+              features(1) = 1 - (1.0e-3f/(tire_radius*X[17+i]));
             }
             else{
               features(1) = 1 - (tire_vels[i][0]/(tire_radius*X[17+i]));
@@ -725,11 +725,13 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         
         
         if(tire_vels[i][0] == 0){ //prevent dividing by zero
-          features(2) = atanf(tire_vels[i][1]/(NUM_HACK+fabs(tire_vels[i][0])));
+          features(2) = atan2f(tire_vels[i][1], 0); //this returns +- PI/2 depending on sign of tire_vels[i][1]
         }
         else{
           features(2) = atanf(tire_vels[i][1]/fabs(tire_vels[i][0]));
         }
+        
+        //features(2) = atan2f(tire_vels[i][1], fabs(tire_vels[i][0]));
         
         ts_data = terrain_map_->getSoilDataAt(cpt_X[i].r[0], cpt_X[i].r[1]);
         
@@ -752,10 +754,10 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         }
         
         if(tire_vels[i][1] > 0){
-          tire_wrench[4] = tire_wrench[4];
+          tire_wrench[4] = -fabs(tire_wrench[4]);
         }
         else{
-          tire_wrench[4] = tire_wrench[4];
+          tire_wrench[4] = fabs(tire_wrench[4]);
         }
         
         if(tire_vels[i][2] > 0){ //prevent bouncing. If tire is moving upwards, no Fz. 
@@ -1277,6 +1279,7 @@ void JackalDynamicSolver::stabilize_sinkage(float *X, float *Xt1){
   Xt1[5] = Xn[5];
   Xt1[10] = Xn[10];
   
+  ROS_INFO("sinkage stabilized");
 }
 
 
@@ -1299,6 +1302,39 @@ void JackalDynamicSolver::euler_method(float *X, float *Xt1){
   Xt1[5] = temp[2];
   Xt1[10]= temp[3];
 }
+
+//maintain unit quaternion with smarter integration
+void JackalDynamicSolver::euler_method_unit(float *X, float *Xt1){
+  int len = model->q_size + model->qdot_size;
+  float ts = stepsize;
+  float Xd[len];
+  
+  ode(X, Xd);
+  
+  for(int i = 0; i < len; i++){
+    Xt1[i] = X[i] + Xd[i]*ts; 
+  }
+
+  //prevent divide by zero.
+  if(X[14] == 0 && X[15] == 0 && X[16] == 0){
+    Xt1[3] = X[3];
+    Xt1[4] = X[4];
+    Xt1[5] = X[5];
+    Xt1[10] = X[10];
+    return;
+  }
+  
+  Quaternion quat(X[3], X[4], X[5], X[10]);
+  Vector3d omega_b(X[14], X[15], X[16]);
+  Vector3d omega_w = quat.toMatrix().transpose()*omega_b;
+  Quaternion quat_n = quat.timeStep(omega_w, ts);
+  
+  Xt1[3] = quat_n[0];
+  Xt1[4] = quat_n[1];
+  Xt1[5] = quat_n[2];
+  Xt1[10] = quat_n[3];
+}
+
 
 void JackalDynamicSolver::runge_kutta_method(float *X, float *Xt1){
   int len = model->q_size + model->qdot_size;

@@ -1,0 +1,5 @@
+<launch>
+  <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
+  <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>
+  <node name="test_simulink_node" pkg="auvsl_planner" type="test_simulink_node" output="screen" launch-prefix="gdb -ex run " required="false"/>
+</launch>

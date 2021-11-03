@@ -80,7 +80,7 @@ int main(){
     //nn = solver.tire_model_nn(features);
     
     for(int j = 0; j < 8; j++){
-      force_log << features[i] << ',';
+      force_log << features[j] << ',';
     }
     
     force_log << bk[3] << ',';

@@ -78,7 +78,8 @@ class JackalDynamicSolver{
   void solve(float *x_init, float *x_end, float sim_time);
 
   void simulateRealTrajectory(const char *odom_fn, const char *joint_state_fn, float *X_final);
-  
+
+  void euler_method_unit(float *X, float *Xt1);
   void euler_method(float *X, float *Xt1);
   void runge_kutta_method(float *X, float *Xt1);
   float get_timestep();
