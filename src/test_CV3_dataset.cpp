@@ -30,6 +30,8 @@
 
 
 
+#define SIM_LEN 6.0f
+
 
 
 
@@ -62,7 +64,8 @@ typedef struct{
 std::vector<ODOM_LINE> odom_vec;
 std::vector<GT_LINE> gt_vec;
 
-void readOdomFile(std::ifstream &odom_file, ODOM_LINE &odom_line){
+
+int readOdomFile(std::ifstream &odom_file, ODOM_LINE &odom_line){
   char comma;
   int cmd_mode;    //ignore
   double dist_left;  //ignore
@@ -74,15 +77,21 @@ void readOdomFile(std::ifstream &odom_file, ODOM_LINE &odom_line){
   odom_file >> odom_line.vr >> comma; //velocity right
   odom_file >> dist_right >> comma;
   odom_file >> odom_line.ts; //time (s)
+  return odom_file.peek() != EOF;
 }
 
-void readGTFile(std::ifstream &gt_file, GT_LINE &gt_line){
+int readGTFile(std::ifstream &gt_file, GT_LINE &gt_line){
   char comma;
   gt_file >> gt_line.ts >> comma;
   gt_file >> gt_line.x >> comma;
   gt_file >> gt_line.y >> comma;
   gt_file >> gt_line.yaw;
+  return gt_file.peek() != EOF;
 }
+
+
+
+
 
 void load_files(const char *odom_fn, const char *gt_fn){
   std::ifstream odom_file(odom_fn);
@@ -94,13 +103,11 @@ void load_files(const char *odom_fn, const char *gt_fn){
   odom_vec.clear();
   gt_vec.clear();
   
-  while(odom_file.peek() != EOF){
-    readOdomFile(odom_file, odom_line);
+  while(readOdomFile(odom_file, odom_line)){
     odom_vec.push_back(odom_line);
   }
   
-  while(gt_file.peek() != EOF){
-    readGTFile(gt_file, gt_line);
+  while(readGTFile(gt_file, gt_line)){
     gt_vec.push_back(gt_line);
   }
   
@@ -116,8 +123,11 @@ void getDisplacement(float &total_len, float &total_ang){
   
   total_len = 0;
   total_ang = 0;
+
+  double start_time = gt_vec[0].ts;
+  ROS_INFO("Total Duration of File %f", gt_vec[gt_vec.size()-1].ts - start_time);
   
-  for(int i = 0; i < gt_vec.size()-1; i++){
+  for(int i = 0; (gt_vec[i].ts - start_time) < SIM_LEN; i++){
     dx = gt_vec[i+1].x - gt_vec[i].x;
     dy = gt_vec[i+1].y - gt_vec[i].y;
     dyaw = gt_vec[i+1].yaw - gt_vec[i].yaw;
@@ -143,11 +153,11 @@ void simulatePeriod(double start_time, float *X_start, float *X_end){
   JackalDynamicSolver solver;
   solver.stabilize_sinkage(Xn, Xn);
   
-  for(unsigned idx = 0; idx < odom_vec.size()-1; idx++){
-    Xn[17] = odom_vec[idx].vr;
-    Xn[18] = odom_vec[idx].vr;
-    Xn[19] = odom_vec[idx].vl;
-    Xn[20] = odom_vec[idx].vl;
+  for(unsigned idx = 0; (odom_vec[idx].ts - start_time) < SIM_LEN; idx++){
+    Xn[17] = std::max(1e-3d, odom_vec[idx].vr);
+    Xn[18] = std::max(1e-3d, odom_vec[idx].vr);
+    Xn[19] = std::max(1e-3d, odom_vec[idx].vl);
+    Xn[20] = std::max(1e-3d, odom_vec[idx].vl);
     
     dur = odom_vec[idx+1].ts - odom_vec[idx].ts;
     solver.solve(Xn, Xn1, dur);
@@ -196,13 +206,13 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
   Xn[4] = initial_quat.getY();
   Xn[5] = initial_quat.getZ();
   Xn[10] = initial_quat.getW();
-      
-  //ROS_INFO("Velocity:   %f %f %f   %f %f %f", Xn[11], Xn[12], Xn[13],   Xn[14], Xn[15], Xn[16]);
+  
   getDisplacement(total_len, total_ang);
   simulatePeriod(time, Xn, Xn1);
-      
-  unsigned j = gt_vec.size()-1;
-      
+  
+  unsigned j;
+  for(j = 0; (gt_vec[j].ts - time) < SIM_LEN; j++);
+  
   dx = Xn1[0] - gt_vec[j].x;
   dy = Xn1[1] - gt_vec[j].y;
   
@@ -211,18 +221,16 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
       
-  ang_err = yaw - gt_vec[j].yaw;
+  ang_err = fabs(yaw - gt_vec[j].yaw);
   ang_err = ang_err > M_PI ?  ang_err - (2*M_PI) : ang_err;
-
-  ROS_INFO("Final yaw %f   actual final yaw %f", yaw, gt_vec[j].yaw);
-  ROS_INFO("Translation Error %f / %f      Heading Error %f / %f\n", sqrt(dx*dx + dy*dy), total_len, ang_err, total_ang);
+  
+  ROS_INFO("Translation Error %f / %f      Heading Error %f / %f", sqrt(dx*dx + dy*dy), total_len, ang_err, total_ang);
   
   rel_lin_err = sqrtf((dx*dx + dy*dy)) / total_len;
   rel_ang_err = ang_err / total_ang;
   
-  //if(fabs(dyaw_gt) > .01){
-  //}
-    
+  ROS_INFO("rel_lin_err %f        rel_ang_err %f\n", rel_lin_err, rel_ang_err);
+  
   return;
 }
 
@@ -255,7 +263,7 @@ int main(int argc, char **argv){
   
   char odom_fn[100];
   char gt_fn[100];
-
+  
   int count = 0;
   
   JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
@@ -263,7 +271,7 @@ int main(int argc, char **argv){
   
   simple_terrain_map.test_bekker_data_ = lookup_soil_table(4);
   //144
-  for(int i = 100; i <= 144; i++){
+  for(int i = 144; i <= 144; i++){
     memset(odom_fn, 0, 100);
     sprintf(odom_fn, "/home/justin/Downloads/CV3/extracted_data/odometry/%04d_odom_data.txt", i);
     ROS_INFO("Reading Odom File %s", odom_fn);

@@ -29,7 +29,7 @@
 #include <fenv.h>
 
 
-
+#define SIM_LEN 6
 
 
 
@@ -104,8 +104,8 @@ void load_files(const char *odom_fn, const char *gt_fn){
     gt_vec.push_back(gt_line);
   }
   
-  ROS_INFO("gt vec size %lu", gt_vec.size());
-  ROS_INFO("odom vec size %lu", odom_vec.size());
+  //ROS_INFO("gt vec size %lu", gt_vec.size());
+  //ROS_INFO("odom vec size %lu", odom_vec.size());
 
   odom_file.close();
   gt_file.close();
@@ -116,8 +116,9 @@ void getDisplacement(float &total_len, float &total_ang){
   
   total_len = 0;
   total_ang = 0;
-  
-  for(int i = 0; i < gt_vec.size()-1; i++){
+
+  double stop_time = SIM_LEN + odom_vec[0].ts;
+  for(int i = 0; gt_vec[i].ts < stop_time; i++){
     dx = gt_vec[i+1].x - gt_vec[i].x;
     dy = gt_vec[i+1].y - gt_vec[i].y;
     dyaw = gt_vec[i+1].yaw - gt_vec[i].yaw;
@@ -143,11 +144,12 @@ void simulatePeriod(double start_time, float *X_start, float *X_end){
   JackalDynamicSolver solver;
   solver.stabilize_sinkage(Xn, Xn);
   
-  for(unsigned idx = 0; idx < odom_vec.size()-1; idx++){
-    Xn[17] = odom_vec[idx].vr;
-    Xn[18] = odom_vec[idx].vr;
-    Xn[19] = odom_vec[idx].vl;
-    Xn[20] = odom_vec[idx].vl;
+  double stop_time = SIM_LEN + odom_vec[0].ts;
+  for(unsigned idx = 0; odom_vec[idx].ts < stop_time; idx++){
+    Xn[17] = std::max(1e-4d, odom_vec[idx].vr);
+    Xn[18] = std::max(1e-4d, odom_vec[idx].vr);
+    Xn[19] = std::max(1e-4d, odom_vec[idx].vl);
+    Xn[20] = std::max(1e-4d, odom_vec[idx].vl);
     
     dur = odom_vec[idx+1].ts - odom_vec[idx].ts;
     solver.solve(Xn, Xn1, dur);
@@ -200,8 +202,10 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
   //ROS_INFO("Velocity:   %f %f %f   %f %f %f", Xn[11], Xn[12], Xn[13],   Xn[14], Xn[15], Xn[16]);
   getDisplacement(total_len, total_ang);
   simulatePeriod(time, Xn, Xn1);
-      
-  unsigned j = gt_vec.size()-1;
+
+  double stop_time = SIM_LEN + odom_vec[0].ts;
+  int j;
+  for(j = 0; gt_vec[j].ts < stop_time; j++){}
       
   dx = Xn1[0] - gt_vec[j].x;
   dy = Xn1[1] - gt_vec[j].y;
@@ -214,8 +218,8 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
   ang_err = yaw - gt_vec[j].yaw;
   ang_err = ang_err > M_PI ?  ang_err - (2*M_PI) : ang_err;
 
-  ROS_INFO("Final yaw %f   actual final yaw %f", yaw, gt_vec[j].yaw);
-  ROS_INFO("Translation Error %f / %f      Heading Error %f / %f\n", sqrt(dx*dx + dy*dy), total_len, ang_err, total_ang);
+  //ROS_INFO("Final yaw %f   actual final yaw %f", yaw, gt_vec[j].yaw);
+  //ROS_INFO("Translation Error %f / %f      Heading Error %f / %f\n", sqrt(dx*dx + dy*dy), total_len, ang_err, total_ang);
   
   rel_lin_err = sqrtf((dx*dx + dy*dy)) / total_len;
   rel_ang_err = ang_err / total_ang;
@@ -261,23 +265,28 @@ int main(int argc, char **argv){
   JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
   JackalDynamicSolver::init_model(2);
   
-  simple_terrain_map.test_bekker_data_ = lookup_soil_table(4);
+  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
+  //simple_terrain_map.test_bekker_data_.n1 = 0.2f;
+  
   //144
-  for(float n0 = .68; n0 < .75; n0+=.01f){
-    simple_terrain_map.test_bekker_data_.n0 = n0;
-    ROS_INFO("n0 %f", n0);
+  //for(float kphi = 1000; kphi < 2000; kphi += 100.0f){
+  //for(float n0 = .65; n0 < .75; n0 += .01f){
+    //simple_terrain_map.test_bekker_data_.kphi = kphi;
+    //simple_terrain_map.test_bekker_data_.n0 = n0;
+    
+    //ROS_INFO("n0 %f", n0);
     
     total_lin_err = 0;
     total_ang_err = 0;
     count = 0;
-    for(int i = 1; i <= 5; i++){
+    for(int i = 7; i <= 7; i++){
       memset(odom_fn, 0, 100);
       sprintf(odom_fn, "/home/justin/Downloads/Train3/extracted_data/odometry/%04d_odom_data.txt", i);
-      ROS_INFO("Reading Odom File %s", odom_fn);
+      //ROS_INFO("Reading Odom File %s", odom_fn);
       
       memset(gt_fn, 0, 100);
       sprintf(gt_fn, "/home/justin/Downloads/Train3/localization_ground_truth/%04d_Tr_grass_GT.txt", i);
-      ROS_INFO("Readin GT File %s", gt_fn);
+      //ROS_INFO("Readin GT File %s", gt_fn);
       
       load_files(odom_fn, gt_fn);
       
@@ -290,7 +299,7 @@ int main(int argc, char **argv){
     }
     
     ROS_INFO("RMRSE lin: %f     ang: %f", sqrtf(total_lin_err/(float)count), sqrtf(total_ang_err/(float)count));
-  }
+    //}
   
   
   JackalDynamicSolver::del_model();

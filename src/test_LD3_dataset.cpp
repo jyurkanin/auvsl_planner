@@ -25,7 +25,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 
 #include <string>
-
+#include <fenv.h>
 
 
 
@@ -71,7 +71,7 @@ std::vector<ODOM_LINE> odom_vec;
 std::vector<GT_LINE> gt_vec;
 std::vector<IMU_LINE> imu_vec;
 
-void readOdomFile(std::ifstream &odom_file, ODOM_LINE &odom_line){
+int readOdomFile(std::ifstream &odom_file, ODOM_LINE &odom_line){
   char comma;
   int cmd_mode;    //ignore
   double dist_left;  //ignore
@@ -83,17 +83,19 @@ void readOdomFile(std::ifstream &odom_file, ODOM_LINE &odom_line){
   odom_file >> odom_line.vr >> comma; //velocity right
   odom_file >> dist_right >> comma;
   odom_file >> odom_line.ts; //time (s)
+  return odom_file.peek() != EOF;
 }
 
-void readGTFile(std::ifstream &gt_file, GT_LINE &gt_line){
+int readGTFile(std::ifstream &gt_file, GT_LINE &gt_line){
   char comma;
   gt_file >> gt_line.ts >> comma;
   gt_file >> gt_line.x >> comma;
   gt_file >> gt_line.y >> comma;
   gt_file >> gt_line.yaw;
+  return gt_file.peek() != EOF;
 }
 
-void readIMUFile(std::ifstream &imu_file, IMU_LINE &imu_line){
+int readIMUFile(std::ifstream &imu_file, IMU_LINE &imu_line){
   char comma;
   double ignore;
   imu_file >> ignore >> comma; //ax
@@ -110,6 +112,8 @@ void readIMUFile(std::ifstream &imu_file, IMU_LINE &imu_line){
   imu_file >> ignore >> comma; //qw
 
   imu_file >> imu_line.ts;
+  
+  return imu_file.peek() != EOF;
 }
 
 void load_files(const char *odom_fn, const char *imu_fn, const char *gt_fn){
@@ -127,20 +131,18 @@ void load_files(const char *odom_fn, const char *imu_fn, const char *gt_fn){
   
   //readGTFile(gt_file, gt_line);
   
-  while(odom_file.peek() != EOF){
-    readOdomFile(odom_file, odom_line);
+  while(readOdomFile(odom_file, odom_line)){
     odom_vec.push_back(odom_line);
   }
   
-  while(gt_file.peek() != EOF){
-    readGTFile(gt_file, gt_line);
+  while(readGTFile(gt_file, gt_line)){
     gt_vec.push_back(gt_line);
   }
-
-  while(imu_file.peek() != EOF){
-    readIMUFile(imu_file, imu_line);
+  
+  while(readIMUFile(imu_file, imu_line)){
     imu_vec.push_back(imu_line);
   }
+  
   
   float *vx_list = new float[gt_vec.size()];
   float *vy_list = new float[gt_vec.size()];
@@ -150,15 +152,11 @@ void load_files(const char *odom_fn, const char *imu_fn, const char *gt_fn){
     dt = gt_vec[i+1].ts - gt_vec[i].ts;
     vx_list[i] = (gt_vec[i+1].x - gt_vec[i].x)/dt;
     vy_list[i] = (gt_vec[i+1].y - gt_vec[i].y)/dt;
-    // gt_vec[i].vx = (gt_vec[i+1].x - gt_vec[i].x)/dt;
-    // gt_vec[i].vy = (gt_vec[i+1].y - gt_vec[i].y)/dt;
   }
   
   vx_list[gt_vec.size()-1] = vx_list[gt_vec.size()-2];
   vy_list[gt_vec.size()-1] = vy_list[gt_vec.size()-2];
-  // gt_vec[gt_vec.size()-1].vx = gt_vec[gt_vec.size()-2].vx;
-  // gt_vec[gt_vec.size()-1].vy = gt_vec[gt_vec.size()-2].vy;
-
+  
   
   //moving average
   float temp_x;
@@ -212,38 +210,35 @@ void simulatePeriod(double start_time, float *X_start, float *X_end){
   float Xn[21];
   float Xn1[21];
   for(int i = 0; i < 11; i++){
-    Xn[i] = X_start[i];
+    Xn[i] = X_start[i]; //assign position and orientation
   }
   for(int i = 11; i < 21; i++){
-    Xn[i] = 0;
+    Xn[i] = 0; //zero velocities
   }
   
   JackalDynamicSolver solver;
   solver.stabilize_sinkage(Xn, Xn);
 
   for(int i = 11; i < 21; i++){
-    Xn[i] = X_start[i];
+    Xn[i] = X_start[i]; //assign velocities
   }
+
   
   for(unsigned idx = start_idx; (odom_vec[idx].ts - start_time) < 6; idx++){
-    Xn[17] = odom_vec[idx].vr;
-    Xn[18] = odom_vec[idx].vr;
-    Xn[19] = odom_vec[idx].vl;
-    Xn[20] = odom_vec[idx].vl;
+    Xn[17] = std::max(1e-4d, odom_vec[idx].vr);
+    Xn[18] = std::max(1e-4d, odom_vec[idx].vr);
+    Xn[19] = std::max(1e-4d, odom_vec[idx].vl);
+    Xn[20] = std::max(1e-4d, odom_vec[idx].vl);
     
     dur = odom_vec[idx+1].ts - odom_vec[idx].ts;
     solver.solve(Xn, Xn1, dur);
+
     
     for(int i = 0; i < 21; i++){
       Xn[i] = Xn1[i];
     }
     
-/*
-    if(!simple_terrain_map.isStateValid(Xn[0], Xn[1])){
-      ROS_INFO("State is equal to LIBERAL BULLSHIT");
-      break;
-    }
-*/
+    
   }
   
   for(int i = 0; i < 21; i++){
@@ -251,6 +246,26 @@ void simulatePeriod(double start_time, float *X_start, float *X_end){
   }
 }
 
+
+void getDisplacement(unsigned start_i, unsigned end_i, float &lin_displacement, float &ang_displacement){
+  lin_displacement = 0;
+  ang_displacement = 0;
+  
+  float dx;
+  float dy;
+  float dyaw;
+  
+  for(unsigned i = start_i; (i < end_i) && (i < (gt_vec.size()-1)); i++){
+    dx = gt_vec[i].x - gt_vec[i+1].x;
+    dy = gt_vec[i].y - gt_vec[i+1].y;
+    dyaw = gt_vec[i].yaw - gt_vec[i+1].yaw;
+    
+    lin_displacement += sqrtf((dx*dx) + (dy*dy));
+    ang_displacement += fabs(dyaw);
+  }
+  
+  
+}
 
 
 //odometry filename, ground truth filename
@@ -264,7 +279,7 @@ void simulateDataset(){
   tf::Quaternion initial_quat;
   tf::Quaternion temp_quat;
   
-  float dx, dy, dx_gt, dy_gt, dyaw_gt;
+  float x_err, y_err, yaw_err, lin_displacement, ang_displacement;
   
   double dt;
   double trans_sum = 0;
@@ -313,37 +328,37 @@ void simulateDataset(){
       Xn[12] = gt_vec[i].vy;
       Xn[13] = 0;
       
-      //ROS_INFO("Velocity:   %f %f %f   %f %f %f", Xn[11], Xn[12], Xn[13],   Xn[14], Xn[15], Xn[16]);
       simulatePeriod(time, Xn, Xn1);
       
       unsigned j;
       for(j = i; (gt_vec[j].ts - time) < 6.0f && j < gt_vec.size(); j++){}
       
-      dx = Xn1[0] - gt_vec[j].x;
-      dy = Xn1[1] - gt_vec[j].y;
+      getDisplacement(i, j, lin_displacement, ang_displacement);
       
-      dx_gt = gt_vec[j].x - gt_vec[i].x;
-      dy_gt = gt_vec[j].y - gt_vec[i].y;
-      
-      dyaw_gt = gt_vec[j].yaw - gt_vec[i].yaw;
+      x_err = Xn1[0] - gt_vec[j].x;
+      y_err = Xn1[1] - gt_vec[j].y;
       
       temp_quat = tf::Quaternion(Xn1[3],Xn1[4],Xn1[5],Xn1[10]);
       tf::Matrix3x3 m(temp_quat);
       double roll, pitch, yaw;
       m.getRPY(roll, pitch, yaw);
       
-      ang_err = yaw - gt_vec[j].yaw;
-      ang_err = ang_err > M_PI ?  ang_err - (2*M_PI) : ang_err;
+      yaw_err = fabs(yaw - gt_vec[j].yaw);
+      yaw_err = yaw_err > M_PI ?  yaw_err - (2*M_PI) : yaw_err;
       
-      ROS_INFO("ang_err   %f   dyaw_gt   %f", ang_err, dyaw_gt);
-      ROS_INFO("Translation Error %f      Heading Error %f\n", sqrt(dx*dx + dy*dy), (ang_err*ang_err) / (dyaw_gt*dyaw_gt));
-
+      ROS_INFO("Error lin %f    yaw %f", (x_err*x_err + y_err*y_err), yaw_err);
+      ROS_INFO("Displacement lin %f    yaw %f", lin_displacement, ang_displacement);
+      
       num_trials_lin++;
-      trans_sum += (dx*dx + dy*dy) / (dx_gt*dx_gt + dy_gt*dy_gt);
-      if(fabs(dyaw_gt) > .01){
-        num_trials_ang++;
-        ang_sum += (ang_err*ang_err) / (dyaw_gt*dyaw_gt);
-      }
+      num_trials_ang++;
+
+      float rel_lin_err = sqrtf(x_err*x_err + y_err*y_err) / lin_displacement;
+      float rel_ang_err = yaw_err / ang_displacement;
+      
+      ROS_INFO("Relative lin err %f       ang err %f", rel_lin_err, rel_ang_err);
+      
+      trans_sum += rel_lin_err*rel_lin_err;
+      ang_sum += rel_ang_err*rel_ang_err;
     }
   }
   
@@ -436,6 +451,8 @@ float search_bekker(){
 
 
 int main(int argc, char **argv){
+  feenableexcept(FE_INVALID | FE_OVERFLOW);
+  
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;
   
@@ -460,8 +477,6 @@ int main(int argc, char **argv){
   JackalDynamicSolver::init_model(2);
   
   simple_terrain_map.test_bekker_data_ = lookup_soil_table(4);
-  
-  
   
   //for(float n0 = .7; n0 < .8; n0 += .01f){
   //  for(float phi = .38; phi < .45; phi+=.01){

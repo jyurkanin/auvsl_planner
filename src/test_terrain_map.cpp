@@ -282,12 +282,14 @@ int main(int argc, char **argv){
   
   JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
   JackalDynamicSolver::init_model(2);
+  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
+  
   
   JackalDynamicSolver solver;
   //for(int i = 0; i < 10; i++){
   //solver.stabilize_sinkage(X_start, X_start);
   //solver.solve(X_start, X_final, 10.0f);
-  solver.simulateRealTrajectory("/home/justin/code/AUVSL_ROS/bags/rantoul2/rantoul_long_odom_50hz.csv", "/home/justin/code/AUVSL_ROS/bags/rantoul2/rantoul_long_joint_states_50hz.csv", X_final);
+  solver.simulateRealTrajectory("/home/justin/code/AUVSL_ROS/bags/rantoul3/test_2_default_ekf_50hz.csv", "/home/justin/code/AUVSL_ROS/bags/rantoul3/test_2_joints_50hz.csv", X_final);
   //}
   ROS_INFO("Final Position %f %f", X_final[0], X_final[1]);
   

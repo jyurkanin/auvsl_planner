@@ -313,7 +313,8 @@ void JackalDynamicSolver::init_model(int debug){
   }
   
   feature_log.open("/home/justin/features.csv", std::ofstream::out);
-  feature_log << "x,y,z,zx,zy,zz,vx,vy,vz\n";
+  //feature_log << "x,y,z,zx,zy,zz,vx,vy,vz\n";
+  feature_log << "x,y,nx,ny,nz,fx,fy,fz\n"; //linear velocity of tire frame.
   
   Vector3d initial_pos(0,0,0);
   
@@ -342,6 +343,7 @@ void JackalDynamicSolver::init_model(int debug){
   base_size = Vector3d(.428, .323, .180);
   Vector3d wheel_offset(base_size[0]*.4, (base_size[1] + tire_thickness)/2, .06);
   Vector3d tire_trans[4];
+
   
   tire_trans[0] = Vector3d(wheel_offset[0], -wheel_offset[1], -wheel_offset[2]);  //front left
   tire_trans[1] = Vector3d(-wheel_offset[0], -wheel_offset[1], -wheel_offset[2]); //back left
@@ -362,7 +364,7 @@ void JackalDynamicSolver::init_model(int debug){
   
   //float ts = .001;
   //solver = new Solver(model, ts, debug);
-  load_nn_gc_model_new();
+  load_nn_gc_model();
 
   if(log_file.bad()){
     ROS_INFO("Log FILE BAD BRO 2");
@@ -394,7 +396,7 @@ void JackalDynamicSolver::del_model(){
     log_file.close();
   }
 
-  //feature_log.close();
+  feature_log.close();
 }
 
 
@@ -576,10 +578,13 @@ void JackalDynamicSolver::get_tire_vels(float *X, Vector3d *tire_vels, SpatialTr
   
   for(int i = 0; i < 4; i++){
     //cpt_X is transform from world to cpt frame.
-    SpatialVector sp_vel_cp = cpt_X[i].apply(sp_vel_world); 
+    SpatialVector sp_vel_cp = cpt_X[i].apply(sp_vel_world);
     Vector3d lin_vel(sp_vel_cp[3], sp_vel_cp[4], sp_vel_cp[5]);
     tire_vels[i] = lin_vel;
   }
+
+  //Vector3d cpt_lin_world = quat.toMatrix().transpose()*tire_vels[0]; //tire_vel but rotated into the world frame so plotting makes sense.
+  //feature_log << r[0] << ',' << r[1] << ',' << X[11] << ',' << X[12] << ',' << cpt_lin_world[0] << ',' << cpt_lin_world[1] << '\n';
 }
 
 
@@ -698,7 +703,7 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
     
     for(int i = 0; i < 4; i++){    
         features[0] = sinkages[i];
-        
+      
         if(sinkages[i] <= 0){ //Tire is not in contact with the ground.
             //tire_X is the transform from world to tire.
             //the following 0-wrench is in the tire frame.
@@ -723,14 +728,15 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
             }
         }
         
+        features(1) = std::min(1.0f, std::max(-1.0f, features(1)));
         
         if(tire_vels[i][0] == 0){ //prevent dividing by zero
-          features(2) = atan2f(tire_vels[i][1], 0); //this returns +- PI/2 depending on sign of tire_vels[i][1]
+          features(2) = atanf(tire_vels[i][1]/1.0e-3f); //this returns +- PI/2 depending on sign of tire_vels[i][1]
         }
         else{
           features(2) = atanf(tire_vels[i][1]/fabs(tire_vels[i][0]));
         }
-        
+       
         //features(2) = atan2f(tire_vels[i][1], fabs(tire_vels[i][0]));
         
         ts_data = terrain_map_->getSoilDataAt(cpt_X[i].r[0], cpt_X[i].r[1]);
@@ -742,7 +748,7 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         features(7) = ts_data.phi;
         
         tire_wrench = tire_model_bekker(features);
-
+        
         //Sign corrections.
         if(X[17+i] > 0){
           tire_wrench[3] = tire_wrench[3]*1;
@@ -752,8 +758,15 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
           tire_wrench[3] = tire_wrench[3]*-1;
           tire_wrench[1] = tire_wrench[1]*-1;
         }
+
+        // if(i == 0){
+        // if((tire_wrench[4] > 0 && tire_vels[i][1] > 0) ||
+        //     (tire_wrench[4] < 0 && tire_vels[i][1] < 0)){
+        //   ROS_INFO("Big ol stupid shit. %f    %f    %f     %f", tire_wrench[4], features(2), tire_vels[0][0], tire_vels[0][1]);  
+        // }
+        // }
         
-        if(tire_vels[i][1] > 0){
+        if(tire_vels[i][1] > 0){          
           tire_wrench[4] = -fabs(tire_wrench[4]);
         }
         else{
@@ -768,9 +781,29 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         }
 
         
+        //tire_wrench[4] = .4*tire_wrench[4];
+        
+        
         //tire_X is the transform from world to tire.
         //the following 0-wrench is in the tire frame.
         f_ext[3+i] = tire_X[i].applyTranspose(tire_wrench);
+
+        
+        if(i == 0){
+          feature_log << X[0] << ',';
+          feature_log << X[1] << ',';
+          feature_log << f_ext[3][0] << ',';
+          feature_log << f_ext[3][1] << ',';
+          feature_log << f_ext[3][2] << ',';
+          
+          Vector3d force(tire_wrench[3], tire_wrench[4], tire_wrench[5]);
+          force = quat.toMatrix().transpose()*force;
+          
+          feature_log << force[0] << ',';
+          feature_log << force[1] << ',';
+          feature_log << force[2] << '\n';
+
+        }
     }
 }
 
@@ -893,7 +926,7 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
   std::ifstream odom_file(odom_fn);
   const int num_odom_cols = 90;
   std::string line;
-  std::getline(odom_file, line);
+  std::getline(odom_file, line); //skip first line
   
   float Xn[21];
   float Xn1[21];
@@ -901,7 +934,7 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
     Xn[i] = 0;
   }
   
-  float ignoreme;
+  double ignoreme;
   
   char comma;
   
@@ -963,12 +996,12 @@ void JackalDynamicSolver::simulateRealTrajectory(const char * odom_fn, const cha
     joint_file >> back_left_vel >> comma;
     joint_file >> back_right_vel;
 
-    ROS_INFO("joint file, vel: %f %f %f %f", front_left_vel, front_right_vel, back_left_vel, back_right_vel);
+    //ROS_INFO("joint file, vel: %f %f %f %f", front_left_vel, front_right_vel, back_left_vel, back_right_vel);
     
-    Xn[17] = front_right_vel;
-    Xn[18] = back_right_vel;
-    Xn[19] = front_left_vel;
-    Xn[20] = back_left_vel;
+    Xn[17] = front_right_vel + 1e-5;
+    Xn[18] = back_right_vel + 1e-5;
+    Xn[19] = front_left_vel + 1e-5;
+    Xn[20] = back_left_vel + 1e-5;
     
     
     solve(Xn, Xn1, .02f); //, (front_left_vel + back_left_vel)*.5, (front_right_vel + back_right_vel)*.5, .02f);
@@ -1040,7 +1073,7 @@ void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
   
   //ROS_INFO("%f   %f   %f   %f", tau[6],tau[7],tau[8],tau[9]);
   
-  //euler_method(X_now, X_next);
+  //euler_method_unit(X_now, X_next);
   runge_kutta_method(X_now, X_next);
 }
 
@@ -1067,7 +1100,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float sim_time){
     }
         
     runge_kutta_method(Xout, Xout_next);
-    //euler_method(Xout, Xout_next);
+    //euler_method_unit(Xout, Xout_next);
         
     for(int i = 0; i < 17; i++){ //dont assign tire velocities, hold them constant
       Xout[i] = Xout_next[i];
@@ -1166,16 +1199,11 @@ void JackalDynamicSolver::ode(float *X, float *Xd){
   
   for(int i = 0; i < model->q_size; i++){
     Q[i] = X[i];
-    //ROS_INFO("Q[%d]  %f", i, Q[i]);
   }
   for(int i = 0; i < model->qdot_size; i++){
-    //ROS_INFO("QDot[%d]  %f", i, QDot[i]);
     QDot[i] = X[i+model->q_size];
   }
   
-  for(int i = 0; i < model->mBodies.size(); i++){
-    //ROS_INFO("<%f %f %f   %f %f %f>", f_ext[i][0], f_ext[i][1], f_ext[i][2],  f_ext[i][3], f_ext[i][4], f_ext[i][5]);
-  }
   
   get_tire_f_ext(X);
   
@@ -1203,7 +1231,12 @@ void JackalDynamicSolver::ode(float *X, float *Xd){
   
   for(int i = 0; i < model->qdot_size; i++){
     Xd[i+model->q_size] = QDDot[i];
-  }  
+  }
+  
+  Xd[17] = 0;
+  Xd[18] = 0;
+  Xd[19] = 0;
+  Xd[20] = 0;
 }
 
 //achieve a vehicle orientation that is steady state
@@ -1279,7 +1312,6 @@ void JackalDynamicSolver::stabilize_sinkage(float *X, float *Xt1){
   Xt1[5] = Xn[5];
   Xt1[10] = Xn[10];
   
-  ROS_INFO("sinkage stabilized");
 }
 
 

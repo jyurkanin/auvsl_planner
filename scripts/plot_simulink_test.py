@@ -16,7 +16,7 @@ plt.plot(dfe['x'], dfe['y'], color='g')
 
 plt.xlabel('m')
 plt.ylabel('m')
-plt.legend(['Matlab', 'C++ qd=.5qw', 'C++ qn=axis-angle rotation'])
+plt.legend(['Matlab', 'C++ rk4 qd=.5qw', 'C++ qn=axis-angle rotation'])
 plt.title('Comparison of Quaternion Integration Methods \nEffect on simulated trajectory')
 plt.show()
 

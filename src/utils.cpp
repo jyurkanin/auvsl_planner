@@ -1,6 +1,6 @@
 #include "utils.h"
 #include <stdio.h>
-
+#include <ros/ros.h>
 
 
 
@@ -28,7 +28,7 @@ Matrix3d get_tire_inertia(float mass, float radius, float height){
   Matrix3d temp;
   float ibig = mass*radius*radius/2;
   float ismall = mass*((3*radius*radius) + (height*height))/12.0;
-
+  
   temp << ismall,0,0,   0,ibig,0,   0,0,ismall;
   return temp;
 }

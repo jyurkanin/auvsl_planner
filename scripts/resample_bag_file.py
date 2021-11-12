@@ -6,7 +6,7 @@ import numpy as np
 start_idx = 1
 
 
-df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul/bags/rantoul_2_joint_states.csv")
+df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul3/test_2_joints.csv")
 df = df[["field.velocity0", "field.velocity1", "field.velocity2", "field.velocity3"]]
 
 
@@ -22,14 +22,14 @@ print("first non zero idx", idx)
 start_idx = idx
 
 out_df = df.iloc[start_idx::1]
-out_df.to_csv("/home/justin/code/AUVSL_ROS/bags/rantoul/bags/rantoul_2_joint_states_50hz.csv");
+out_df.to_csv("/home/justin/code/AUVSL_ROS/bags/rantoul3/test_2_joints_50hz.csv");
 
 
 
-df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul/bags/rantoul_odom_2.csv")
+df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul3/test_2_default_ekf.csv")
 df = df[["field.pose.pose.position.x", "field.pose.pose.position.y", "field.pose.pose.position.z", "field.pose.pose.orientation.x", "field.pose.pose.orientation.y", "field.pose.pose.orientation.z", "field.pose.pose.orientation.w"]]
 out_df = df.iloc[start_idx::1]
-out_df.to_csv("/home/justin/code/AUVSL_ROS/bags/rantoul/bags/rantoul_odom_2_50hz.csv")
+out_df.to_csv("/home/justin/code/AUVSL_ROS/bags/rantoul3/test_2_default_ekf_50hz.csv")
 
 #import pdb
 #pdb.set_trace()

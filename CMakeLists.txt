@@ -441,6 +441,24 @@ set_target_properties(test_CV3_dataset_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 
+add_executable(test_train3_dataset_node src/test_train3_dataset.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(test_train3_dataset_node ${OMPL_LIBRARIES})
+target_link_libraries(test_train3_dataset_node ${PCL_LIBRARIES})
+target_link_libraries(test_train3_dataset_node ${catkin_LIBRARIES})
+target_link_libraries(test_train3_dataset_node rbdl)
+set_target_properties(test_train3_dataset_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+
+
 add_executable(test_tire_model_node src/test_tire_model.cpp
   src/GlobalParams.cpp
   src/PlannerVisualizer.cpp
@@ -481,3 +499,19 @@ target_link_libraries(gen_tire_model_data_node ${catkin_LIBRARIES})
 target_link_libraries(gen_tire_model_data_node rbdl)
 target_link_libraries(gen_tire_model_data_node X11)
 set_target_properties(gen_tire_model_data_node PROPERTIES COMPILE_FLAGS "-g")
+
+
+
+
+add_executable(test_simulink_node src/test_simulink.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(test_simulink_node ${OMPL_LIBRARIES})
+target_link_libraries(test_simulink_node ${PCL_LIBRARIES})
+target_link_libraries(test_simulink_node ${catkin_LIBRARIES})
+target_link_libraries(test_simulink_node rbdl)
+set_target_properties(test_simulink_node PROPERTIES COMPILE_FLAGS "-O3 -g")

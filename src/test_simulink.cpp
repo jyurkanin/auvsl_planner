@@ -102,16 +102,26 @@ void simulatePeriod(){
   double roll, pitch, yaw, yaw_next;
   
   JackalDynamicSolver solver;
-  solver.stabilize_sinkage(Xn, Xn);
+  //solver.stabilize_sinkage(Xn, Xn);
 
+  //solver.solve(Xn, Xn1, 1.0f);
+  for(int i = 0; i < 21; i++){
+    //Xn[i] = Xn1[i];
+  }
+  
   for(int i = 0; i < xout_vec.size(); i++){
     Xn[17] = xout_vec[i].qd1;
     Xn[18] = xout_vec[i].qd2;
     Xn[19] = xout_vec[i].qd3;
     Xn[20] = xout_vec[i].qd4;
     
+    //    if((fabs(Xn[17]) + fabs(Xn[18]) + fabs(Xn[19]) + fabs(Xn[20])) < 1e-3f){
+    //continue;
+    //}
+    
     solver.log_xout(Xn);
     solver.euler_method_unit(Xn, Xn1);
+    //solver.step(Xn, Xn1, xout_vec[i].qd3, xout_vec[i].qd1);
     
     for(int i = 0; i < 17; i++){
       Xn[i] = Xn1[i];
