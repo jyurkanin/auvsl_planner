@@ -47,7 +47,7 @@ def print_c_network(md, input_scaler, output_scaler):
 
 
 def process_data():
-    in_features = ['zr','slip_ratio','slip_angle', 'kc', 'kphi', 'n0', 'n1', 'phi']
+    in_features = ['zr','slip_ratio','slip_angle']
     out_features = ['Fx','Fy','Fz', 'Ty']
     
     df = pd.read_csv("../data/f_tire_train.csv")
@@ -115,8 +115,8 @@ print("has gpu? ", torch.cuda.is_available())
 
 
 
-in_size = 8
-hidden_size = 32
+in_size = 3
+hidden_size = 10
 out_size = 4
 
 loss_fn = torch.nn.MSELoss()
