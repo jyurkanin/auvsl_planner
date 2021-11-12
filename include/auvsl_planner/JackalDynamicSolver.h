@@ -43,7 +43,7 @@ private:
 
 class JackalDynamicSolver{
  public:
-  static const int num_hidden_nodes = 35;
+  static const int num_hidden_nodes = 10;
   static const int num_in_features = 8;
   static const int num_out_features = 4;
   
@@ -59,7 +59,8 @@ class JackalDynamicSolver{
   static void del_model();
   static void load_nn_gc_model();
   static void load_nn_gc_model_new();
-
+  static void load_nn_gc_model_small();
+    
   SpatialVector tire_model_bekker(const Eigen::Matrix<float,num_in_features,1> &features);
   SpatialVector tire_model_nn(const Eigen::Matrix<float,num_in_features,1> &features);
   
@@ -90,7 +91,7 @@ class JackalDynamicSolver{
   void ode(float *X, float *Xd);
   void apply_force(SpatialVector wrench, int body);
   void log_xout(float *Xout);
-  void log_features(float *Xout, float *Xd);
+  void log_features(float *Xout, float *Xd, float Vf, float Wz);
   
   // private:
   
