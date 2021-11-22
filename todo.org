@@ -417,6 +417,8 @@
   Start with vectornav.
   Maybe then try realsense.
   Did both and done.
+* DONE Make unit tests for dynamic model
+  1. Verify the velocities in the tire frame.
 * TODO Reduce model error
   Options:
   1. Learn a network to predict model residual to reduce error.
@@ -426,10 +428,18 @@
   Could be rather painful. May be better off using finite differences.
   
   2. Finite differences for tire network. Bold.
+     Will not work. performance is extremely chaotic with
+     respect to tire network params. finite differences will
+     not converge. If you did an average over several runs
+     maybe it would be less chaotic but it would take much
+     more time. Way too much time to run.
   
-  3. Full neural network model. Sick.
+  3. Full neural network model. Sick. 
      Also easiest. And easy to verify if its working.
      If it doesn't work, I'll know and be able to give up rapidly.
+     Tried a little bit and couldn't make it work. 
+     I don't think it ever will. I don't even think
+     neuralODE's will work either.
      
   4. Understand which bekker parameters affect Fy and search them. 
      I dont think this is a promising strat. but its easy and Ishould try.
@@ -438,6 +448,15 @@
      Fy increases with phi
      Okay, increasing or decreasing these doesn't seem to have much of an effect on decreasing turn radius.
      Searching For better bekker tire params is not going to work.
+     Finite Differences for tire params didn't work any better than
+     brute force search. Limited performance improvements.
+
+  5. Neural network to predict vx,vy,wz. Then fuse result with 
+     dynamic model. Need more features.
+     Acceleration? Lets try it. Lateral acceleration is related to turn radius.
+     Best NN prediction results with a feature vector that just includes [qd1,qd3] for the past 8 timesteps.
+     Hopefully this approach works for real world data.
+
 
 * Different results depending on loading pcl from file. 
   This is due to floating point error in the file.

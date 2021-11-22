@@ -53,8 +53,7 @@ plt.plot(df['x'], df['y'], color='blue')#,  alpha=.1, s = 1)
 #df = df[::20]
 #plt.plot(df['x'], df['y'])
 
-
-df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul3/test_2_default_ekf_50hz.csv")
+df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul4/test_1/3_odom_t265.csv")
 plt.plot(df['field.pose.pose.position.x'], df['field.pose.pose.position.y'], color="red")
 odom_len = df.shape[0]
 
@@ -70,7 +69,7 @@ plt.xlabel("m");
 plt.ylabel("m");
 plt.title("Comparison of Dynamic Model, Kinematic Model, and Odometry Trajectories at 2m/s")
 plt.legend(["Dynamic Model","Odometry"])
-plt.text(30,-30,"4.88m error after 120.5m path", fontsize=12)
+#plt.text(30,-30,"4.88m error after 120.5m path", fontsize=12)
 plt.show()
 
 #df = pd.read_csv("/home/justin/code/AUVSL_ROS/temp.csv")

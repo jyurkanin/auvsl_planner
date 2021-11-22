@@ -158,6 +158,11 @@ void simulatePeriod(double start_time, float *X_start, float *X_end){
     Xn[18] = std::max(1e-3d, odom_vec[idx].vr);
     Xn[19] = std::max(1e-3d, odom_vec[idx].vl);
     Xn[20] = std::max(1e-3d, odom_vec[idx].vl);
+
+    Xn[17] = 15;
+    Xn[18] = 15;
+    Xn[19] = 20;
+    Xn[20] = 20;
     
     dur = odom_vec[idx+1].ts - odom_vec[idx].ts;
     solver.solve(Xn, Xn1, dur);
@@ -269,7 +274,7 @@ int main(int argc, char **argv){
   JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
   JackalDynamicSolver::init_model(2);
   
-  simple_terrain_map.test_bekker_data_ = lookup_soil_table(4);
+  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
   //144
   for(int i = 144; i <= 144; i++){
     memset(odom_fn, 0, 100);

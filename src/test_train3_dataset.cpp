@@ -233,6 +233,171 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
 
 
 
+void simulateFileSet(float &total_lin_err, float &total_ang_err){
+  total_lin_err = 0;
+  total_ang_err = 0;
+  
+  float rel_lin_err, rel_ang_err;
+  int count = 0;
+  
+  char odom_fn[100];
+  char gt_fn[100];  
+  
+  for(int i = 1; i <= 7; i++){
+    memset(odom_fn, 0, 100);
+    sprintf(odom_fn, "/home/justin/Downloads/Train3/extracted_data/odometry/%04d_odom_data.txt", i);
+      
+    memset(gt_fn, 0, 100);
+    sprintf(gt_fn, "/home/justin/Downloads/Train3/localization_ground_truth/%04d_Tr_grass_GT.txt", i);
+    
+    load_files(odom_fn, gt_fn);
+    simulateFiles(rel_lin_err, rel_ang_err);
+    
+    total_lin_err += rel_lin_err*rel_lin_err; //rmsre, square relative error
+    total_ang_err += rel_ang_err*rel_ang_err;
+      
+    count++;
+  }
+
+  total_lin_err = sqrtf(total_lin_err/(float)count);
+  total_ang_err = sqrtf(total_ang_err/(float)count);
+}
+
+
+
+
+
+
+void followGradientScalars(){
+  const float EPS = 1e-2f;
+  float actual_value[4];
+  float total_lin_err, total_ang_err;
+  float loss[4];
+  float fx;
+  float lr = 1.0f;
+
+
+  actual_value[1] = JackalDynamicSolver::force_scalars[1];
+  actual_value[2] = JackalDynamicSolver::force_scalars[2];
+  
+  
+  simulateFileSet(total_lin_err, total_ang_err);
+  fx = total_lin_err; // + (total_ang_err*.5); //comptue f(x)
+  ROS_INFO("Current Performance %f", fx);
+  
+  
+  JackalDynamicSolver::force_scalars[1] += EPS;
+  simulateFileSet(total_lin_err, total_ang_err);
+  loss[1] = total_lin_err;// + (total_ang_err*.1); //compute f(x+h)
+  
+  
+  JackalDynamicSolver::force_scalars[1] = actual_value[1];
+  JackalDynamicSolver::force_scalars[2] += EPS;
+  simulateFileSet(total_lin_err, total_ang_err);
+  loss[2] = total_lin_err;// + (total_ang_err*.1); //compute f(x+h)
+  
+  
+  ROS_INFO("%f   %f", actual_value[1], actual_value[2]);
+  
+  
+  JackalDynamicSolver::force_scalars[1] = actual_value[1] + (fx - loss[1])*lr;
+  JackalDynamicSolver::force_scalars[2] = actual_value[2] + (fx - loss[2])*lr;
+}
+
+
+
+
+
+
+
+void followGradientSoil(BekkerData &soil_params){
+  const float EPS = 1e-2f;
+  BekkerData soil_params_pde;
+  BekkerData temp_soil_params;
+  float rel_lin_err, rel_ang_err;
+  float loss;
+  float fx;
+  float lr = .1f;
+  
+  simple_terrain_map.test_bekker_data_ = soil_params;
+  simulateFiles(rel_lin_err, rel_ang_err);
+  loss = rel_lin_err + (rel_ang_err*.5);
+  fx = loss;
+  ROS_INFO("Current Performance %f", rel_lin_err);
+  
+  
+  simple_terrain_map.test_bekker_data_ = soil_params;
+  simple_terrain_map.test_bekker_data_.kphi += 1;
+  simulateFiles(rel_lin_err, rel_ang_err);
+  loss = rel_lin_err + (rel_ang_err*.5);
+  soil_params_pde.kphi = fx - loss;
+  
+  simple_terrain_map.test_bekker_data_ = soil_params;
+  simple_terrain_map.test_bekker_data_.phi += EPS;
+  simulateFiles(rel_lin_err, rel_ang_err);
+  loss = rel_lin_err + (rel_ang_err*.5);
+  soil_params_pde.phi = fx - loss;
+  
+  ROS_INFO("dphi %f phi %f     dkphi %f kphi %f", soil_params_pde.phi, soil_params.phi,   soil_params_pde.kphi, soil_params.kphi);
+  
+  soil_params.kphi += soil_params_pde.kphi*lr;
+  soil_params.phi += soil_params_pde.phi*lr;
+}
+
+
+
+
+//gradient descent for soil parameters
+int main_stupid(int argc, char **argv){
+  ros::init(argc, argv, "auvsl_global_planner");
+  ros::NodeHandle nh;
+  
+  ROS_INFO("Starting up test_terrain_node\n");
+  
+  int plot_res;
+  nh.getParam("/TerrainMap/plot_res", plot_res); 
+  
+  GlobalParams::load_params(&nh);
+  ompl::RNG::setSeed(GlobalParams::get_seed());
+  srand(GlobalParams::get_seed());
+
+  ros::Rate loop_rate(10);
+
+  float rel_lin_err;
+  float rel_ang_err;
+  
+  char odom_fn[100];
+  char gt_fn[100];
+
+  int count = 0;
+
+  JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
+  JackalDynamicSolver::init_model(2);
+  
+  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
+  
+  for(int j = 0; j < 100; j++){
+    followGradientScalars();
+  }
+
+  JackalDynamicSolver::del_model();
+  
+  return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 int main(int argc, char **argv){
   //feenableexcept(FE_INVALID | FE_OVERFLOW);
@@ -265,8 +430,7 @@ int main(int argc, char **argv){
   JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
   JackalDynamicSolver::init_model(2);
   
-  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
-  //simple_terrain_map.test_bekker_data_.n1 = 0.2f;
+  simple_terrain_map.test_bekker_data_ = lookup_soil_table(4);
   
   //144
   //for(float kphi = 1000; kphi < 2000; kphi += 100.0f){
@@ -275,18 +439,26 @@ int main(int argc, char **argv){
     //simple_terrain_map.test_bekker_data_.n0 = n0;
     
     //ROS_INFO("n0 %f", n0);
-    
+
+  std::ofstream param_graph_file("/home/justin/param_graph.csv");
+  param_graph_file << "param,lin_err,ang_err\n";
+  
+  float test_value;
+  
+  for(int j = 0; j < 100; j++){
     total_lin_err = 0;
     total_ang_err = 0;
     count = 0;
-    for(int i = 7; i <= 7; i++){
+    
+    test_value = (1.0f*j/100.0) + 1;
+    JackalDynamicSolver::force_scalars[2] = test_value;
+    
+    for(int i = 1; i <= 7; i++){
       memset(odom_fn, 0, 100);
       sprintf(odom_fn, "/home/justin/Downloads/Train3/extracted_data/odometry/%04d_odom_data.txt", i);
-      //ROS_INFO("Reading Odom File %s", odom_fn);
       
       memset(gt_fn, 0, 100);
       sprintf(gt_fn, "/home/justin/Downloads/Train3/localization_ground_truth/%04d_Tr_grass_GT.txt", i);
-      //ROS_INFO("Readin GT File %s", gt_fn);
       
       load_files(odom_fn, gt_fn);
       
@@ -298,8 +470,12 @@ int main(int argc, char **argv){
       count++;
     }
     
+    param_graph_file << test_value << ',' << sqrtf(total_lin_err/(float)count) << ',' << sqrtf(total_ang_err/(float)count) << '\n';
+    
     ROS_INFO("RMRSE lin: %f     ang: %f", sqrtf(total_lin_err/(float)count), sqrtf(total_ang_err/(float)count));
-    //}
+  }
+  
+  param_graph_file.close();
   
   
   JackalDynamicSolver::del_model();

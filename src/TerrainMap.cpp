@@ -40,11 +40,11 @@ SimpleTerrainMap::~SimpleTerrainMap(){
 
 
 BekkerData soil_table[5] = {
-    {29.76, 2083,   .8,  0, 22.5*M_PI/180.0, "Medium Soil"},
-    {102,   5301,   .8, .2, 31.1*M_PI/180.0, "Sand"},
-    {30.08, 499.7,  .7,  0, 14.0*M_PI/180.0, "Clay"},
-    {33.0,  2100.0, .71, 0, .37, "Rantoul"},
-    {36.0,  2000.0, .71, 0, .425, "Dataset"}
+    {29.76,      2083,   .8,      0, 22.5*M_PI/180.0, "Medium Soil"},
+    {102,        5301,   .8,     .2, 31.1*M_PI/180.0, "Sand"},
+    {30.08,      499.7,  .7,      0, 14.0*M_PI/180.0, "Clay"},
+    {33.0,       2100.0, .71,     0, .37, "Rantoul"},
+    {29.761774,  2000.0, .435841, 0, .37, "Dataset"}
 };
 
 BekkerData lookup_soil_table(int index){
@@ -55,8 +55,8 @@ BekkerData lookup_soil_table(int index){
 BekkerData SimpleTerrainMap::getSoilDataAt(float x, float y) const{
   const int search_depth = 0;
   const float threshold = .5;
-  //return lookup_soil_table(4);
-  return test_bekker_data_;
+  return lookup_soil_table(0);
+  //return test_bekker_data_;
 }
 
 

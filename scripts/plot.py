@@ -16,12 +16,10 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 
-df = pd.read_csv("/home/justin/sinkages.csv")
-plt.plot(df['zr1'])
-plt.plot(df['zr2'])
-plt.plot(df['zr3'])
-plt.plot(df['zr4'])
-plt.legend(['1','2','3','4'])
+df = pd.read_csv("/home/justin/features.csv")
+#plt.plot(df['x'], df['y'])
+plt.plot(df['dvy'])
+#plt.plot(df['vy'])
 plt.show()
 
 

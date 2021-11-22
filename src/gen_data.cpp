@@ -10,13 +10,14 @@ int main(int argc, char **argv){
 
   TerrainMap *terrain_map = new SimpleTerrainMap();
   JackalDynamicSolver::set_terrain_map(terrain_map);
-  JackalDynamicSolver::init_model(0);
+  JackalDynamicSolver::init_model(2);
 
   JackalDynamicSolver solver;
   
   float start_state[21];
   float temp_state[21];
   float end_state[21];
+  float Xd[21];
   
   start_state[0] = 10;
   start_state[1] = 0;
@@ -35,8 +36,13 @@ int main(int argc, char **argv){
   for(unsigned i = 11; i < 21; i++){
     start_state[i] = 0;
   }
+
+  start_state[17] = 1e-3f;
+  start_state[18] = 1e-3f;
+  start_state[19] = 1e-3f;
+  start_state[20] = 1e-3f;
   
-  solver.solve(start_state, temp_state, 0,0, 5);
+  solver.solve(start_state, temp_state, 5);
   
   for(unsigned i = 0; i < 21; i++){
     start_state[i] = temp_state[i];
@@ -45,21 +51,33 @@ int main(int argc, char **argv){
   float Vf;
   float Wz;
   float base_width = .323;
+
+  Vf = 2.0f*rand()/RAND_MAX;
+  Wz = 2.0f*rand()/RAND_MAX - 1.0f;
   
   ROS_INFO("Starting Sim");
   for(int i = 0; i < 1000000; i++){
-      Vf = 4*rand()/RAND_MAX;
-      Wz = .5*rand()/RAND_MAX;
-      
+      if((1.0f*rand()/RAND_MAX) < .05){ // 5% chance of switch turning direction
+        Vf = 2.0f*rand()/RAND_MAX;
+        Wz = 2.0f*rand()/RAND_MAX - 1.0f;
+      }
       float vl = (Vf - Wz*(base_width/2.0))/.1f;
       float vr = (Vf + Wz*(base_width/2.0))/.1f;
-      
-      vl = (1.5*rand()/RAND_MAX) + .5f;
-      vr = (1.5*rand()/RAND_MAX) + .5f;
-      
-      solver.solve(start_state, temp_state, vl,vr, .01);
-      solver.log_features(start_state, temp_state);
 
+      if((1.0f*rand()/RAND_MAX) < .1){ // 1/5 chance of switch turning direction
+        vl = (19.0f*rand()/RAND_MAX) + 1.0f;
+        vr = (19.0f*rand()/RAND_MAX) + 1.0f;
+      }
+      
+      start_state[17] = vr;
+      start_state[18] = vr;
+      start_state[19] = vl;
+      start_state[20] = vl;
+      
+      solver.ode(start_state, Xd);
+      solver.solve(start_state, temp_state, .01);
+      solver.log_features(start_state, temp_state, Xd, vl, vr);
+      
       if(i%100 == 0){
           ROS_INFO("Iteration %d", i);
       }
