@@ -313,7 +313,7 @@ void JackalDynamicSolver::init_model(int debug){
   }
   
   feature_log.open("/home/justin/features.csv", std::ofstream::out);
-  feature_log << "x,y,z,roll,pitch,vx,vy,az,qd1,qd2,qd3,qd4,vl,vr,vxn,vyn,azn\n";
+  feature_log << "x,y,z,roll,pitch,yaw,vx,vy,az,qd1,qd2,qd3,qd4,vl,vr,vxn,vyn,azn\n";
   
   Vector3d initial_pos(0,0,0);
   
@@ -878,7 +878,7 @@ void JackalDynamicSolver::log_features(float *Xout, float *Xout_next, float vl, 
   tf::Matrix3x3 rot(quat);
   rot.getRPY(roll,pitch,yaw);
 
-  feature_log << roll << ',' << pitch << ',';
+  feature_log << roll << ',' << pitch << ',' << yaw << ',';
 
 
   Quaternion rbdl_quat(Xout[3],Xout[4],Xout[5],Xout[10]);
@@ -1214,7 +1214,12 @@ void JackalDynamicSolver::ode(float *X, float *Xd){
   
   for(int i = 0; i < model->qdot_size; i++){
     Xd[i+model->q_size] = QDDot[i];
-  }  
+  }
+
+  Xd[17] = 0;
+  Xd[18] = 0;
+  Xd[19] = 0;
+  Xd[20] = 0;
 }
 
 //achieve a vehicle orientation that is steady state

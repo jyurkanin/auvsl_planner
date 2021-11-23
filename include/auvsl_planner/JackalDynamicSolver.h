@@ -43,7 +43,7 @@ private:
 
 class JackalDynamicSolver{
  public:
-  static const int num_hidden_nodes = 10;
+  static const int num_hidden_nodes = 35;
   static const int num_in_features = 8;
   static const int num_out_features = 4;
   

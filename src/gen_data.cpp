@@ -36,7 +36,12 @@ int main(int argc, char **argv){
     start_state[i] = 0;
   }
   
-  solver.solve(start_state, temp_state, 0,0, 5);
+  start_state[17] = 1e-3f;
+  start_state[18] = 1e-3f;
+  start_state[19] = 1e-3f;
+  start_state[20] = 1e-3f;
+  
+  solver.solve(start_state, temp_state, 5);
   
   for(unsigned i = 0; i < 21; i++){
     start_state[i] = temp_state[i];
@@ -46,19 +51,31 @@ int main(int argc, char **argv){
   float Wz;
   float base_width = .323;
   
+  Vf = 2.0f*rand()/RAND_MAX;
+  Wz = 2.0f*rand()/RAND_MAX - 1.0f;
+  
   ROS_INFO("Starting Sim");
   for(int i = 0; i < 1000000; i++){
-      Vf = 4*rand()/RAND_MAX;
-      Wz = .5*rand()/RAND_MAX;
+      if((1.0f*rand()/RAND_MAX) < .05){
+          Vf = 2.0f*rand()/RAND_MAX;
+          Wz = 2.0f*rand()/RAND_MAX - 1.0f;
+      }
       
       float vl = (Vf - Wz*(base_width/2.0))/.1f;
       float vr = (Vf + Wz*(base_width/2.0))/.1f;
+
+      if((1.0f*rand()/RAND_MAX) < .2){
+          vr = (19.0f*rand()/RAND_MAX) + 1.0f;
+          vl = (19.0f*rand()/RAND_MAX) + 1.0f;
+      }
       
-      vl = (1.5*rand()/RAND_MAX) + .5f;
-      vr = (1.5*rand()/RAND_MAX) + .5f;
+      start_state[17] = vr;
+      start_state[18] = vr;
+      start_state[19] = vl;
+      start_state[20] = vl;
       
-      solver.solve(start_state, temp_state, vl,vr, .01);
-      solver.log_features(start_state, temp_state);
+      solver.solve(start_state, temp_state, .01);
+      solver.log_features(start_state, temp_state, vl, vr);
 
       if(i%100 == 0){
           ROS_INFO("Iteration %d", i);

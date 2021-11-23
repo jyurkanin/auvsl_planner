@@ -481,3 +481,29 @@ target_link_libraries(gen_tire_model_data_node ${catkin_LIBRARIES})
 target_link_libraries(gen_tire_model_data_node rbdl)
 target_link_libraries(gen_tire_model_data_node X11)
 set_target_properties(gen_tire_model_data_node PROPERTIES COMPILE_FLAGS "-g")
+
+
+
+
+
+
+
+
+add_executable(gen_data_node src/gen_data.cpp
+  src/GlobalParams.cpp
+  src/PlannerVisualizer.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(gen_data_node ${PCL_LIBRARIES})
+target_link_libraries(gen_data_node ${pluginlib_LIBRARIES})
+target_link_libraries(gen_data_node ${costmap_2d_LIBRARIES})
+target_link_libraries(gen_data_node ${move_base_LIBRARIES})
+target_link_libraries(gen_data_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(gen_data_node ${OMPL_LIBRARIES})
+target_link_libraries(gen_data_node ${catkin_LIBRARIES})
+target_link_libraries(gen_data_node rbdl)
+target_link_libraries(gen_data_node X11)
+set_target_properties(gen_data_node PROPERTIES COMPILE_FLAGS "-O3 -g")
