@@ -147,14 +147,14 @@ int main(){
   
   std::ofstream force_log;
   force_log.open("/home/justin/force_log.csv", std::ofstream::out);
-  force_log << "slip_angle,bk,nn\n";
+  force_log << "slip_ratio,bk1,nn1,bk2,nn2\n";
   
-  for(float vy = -1; vy < 1; vy += .001){
-    features[2] = atanf(vy / -1);
+  for(float s = -2; s < 2; s += .001){
+    features[1] = s;
     bk = solver.tire_model_bekker(features);
     nn = solver.tire_model_nn(features);
     
-    force_log << features[2] << ',' << bk[4] << ',' << nn[4] << '\n';
+    force_log << features[1] << ',' << bk[3] << ',' << nn[3] << ',' << bk[1] << ',' << nn[1] << '\n';
   }
   
   force_log.close();

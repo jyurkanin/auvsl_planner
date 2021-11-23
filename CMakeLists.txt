@@ -247,20 +247,11 @@ set_target_properties(test_global_planner_node PROPERTIES COMPILE_FLAGS "-O3 -g"
 
 add_executable(test_terrain_node src/test_terrain_map.cpp
   src/OctoTerrainMap.cpp
-  src/DStarPlanner.cpp
   src/ControlSystem.cpp
   src/GlobalParams.cpp
-  src/GlobalPlanner.cpp
-  src/PlannerVisualizer.cpp
-  src/JackalStatePropagator.cpp
   src/TerrainMap.cpp
   src/JackalDynamicSolver.cpp
   src/utils.cpp
-  src/VehicleStateSpace.cpp
-  src/VehicleStateProjections.cpp
-  src/VehicleControlSampler.cpp
-  src/DirectedVehicleControlSampler.cpp
-  src/VehicleRRT.cpp
   )
 
 target_link_libraries(test_terrain_node ${PCL_LIBRARIES})
@@ -441,6 +432,24 @@ set_target_properties(test_CV3_dataset_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
 
+add_executable(test_train3_dataset_node src/test_train3_dataset.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(test_train3_dataset_node ${OMPL_LIBRARIES})
+target_link_libraries(test_train3_dataset_node ${PCL_LIBRARIES})
+target_link_libraries(test_train3_dataset_node ${catkin_LIBRARIES})
+target_link_libraries(test_train3_dataset_node rbdl)
+set_target_properties(test_train3_dataset_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+
+
 add_executable(test_tire_model_node src/test_tire_model.cpp
   src/GlobalParams.cpp
   src/PlannerVisualizer.cpp
@@ -486,24 +495,63 @@ set_target_properties(gen_tire_model_data_node PROPERTIES COMPILE_FLAGS "-g")
 
 
 
-
-
-
-add_executable(gen_data_node src/gen_data.cpp
+add_executable(test_dynamic_model_node src/test_dynamic_model.cpp
   src/GlobalParams.cpp
-  src/PlannerVisualizer.cpp
   src/TerrainMap.cpp
   src/JackalDynamicSolver.cpp
   src/utils.cpp
   )
 
-target_link_libraries(gen_data_node ${PCL_LIBRARIES})
-target_link_libraries(gen_data_node ${pluginlib_LIBRARIES})
-target_link_libraries(gen_data_node ${costmap_2d_LIBRARIES})
-target_link_libraries(gen_data_node ${move_base_LIBRARIES})
-target_link_libraries(gen_data_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_dynamic_model_node ${OMPL_LIBRARIES})
+target_link_libraries(test_dynamic_model_node ${PCL_LIBRARIES})
+target_link_libraries(test_dynamic_model_node ${catkin_LIBRARIES})
+target_link_libraries(test_dynamic_model_node rbdl)
+set_target_properties(test_dynamic_model_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+add_executable(test_rantoul_node src/test_rantoul_node.cpp
+  src/OctoTerrainMap.cpp
+  src/ControlSystem.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(test_rantoul_node ${PCL_LIBRARIES})
+target_link_libraries(test_rantoul_node ${pluginlib_LIBRARIES})
+target_link_libraries(test_rantoul_node ${costmap_2d_LIBRARIES})
+target_link_libraries(test_rantoul_node ${move_base_LIBRARIES})
+target_link_libraries(test_rantoul_node ${OCTOMAP_LIBRARIES})
+target_link_libraries(test_rantoul_node ${OMPL_LIBRARIES})
+target_link_libraries(test_rantoul_node ${catkin_LIBRARIES})
+target_link_libraries(test_rantoul_node rbdl)
+target_link_libraries(test_rantoul_node X11)
+set_target_properties(test_rantoul_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+add_dependencies(test_rantoul_node ${test_rantoul_node_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+
+
+
+
+
+
+
+add_executable(gen_data_node src/gen_data.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
 target_link_libraries(gen_data_node ${OMPL_LIBRARIES})
+target_link_libraries(gen_data_node ${PCL_LIBRARIES})
 target_link_libraries(gen_data_node ${catkin_LIBRARIES})
 target_link_libraries(gen_data_node rbdl)
-target_link_libraries(gen_data_node X11)
 set_target_properties(gen_data_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+

@@ -7,8 +7,8 @@
 namespace rbd = RigidBodyDynamics;
 namespace rbdm = RigidBodyDynamics::Math;
 
-using namespace rbd;
-using namespace rbdm;
+//using namespace rbd;
+//using namespace rbdm;
 
 typedef struct {
   float roll,pitch,yaw;
@@ -27,3 +27,5 @@ rbdm::Matrix3d get_tire_inertia(float mass, float radius, float height);
 
 rbdm::SpatialVector get_body_vel(rbdm::SpatialVector base_vel, rbdm::VectorNd X);
 rbdm::Vector4d get_qnd(rbdm::Quaternion q, rbdm::Vector3d w);
+
+rbdm::Matrix3d get_skew_sym(rbdm::Vector3d vec);

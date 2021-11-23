@@ -59,7 +59,6 @@ class JackalDynamicSolver{
   static void del_model();
   static void load_nn_gc_model();
   static void load_nn_gc_model_new();
-  static void load_nn_gc_model_small();
     
   SpatialVector tire_model_bekker(const Eigen::Matrix<float,num_in_features,1> &features);
   SpatialVector tire_model_nn(const Eigen::Matrix<float,num_in_features,1> &features);
@@ -78,8 +77,7 @@ class JackalDynamicSolver{
   void solve(float *x_init, float *x_end, float vl, float vr, float sim_time);
   void solve(float *x_init, float *x_end, float sim_time);
 
-  void simulateRealTrajectory(const char *odom_fn, const char *joint_state_fn, float *X_final);
-  
+  void euler_method_unit(float *X, float *Xt1);
   void euler_method(float *X, float *Xt1);
   void runge_kutta_method(float *X, float *Xt1);
   float get_timestep();
@@ -90,7 +88,7 @@ class JackalDynamicSolver{
   void ode(float *X, float *Xd);
   void apply_force(SpatialVector wrench, int body);
   void log_xout(float *Xout);
-  void log_features(float *Xout, float *Xd, float Vf, float Wz);
+  void log_features(float *Xout, float *Xnext, float *Xd, float vl, float vr);
   
   // private:
   
@@ -108,6 +106,10 @@ class JackalDynamicSolver{
   VectorNd tau;
   std::vector<SpatialVector> f_ext;
   float sinkages_[4];
+  
+  //float Xdd[10];
+  
+  static float force_scalars[4];
   
   static float tire_radius;
   static float tire_thickness;

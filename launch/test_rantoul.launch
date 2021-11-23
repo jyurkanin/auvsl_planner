@@ -1,0 +1,8 @@
+<launch>
+  <!-- Following is for some reason required in ROS Noetic. My mistake for using noetic :( -->
+  <rosparam file="$(find auvsl_planner)/config/jackal_gazebo_pid.yaml" command="load"/> 
+
+  <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
+  <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>
+  <node name="test_rantoul_node" pkg="auvsl_planner" type="test_rantoul_node" output="screen" launch-prefix=" " required="true"/>      
+</launch>

@@ -1,6 +1,5 @@
 <launch>
   <rosparam file="$(find auvsl_planner)/config/params.yaml"/>
   <rosparam file="$(find auvsl_planner)/config/terrain_map_params.yaml"/>
-  <node name="gen_tire_model_data" pkg="auvsl_planner" type="gen_tire_model_data_node" output="screen" launch-prefix=" " required="false"/>
+  <node name="test_train3_dataset_node" pkg="auvsl_planner" type="test_train3_dataset_node" output="screen" launch-prefix=" " required="false"/>
 </launch>
-

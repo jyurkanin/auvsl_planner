@@ -1,7 +1,10 @@
 #include "utils.h"
 #include <stdio.h>
+#include <ros/ros.h>
 
 
+using namespace rbd;
+using namespace rbdm;
 
 
 float getDistance(Eigen::Vector2f vec1, Eigen::Vector2f vec2){
@@ -13,8 +16,8 @@ float getDistance(Eigen::Vector2f vec1, Eigen::Vector2f vec2){
 
 
 
-Matrix3d get_box_inertia(float mass, Vector3d v_size){
-  Matrix3d temp;
+rbdm::Matrix3d get_box_inertia(float mass, Vector3d v_size){
+  rbdm::Matrix3d temp;
   float v1 = mass*(v_size[1]*v_size[1] + v_size[2]*v_size[2])/12;
   float v2 = mass*(v_size[0]*v_size[0] + v_size[2]*v_size[2])/12;
   float v3 = mass*(v_size[0]*v_size[0] + v_size[1]*v_size[1])/12;
@@ -24,11 +27,11 @@ Matrix3d get_box_inertia(float mass, Vector3d v_size){
 }
 
 //assumes axis of tire is in the y direction.
-Matrix3d get_tire_inertia(float mass, float radius, float height){
-  Matrix3d temp;
+rbdm::Matrix3d get_tire_inertia(float mass, float radius, float height){
+  rbdm::Matrix3d temp;
   float ibig = mass*radius*radius/2;
   float ismall = mass*((3*radius*radius) + (height*height))/12.0;
-
+  
   temp << ismall,0,0,   0,ibig,0,   0,0,ismall;
   return temp;
 }
@@ -76,7 +79,7 @@ SpatialVector get_body_vel(SpatialVector base_vel, VectorNd X){
 
 
 //calculate quaternion derivative
-Vector4d get_qnd(RigidBodyDynamics::Math::Quaternion q, Vector3d w){
+rbdm::Vector4d get_qnd(rbdm::Quaternion q, rbdm::Vector3d w){
   float Kstab = .1; //magic number from spatialv2 source. lol.
   Vector4d temp;
   Eigen::Matrix4d Q;
@@ -87,4 +90,13 @@ Vector4d get_qnd(RigidBodyDynamics::Math::Quaternion q, Vector3d w){
   temp[2] = w[1];
   temp[3] = w[2];
   return .5*Q*temp;
+}
+
+
+RigidBodyDynamics::Math::Matrix3d get_skew_sym(Vector3d vec){
+  RigidBodyDynamics::Math::Matrix3d skew_sym;
+  skew_sym << 0,     -vec[2], vec[1],
+              vec[2], 0,     -vec[0],
+             -vec[1], vec[0], 0;
+  return skew_sym;
 }

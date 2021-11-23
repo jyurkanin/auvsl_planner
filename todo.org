@@ -18,9 +18,10 @@
   move_base/navigation.
   organize the code you have written a bit better into different files.
   
-* TODO Look Into Quaternion Integration
+* DONE Look Into Quaternion Integration
   Specifically, theres a function in rbdl, that allows me to 
   use a different scheme for quaternion integration.
+  Tried both linear approximation and instantaneous axis-angle rotation
 * DONE Dynamic planning
   1. Clean up existing global planner code into a single class.
   2. Create main file that includes both global and local planners. Integrate them.
@@ -387,7 +388,7 @@
   there was a pi/4 degree angle between the vectors as I expect.
   Angle was around y axis.
 
-* TODO Stick IMU to jackal
+* DONE Stick IMU to jackal
   Compare to the vectornav imu odometry msg to ekf_localization
   odom message.
   Add vectornav imu odom to ekf_localization compare to ekf
@@ -407,7 +408,7 @@
   Need to validate tire transforms. Plot all 4 cpt positions. Done.
   To demonstrate chaotic nature of the model,
   Plot long trajectory multiple times, adding noise to the initial x y position.
-* TODO DO this:
+* DONE DO this:
   train new network. pick best soil params for test data.
   Generate plots for CV and Long Distance.
   Done.
@@ -415,7 +416,48 @@
   Figure out a god damn odom solution for the jackal.
   Start with vectornav.
   Maybe then try realsense.
+  Did both and done.
+* DONE Make unit tests for dynamic model
+  1. Verify the velocities in the tire frame.
+* TODO Reduce model error
+  Options:
+  1. Learn a network to predict model residual to reduce error.
+  Must therefore first generate the data by running on the 
+  training set. For every timestep, generate a correction with the neural network.
+  Not so easy. Will need to collect a full state vector including position and velocity.
+  Could be rather painful. May be better off using finite differences.
   
+  2. Finite differences for tire network. Bold.
+     Will not work. performance is extremely chaotic with
+     respect to tire network params. finite differences will
+     not converge. If you did an average over several runs
+     maybe it would be less chaotic but it would take much
+     more time. Way too much time to run.
+  
+  3. Full neural network model. Sick. 
+     Also easiest. And easy to verify if its working.
+     If it doesn't work, I'll know and be able to give up rapidly.
+     Tried a little bit and couldn't make it work. 
+     I don't think it ever will. I don't even think
+     neuralODE's will work either.
+     
+  4. Understand which bekker parameters affect Fy and search them. 
+     I dont think this is a promising strat. but its easy and Ishould try.
+     Fy increases with kc
+     Fy increases with kphi
+     Fy increases with phi
+     Okay, increasing or decreasing these doesn't seem to have much of an effect on decreasing turn radius.
+     Searching For better bekker tire params is not going to work.
+     Finite Differences for tire params didn't work any better than
+     brute force search. Limited performance improvements.
+
+  5. Neural network to predict vx,vy,wz. Then fuse result with 
+     dynamic model. Need more features.
+     Acceleration? Lets try it. Lateral acceleration is related to turn radius.
+     Best NN prediction results with a feature vector that just includes [qd1,qd3] for the past 8 timesteps.
+     Hopefully this approach works for real world data.
+
+
 * Different results depending on loading pcl from file. 
   This is due to floating point error in the file.
   I believe. Code runs the same as long as I load the

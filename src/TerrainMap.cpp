@@ -40,11 +40,11 @@ SimpleTerrainMap::~SimpleTerrainMap(){
 
 
 BekkerData soil_table[5] = {
-    {29.76, 2083,   .8,  0, 22.5*M_PI/180.0, "Medium Soil"},
-    {102,   5301,   .8, .2, 31.1*M_PI/180.0, "Sand"},
-    {30.08, 499.7,  .7,  0, 14.0*M_PI/180.0, "Clay"},
-    {33.0,  2100.0, .71, 0, .37, "Rantoul"},
-    {33.0,  2100.0, .72, 0, .40, "Dataset"}
+    {29.76,      2083,   .8,      0, 22.5*M_PI/180.0, "Medium Soil"},
+    {102,        5301,   .8,     .2, 31.1*M_PI/180.0, "Sand"},
+    {30.08,      499.7,  .7,      0, 14.0*M_PI/180.0, "Clay"},
+    {33.0,       2100.0, .71,     0, .37, "Rantoul"},
+    {29.761774,  2000.0, .435841, 0, .37, "Dataset"}
 };
 
 BekkerData lookup_soil_table(int index){

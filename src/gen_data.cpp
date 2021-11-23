@@ -10,13 +10,14 @@ int main(int argc, char **argv){
 
   TerrainMap *terrain_map = new SimpleTerrainMap();
   JackalDynamicSolver::set_terrain_map(terrain_map);
-  JackalDynamicSolver::init_model(0);
+  JackalDynamicSolver::init_model(2);
 
   JackalDynamicSolver solver;
   
   float start_state[21];
   float temp_state[21];
   float end_state[21];
+  float Xd[21];
   
   start_state[0] = 10;
   start_state[1] = 0;
@@ -35,7 +36,7 @@ int main(int argc, char **argv){
   for(unsigned i = 11; i < 21; i++){
     start_state[i] = 0;
   }
-  
+
   start_state[17] = 1e-3f;
   start_state[18] = 1e-3f;
   start_state[19] = 1e-3f;
@@ -50,6 +51,9 @@ int main(int argc, char **argv){
   float Vf;
   float Wz;
   float base_width = .323;
+
+  Vf = 2.0f*rand()/RAND_MAX;
+  Wz = 2.0f*rand()/RAND_MAX - 1.0f;
   
   Vf = 2.0f*rand()/RAND_MAX;
   Wz = 2.0f*rand()/RAND_MAX - 1.0f;
@@ -74,9 +78,10 @@ int main(int argc, char **argv){
       start_state[19] = vl;
       start_state[20] = vl;
       
+      solver.ode(start_state, Xd);
       solver.solve(start_state, temp_state, .01);
-      solver.log_features(start_state, temp_state, vl, vr);
-
+      solver.log_features(start_state, temp_state, Xd, vl, vr);
+      
       if(i%100 == 0){
           ROS_INFO("Iteration %d", i);
       }
