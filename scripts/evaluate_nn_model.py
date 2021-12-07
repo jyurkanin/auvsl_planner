@@ -55,7 +55,7 @@ class VehicleNet(nn.Module):
     super(VehicleNet, self).__init__()
     
     self.in_size = 16
-    self.hidden_size = 100
+    self.hidden_size = 10
     self.out_size = 3
     
     self.tanh_block1 = nn.Sequential(
@@ -218,7 +218,7 @@ def test_vehicle_network(model, gt_filename, features_filename):
     predicted_path[i+1][2] = predicted_path[i][2] + yhat[2]*ts
 
   plt.plot(predicted_path[:,0], predicted_path[:,1], color='red')
-  plt.show()
+  #plt.show()
   
   total_lin_disp, total_ang_disp = get_path_displacement(gt_pos)
   
@@ -268,11 +268,11 @@ def evaluate_ld3_paths(model):
 
 
   
-model_name = "../data/vehicle1.net"
+model_name = "../data/vehicle2.net"
 model = VehicleNet(model_name)
 model.load(model_name)
  
-evaluate_ld3_paths(model)
+evaluate_cv3_paths(model)
 
 
 #md = model.state_dict()

@@ -93,7 +93,7 @@ class VehicleNet(nn.Module):
     super(VehicleNet, self).__init__()
     
     self.in_size = 16
-    self.hidden_size = 100
+    self.hidden_size = 10
     self.hidden_size2 = 8
     self.out_size = 3
     
@@ -294,7 +294,7 @@ model_name = "../data/vehicle2.net"
 
 
 model = VehicleNet(model_name)
-model.load(model_name)
+#model.load(model_name)
 print("Training first block")
 model.fit(1e-4, 10, 100)
 #print("Training second block")
