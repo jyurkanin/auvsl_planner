@@ -53,8 +53,9 @@ plt.plot(df['x'], df['y'], color='blue')#,  alpha=.1, s = 1)
 #df = df[::20]
 #plt.plot(df['x'], df['y'])
 
-df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul4/test_1/3_odom_t265.csv")
-plt.plot(df['field.pose.pose.position.x'], df['field.pose.pose.position.y'], color="red")
+df = pd.read_csv("/home/justin/Downloads/CV3/localization_ground_truth/0001_CV_grass_GT.txt", header=None)
+#df = pd.read_csv("/home/justin/code/AUVSL_ROS/bags/rantoul4/test_1/3_odom_t265.csv")
+#plt.plot(df['field.pose.pose.position.x'], df['field.pose.pose.position.y'], color="red")
 odom_len = df.shape[0]
 
 dx = df['field.pose.pose.position.x'][odom_len-1] - sim_x

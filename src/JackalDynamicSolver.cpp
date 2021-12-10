@@ -314,8 +314,8 @@ void JackalDynamicSolver::init_model(int debug){
     ROS_INFO("Log FILE BAD BRO 1");
   }
   
-  feature_log.open("/home/justin/features.csv", std::ofstream::out);
-  feature_log << "x,y,z,roll,pitch,yaw,vx,vy,az,qd1,qd2,qd3,qd4,vl,vr,vxn,vyn,azn,dvx,dvy,dvz,dwx,dwy,dwz\n";
+  feature_log.open("/home/justin/code/AUVSL_ROS/src/auvsl_planner/data/residual_data/features.csv", std::ofstream::out);
+  feature_log << "e_vx,e_vy,e_wz,vx,vy,vz,ax,ay,az,qd1,qd3\n";
   
   Vector3d initial_pos(0,0,0);
   
@@ -883,8 +883,30 @@ qd_init = [0 0 0 0];
   log_file << temp[20] << "\n";
 }
 
+//Quaternion::toMatrix() transforms vectors from world to vehicle frame.
+void JackalDynamicSolver::log_features(float *Xout, float *gt_vel, float *Xout_end, float vl, float vr){
+  Quaternion rbdl_quat_end(Xout_end[3],Xout_end[4],Xout_end[5],Xout_end[10]);
+  Vector3d body_lin_vel_end = rbdl_quat_end.toMatrix() * Vector3d(Xout_end[11],Xout_end[12],Xout_end[13]);
+  float e_vx = gt_vel[0] - body_lin_vel_end[0];
+  float e_vy = gt_vel[1] - body_lin_vel_end[1];
+  float e_wz = gt_vel[2] - Xout_end[16];
+  feature_log << e_vx << ',' << e_vy << ',' << e_wz << ',';
+  
+  Quaternion rbdl_quat(Xout[3],Xout[4],Xout[5],Xout[10]);
+  Vector3d body_lin_vel = rbdl_quat.toMatrix() * Vector3d(Xout[11],Xout[12],Xout[13]);
+  
+  //vx,vy,vz,wx,wy,wz //In body coordinates
+  feature_log << body_lin_vel[0] << ',' << body_lin_vel[1] << ',' << body_lin_vel[2] << ','
+              << Xout[14] << ',' << Xout[15] << ',' << Xout[16] << ',';
+  
+  feature_log << Xout[17] << ',' << Xout[19] << '\n';
+
+  
+}
 
 
+
+/*
 void JackalDynamicSolver::log_features(float *Xout, float *Xout_next, float *Xd, float vl, float vr){
   //if(timestep%10 == 0){
   for(int i = 0; i < 3; i++){
@@ -921,7 +943,7 @@ void JackalDynamicSolver::log_features(float *Xout, float *Xout_next, float *Xd,
   feature_log << Xd[15] << ',';
   feature_log << Xd[16] << '\n';
 }
-
+*/
 
 void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr, float sim_time){
   int sim_steps = floorf(sim_time/stepsize);

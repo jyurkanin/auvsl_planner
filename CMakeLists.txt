@@ -126,38 +126,9 @@ include_directories(
 ${catkin_INCLUDE_DIRS}
 )
 
-## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/auvsl_planner.cpp
-# )
 
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-# add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-
-## Declare a C++ executable
-## With catkin_make all packages are built within a single CMake context
-## The recommended prefix ensures that target names across packages don't collide
-
-## Rename C++ executable without prefix
-## The above recommended prefix causes long target names, the following renames the
-## target back to the shorter version for ease of user use
-## e.g. "rosrun someones_pkg node" instead of "rosrun someones_pkg someones_pkg_node"
-# set_target_properties(${PROJECT_NAME}_node PROPERTIES OUTPUT_NAME node PREFIX "")
-
-
-## Add cmake target dependencies of the executable
-## same as for the library above
-# 
-
-## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
 
 include_directories(include/auvsl_planner)
-
 
 find_package(pluginlib REQUIRED)
 include_directories(${PLUGINLIB_INCLUDE_DIRS})
@@ -553,5 +524,36 @@ target_link_libraries(gen_data_node rbdl)
 set_target_properties(gen_data_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
+
+
+add_executable(gen_residual_data_node src/gen_residual_data.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  )
+
+target_link_libraries(gen_residual_data_node ${OMPL_LIBRARIES})
+target_link_libraries(gen_residual_data_node ${PCL_LIBRARIES})
+target_link_libraries(gen_residual_data_node ${catkin_LIBRARIES})
+target_link_libraries(gen_residual_data_node rbdl)
+set_target_properties(gen_residual_data_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+add_executable(test_residual_net_node
+  src/test_residual_net.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  src/solver_res_nn.cpp
+  )
+
+target_link_libraries(test_residual_net_node ${OMPL_LIBRARIES})
+target_link_libraries(test_residual_net_node ${PCL_LIBRARIES})
+target_link_libraries(test_residual_net_node ${catkin_LIBRARIES})
+target_link_libraries(test_residual_net_node rbdl)
+set_target_properties(test_residual_net_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 

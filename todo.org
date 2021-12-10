@@ -419,7 +419,7 @@
   Did both and done.
 * DONE Make unit tests for dynamic model
   1. Verify the velocities in the tire frame.
-* TODO Reduce model error
+* DONE Reduce model error
   Options:
   1. Learn a network to predict model residual to reduce error.
   Must therefore first generate the data by running on the 
@@ -439,7 +439,7 @@
      If it doesn't work, I'll know and be able to give up rapidly.
      Tried a little bit and couldn't make it work. 
      I don't think it ever will. I don't even think
-     neuralODE's will work either.
+     neuralODE's will work either. It works, lol
      
   4. Understand which bekker parameters affect Fy and search them. 
      I dont think this is a promising strat. but its easy and Ishould try.
@@ -455,7 +455,7 @@
      dynamic model. Need more features.
      Acceleration? Lets try it. Lateral acceleration is related to turn radius.
      Best NN prediction results with a feature vector that just includes [qd1,qd3] for the past 8 timesteps.
-     Hopefully this approach works for real world data.
+     Hopefully this approach works for real world data. It does. Sick.
 
 
 * Different results depending on loading pcl from file. 
@@ -466,6 +466,22 @@
   
 * DONE Verified all spatial and homogenous transformations.
 
+  
+
+EndGame
+* TODO Reduce Model Error
+  Mix neural network model with bekker model
+  Also try to train neural network to learn bekker model error
+       Will have to run solver.solve(.,.,.05) to make data that is the same rate as the training data.
+  
+  Need to interpolate world frame velocity to 20hz
+  ground truth data will include [qd1,qd3,vx,vy,wz]
+  
+  Training residual network.
+  Inputs: body velocity and left/right tire vel
+  Outputs: vx,vy,wz residual
+  It sucks. Moving on.
+  
   
 * Minimum Viable Product:
 ** DONE RRT Algorithm

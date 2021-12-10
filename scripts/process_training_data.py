@@ -119,10 +119,12 @@ def group_samples(gt_filename, odom_filename):
 #Time,x,y,rad
 #reads file, converts to velocity, then uses interpolation to convert to odometry rate.
 def process_file(gt_filename, odom_filename):
-    df = pd.read_csv(gt_filename, header=None) #"/home/justin/JoydeepDataset/Train3/localization_ground_truth/{:04d}_Tr_grass_GT.txt".format(idx), header=None)
+    #"/home/justin/JoydeepDataset/Train3/localization_ground_truth/{:04d}_Tr_grass_GT.txt".format(idx), header=None)
+    df = pd.read_csv(gt_filename, header=None) 
     gt_data = df.to_numpy()
-
-    df = pd.read_csv(odom_filename, header=None) #"/home/justin/JoydeepDataset/Train3/extracted_data/odometry/{:04d}_odom_data.txt".format(idx), header=None)
+    
+    #"/home/justin/JoydeepDataset/Train3/extracted_data/odometry/{:04d}_odom_data.txt".format(idx), header=None)
+    df = pd.read_csv(odom_filename, header=None)
     odom_data = df.to_numpy()
     
     vx = (gt_data[1:,1] - gt_data[:-1,1]) / (gt_data[1:,0] - gt_data[:-1,0]) #world frame velocity.
