@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #include "GlobalParams.h"
-#include "JackalDynamicSolver.h"
+#include "HybridModel.h"
 #include "TerrainMap.h"
 
 #include <std_srvs/Empty.h>
@@ -28,10 +28,7 @@
 #include <fenv.h>
 
 
-
-
-
-
+HybridModel *g_hybrid_model;
 
 unsigned got_init_pose = 0;
 geometry_msgs::Pose initial_pose;
@@ -42,7 +39,6 @@ float map_res;
 unsigned height;
 unsigned width;
 
-SimpleTerrainMap simple_terrain_map;
 
 typedef struct{
   double vl;
@@ -206,44 +202,19 @@ void simulatePeriod(double start_time, float *X_start, float *X_end){
     }
   }
   
-  
-  double dur;
-  float Xn[21];
-  float Xn1[21];
-  for(int i = 0; i < 11; i++){
-    Xn[i] = X_start[i]; //assign position and orientation
-  }
-  for(int i = 11; i < 21; i++){
-    Xn[i] = 0; //zero velocities
-  }
-  
-  JackalDynamicSolver solver;
-  solver.stabilize_sinkage(Xn, Xn);
+  g_hybrid_model->init_state(X_start);  
 
-  for(int i = 11; i < 21; i++){
-    Xn[i] = X_start[i]; //assign velocities
-  }
-  
-  
+  float vl, vr;
   for(unsigned idx = start_idx; (odom_vec[idx].ts - start_time) < 6; idx++){
-    Xn[17] = std::max(1e-4d, odom_vec[idx].vr);
-    Xn[18] = std::max(1e-4d, odom_vec[idx].vr);
-    Xn[19] = std::max(1e-4d, odom_vec[idx].vl);
-    Xn[20] = std::max(1e-4d, odom_vec[idx].vl);
+    vr = std::max(1e-4d, odom_vec[idx].vr);
+    vl = std::max(1e-4d, odom_vec[idx].vl);
     
-    dur = odom_vec[idx+1].ts - odom_vec[idx].ts;
-    solver.solve(Xn, Xn1, dur);
-
-    
-    for(int i = 0; i < 21; i++){
-      Xn[i] = Xn1[i];
-    }
-    
-    
+    g_hybrid_model->step(vl, vr);
+    g_hybrid_model->bekker_model.log_xout(g_hybrid_model->vehicle_state);
   }
   
   for(int i = 0; i < 21; i++){
-    X_end[i] = Xn[i];
+    X_end[i] = g_hybrid_model->vehicle_state[i];
   }
 }
 
@@ -260,6 +231,9 @@ void getDisplacement(unsigned start_i, unsigned end_i, float &lin_displacement, 
     dx = gt_vec[i].x - gt_vec[i+1].x;
     dy = gt_vec[i].y - gt_vec[i+1].y;
     dyaw = gt_vec[i].yaw - gt_vec[i+1].yaw;
+    dyaw = fabs(dyaw);
+    
+    dyaw = dyaw > M_PI ?  dyaw - (2*M_PI) : dyaw;
     
     lin_displacement += sqrtf((dx*dx) + (dy*dy));
     ang_displacement += fabs(dyaw);
@@ -299,7 +273,7 @@ void simulateDataset(){
       
       Xn[0] = gt_vec[i].x;
       Xn[1] = gt_vec[i].y;
-      Xn[2] = 0; //.16;
+      Xn[2] = .16;
       
       initial_quat.setRPY(0,0,gt_vec[i].yaw);
       initial_quat = initial_quat.normalize();
@@ -374,99 +348,20 @@ void simulateDataset(){
 
 
 
-float search_bekker(){
-  BekkerData best_bekker_params = lookup_soil_table(4);
-  simple_terrain_map.test_bekker_data_ = best_bekker_params;
-  
-  float best_err = 1000000;
-  
-  double dur;
-  float Xn[21];
-  float Xn1[21];
-  float X_start[21];
-  
-  
-  for(int i = 0; i < 21; i++){
-    Xn[i] = 0;
-  }
-  
-  tf::Quaternion initial_quat;
-  
-  Xn[0] = gt_vec[0].x;
-  Xn[1] = gt_vec[0].y;
-  Xn[2] = 0;//.16;
-  
-  initial_quat.setRPY(0,0,gt_vec[0].yaw);
-  initial_quat = initial_quat.normalize();
-  
-  Xn[3] = initial_quat.getX();
-  Xn[4] = initial_quat.getY();
-  Xn[5] = initial_quat.getZ();
-  Xn[10] = initial_quat.getW();
-
-  
-  JackalDynamicSolver solver;
-  solver.stabilize_sinkage(Xn, X_start);
-  
-  //for(float phi = .2; phi < .6; phi+=.01){
-  for(float n0 = .7421; n0 < .7423; n0 += .0001f){
-    
-    simple_terrain_map.test_bekker_data_.n0 = n0;
-    
-    for(int i = 0; i < 21; i++){
-      Xn[i] = X_start[i];
-    }
-  
-    for(unsigned idx = 0; idx < 1000; idx++){
-      Xn[17] = odom_vec[idx].vr;
-      Xn[18] = odom_vec[idx].vr;
-      Xn[19] = odom_vec[idx].vl;
-      Xn[20] = odom_vec[idx].vl;
-    
-      dur = odom_vec[idx+1].ts - odom_vec[idx].ts;
-      solver.solve(Xn, Xn1, dur);
-    
-      for(int i = 0; i < 21; i++){
-        Xn[i] = Xn1[i];
-      }
-    }
-
-    float dx = gt_vec[1504].x - Xn[0];
-    float dy = gt_vec[1504].y - Xn[1];
-    
-    ROS_INFO("n0 %f     Err %f", n0, sqrtf(dx*dx + dy*dy));
-    if(sqrtf(dx*dx + dy*dy) < best_err){
-      ROS_INFO("kc %f, kphi %f, n0 %f, n1 %f, phi %f", best_bekker_params.kc, best_bekker_params.kphi, best_bekker_params.n0, best_bekker_params.n1, best_bekker_params.phi);
-      best_err = sqrtf(dx*dx + dy*dy);
-      ROS_INFO("Best Err %f", sqrtf(dx*dx + dy*dy));
-      best_bekker_params = simple_terrain_map.test_bekker_data_;
-    }
-  }
-  
-  ROS_INFO("Best params: kc %f, kphi %f, n0 %f, n1 %f, phi %f", simple_terrain_map.test_bekker_data_.kc, simple_terrain_map.test_bekker_data_.kphi, simple_terrain_map.test_bekker_data_.n0, simple_terrain_map.test_bekker_data_.n1, simple_terrain_map.test_bekker_data_.phi);
-
-  return 0;
-}
-
-
-
-
 int main(int argc, char **argv){
   feenableexcept(FE_INVALID | FE_OVERFLOW);
-  
   ros::init(argc, argv, "auvsl_global_planner");
-  ros::NodeHandle nh;
-  
-  ROS_INFO("Starting up test_terrain_node\n");
-  
-  int plot_res;
-  nh.getParam("/TerrainMap/plot_res", plot_res); 
-  
+  ros::NodeHandle nh;  
   GlobalParams::load_params(&nh);
-  ompl::RNG::setSeed(GlobalParams::get_seed());
-  srand(GlobalParams::get_seed());
 
-  ros::Rate loop_rate(10);
+  TerrainMap *terrain_map = new SimpleTerrainMap();
+  JackalDynamicSolver::set_terrain_map(terrain_map);
+  HybridModel::init();
+
+  g_hybrid_model = new HybridModel();
+  
+  g_hybrid_model->init_state(); //set start pos to 0,0,.16 and orientation to 0,0,0,1
+  g_hybrid_model->settle();     //allow the 3d vehicle to come to rest and reach steady state, equillibrium sinkage for tires.
   
   load_files(
 "/home/justin/Downloads/LD3/extracted_data/odometry/0001_odom_data.txt",
@@ -474,19 +369,8 @@ int main(int argc, char **argv){
 "/home/justin/Downloads/LD3/localization_ground_truth/0001_LD_grass_GT.txt"
 );
   
-  JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
-  JackalDynamicSolver::init_model(2);
-  
-  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
-  
-  //for(float n0 = .7; n0 < .8; n0 += .01f){
-  //  for(float phi = .38; phi < .45; phi+=.01){
-  //  simple_terrain_map.test_bekker_data_.phi = phi;
   simulateDataset();
-  //  ROS_INFO("phi:   %f", phi);
-  //}
   
-  //search_bekker();
   JackalDynamicSolver::del_model();
   
   return 0;

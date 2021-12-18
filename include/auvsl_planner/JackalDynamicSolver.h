@@ -101,7 +101,7 @@ class JackalDynamicSolver{
   static RigidBodyDynamics::Math::Vector3d base_size;
   static int debug_level;
   static Model *model;
-  static float stepsize;
+  static constexpr float stepsize = .001f;
   int timestep;
   VectorNd tau;
   std::vector<SpatialVector> f_ext;
@@ -118,8 +118,6 @@ class JackalDynamicSolver{
   static Eigen::Matrix<float,num_hidden_nodes,1> bias0;
   static Eigen::Matrix<float,num_hidden_nodes,num_hidden_nodes> weight2;
   static Eigen::Matrix<float,num_hidden_nodes,1> bias2;
-  //Eigen::Matrix<float,num_hidden_nodes,num_hidden_nodes> weight4;
-  //Eigen::Matrix<float,num_hidden_nodes,1> bias4;
   static Eigen::Matrix<float,num_out_features,num_hidden_nodes> weight4;
   static Eigen::Matrix<float,num_out_features,1> bias4;
 

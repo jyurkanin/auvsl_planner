@@ -58,8 +58,16 @@ void resnet_forward(NNResModel &nn_model, float *start_state, float *residual_es
   Quaternion rbdl_quat(start_state[3],start_state[4],start_state[5],start_state[10]);
   Vector3d body_lin_vel = rbdl_quat.toMatrix() * Vector3d(start_state[11],start_state[12],start_state[13]);
   
-  Eigen::Matrix<float,NNResModel::num_in_features,1> features;
+  static Eigen::Matrix<float,NNResModel::num_in_features,1> features = Eigen::Matrix<float,NNResModel::num_in_features,1>::Zero();
   Eigen::Matrix<float,NNResModel::num_out_features,1> res_prediction;
+
+  for(int i = 7; i > 0; i--){
+    int idx = i*5;
+    int prev_idx = (i-1)*5;
+    for(int j = 0; j < 5; j++){
+      features[idx + j] = features[prev_idx + j];
+    }
+  }
   
   features[0] = body_lin_vel[0];
   features[1] = body_lin_vel[1];
@@ -84,14 +92,14 @@ void apply_correction(float *predicted_state, float *residual_est, float *correc
   Vector3d body_lin_vel = rbdl_quat.toMatrix() * Vector3d(predicted_state[11],predicted_state[12],predicted_state[13]);
   Vector3d corrected_body_vel;
   
-  corrected_body_vel[0] = residual_est[0] + predicted_state[11];
-  corrected_body_vel[1] = residual_est[1] + predicted_state[12];
-  corrected_body_vel[2] = residual_est[2] + predicted_state[16];
+  corrected_body_vel[0] = residual_est[0] + body_lin_vel[0]; //correct linear velocity in the body frame
+  corrected_body_vel[1] = residual_est[1] + body_lin_vel[1];
+  corrected_body_vel[2] = body_lin_vel[2];
 
   Vector3d corrected_world_vel = rbdl_quat.toMatrix().transpose() * corrected_body_vel;
   corrected_state[11] = corrected_world_vel[0];
   corrected_state[12] = corrected_world_vel[1];
-  corrected_state[16] = corrected_world_vel[2];
+  corrected_state[16] = residual_est[2] + body_lin_vel[2]; //corect angular velocity. Which is automatically in the body frame
 }
 
 int main(int argc, char **argv){

@@ -21,6 +21,8 @@ from pickle import dump
 input_scaler = StandardScaler()
 output_scaler = StandardScaler()
 
+dir_prefix = "/home/justin/Downloads"
+
 #load test and training data
 def load_training_data():
     in_features = ['qd1_0','qd3_0','qd1_1','qd3_1','qd1_2','qd3_2','qd1_3','qd3_3','qd1_4','qd3_4','qd1_5','qd3_5','qd1_6','qd3_6','qd1_7','qd3_7']
@@ -212,11 +214,15 @@ def test_vehicle_network(model, gt_filename, features_filename):
     theta = predicted_path[i][2]
     rot = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
     vel = np.dot(rot, yhat[0:2])  #transform to world coordinates so we can integrate
-    
-    predicted_path[i+1][0] = predicted_path[i][0] + vel[0]*ts
-    predicted_path[i+1][1] = predicted_path[i][1] + vel[1]*ts
-    predicted_path[i+1][2] = predicted_path[i][2] + yhat[2]*ts
 
+    temp_int = predicted_path[i][:]
+    for k in range(50):
+        temp_int[0] = temp_int[0] + vel[0]*.001
+        temp_int[1] = temp_int[1] + vel[1]*.001
+        temp_int[2] = temp_int[2] + yhat[2]*.001
+    
+    predicted_path[i+1][:] = temp_int
+        
   plt.plot(predicted_path[:,0], predicted_path[:,1], color='red')
   #plt.show()
   
@@ -230,7 +236,7 @@ def test_vehicle_network(model, gt_filename, features_filename):
 
 
 def evaluate_cv3_paths(model):
-  gt_filename = "/home/justin/JoydeepDataset/CV3/localization_ground_truth/{:04d}_CV_grass_GT.txt"
+  gt_filename = dir_prefix + "/CV3/localization_ground_truth/{:04d}_CV_grass_GT.txt"
   features_filename = "../data/joydeep_data/cv3/test_x_CV3_{:04d}.csv"
   
   total_lin_err = 0
@@ -250,7 +256,7 @@ def evaluate_cv3_paths(model):
 
 
 def evaluate_ld3_paths(model):
-  gt_filename = "/home/justin/JoydeepDataset/LD3/localization_ground_truth/0001_LD_grass_GT.txt"
+  gt_filename = dir_prefix + "/LD3/localization_ground_truth/0001_LD_grass_GT.txt"
   features_filename = "../data/joydeep_data/ld3/test_x_LD3_0001.csv"
   
   total_lin_err = 0
@@ -268,7 +274,7 @@ def evaluate_ld3_paths(model):
 
 
   
-model_name = "../data/vehicle2.net"
+model_name = "../data/best_vehicle.net"
 model = VehicleNet(model_name)
 model.load(model_name)
  

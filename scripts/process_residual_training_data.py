@@ -121,7 +121,7 @@ def process_file(gt_filename, odom_filename):
     f_interp = interpolate.interp1d(gt_data[:-1,0], body_vel[0:3,:].T, axis=0, fill_value='extrapolate') #interpolate so that data is down sampled to odom rate. #'extrapolate'
     down_sampled_data = f_interp(odom_data[:,5])
     #timestamp, vx,vy,wz, qd1,qd3, nvx,nvy,nwz
-    train_data = np.concatenate([odom_data[:-1,5].reshape(-1,1), down_sampled_data[:-1,:], odom_data[:-1,1].reshape(-1,1), odom_data[:-1,3].reshape(-1,1), down_sampled_data[1:,:]], axis=1)
+    train_data = np.concatenate([odom_data[:-1,5].reshape(-1,1), down_sampled_data[:-1,:], odom_data[:-1,3].reshape(-1,1), odom_data[:-1,1].reshape(-1,1), down_sampled_data[1:,:]], axis=1)
     
     #plt.plot(gt_data[:,1], gt_data[:,2]) #plot path
     #plt.plot(train_data[1:,0] - train_data[:-1,0]) #plt body vel

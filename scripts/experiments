@@ -20,3 +20,12 @@
    Trajectory is same as 1. Actually turns, unlike 3.
 
 
+
+
+
+1. Tanh, batch_size is 10, 1000 epochs, 100 hidden neurons
+   CV3 performance was .16 (bad)
+
+2. Tanh, batch_size is 100, 1000's epochs, 10 hidden neurons
+    CV3 performance was .09 (good)
+3. Evaluting CV3 performance with time step .001 (instead of .05) gives almost the exact same performance.
