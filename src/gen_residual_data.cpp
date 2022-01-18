@@ -163,9 +163,9 @@ int main(int argc, char **argv){
           ROS_INFO("Iteration %d", i);
       }
       
-      //for(unsigned j = 0; j < 21; j++){
-      //    start_state[j] = temp_state[j];
-      //}
+      for(unsigned j = 0; j < 21; j++){
+          start_state[j] = temp_state[j];
+      }
       
       RigidBodyDynamics::Math::Quaternion quat(temp_state[3], temp_state[4], temp_state[5], temp_state[10]);
       RigidBodyDynamics::Math::Vector3d vec = quat.rotate(RigidBodyDynamics::Math::Vector3d(0,0,1));

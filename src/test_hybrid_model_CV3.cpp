@@ -1,51 +1,23 @@
+#include "JackalDynamicSolver.h"
+#include "HybridModel.h"
+#include "GlobalParams.h"
+#include <stdlib.h>
 #include <iostream>
 #include <vector>
-#include <thread>
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-
-#include "GlobalParams.h"
-#include "JackalDynamicSolver.h"
-#include "TerrainMap.h"
-
-#include <std_srvs/Empty.h>
-#include <nav_msgs/GetPlan.h>
-#include <geometry_msgs/Twist.h>
-#include <geometry_msgs/Pose.h>
-
-#include <ompl/util/RandomNumbers.h>
-#include <ompl/base/goals/GoalSpace.h>
-#include <ompl/control/SimpleDirectedControlSampler.h>
-
-#include <rbdl/rbdl.h>
-#include <tf/tf.h>
-
-#include <tf2_ros/transform_listener.h>
-#include <costmap_2d/costmap_2d_ros.h>
-#include <nav_msgs/OccupancyGrid.h>
-
-#include <string>
 #include <fenv.h>
-
+#include <tf/tf.h>
 
 
 #define SIM_LEN 6.0f
 
 
 
-
-
-unsigned got_init_pose = 0;
-geometry_msgs::Pose initial_pose;
-
-unsigned got_grid_map = 0;
-geometry_msgs::Pose origin;
-float map_res;
-unsigned height;
-unsigned width;
-
-SimpleTerrainMap simple_terrain_map;
+//parse from residual_data/train3/data_x and data_y
+//ts,vx,vy,wz,qd1,qd3
+//nvx,nvy,nwz
 
 typedef struct{
   double vl;
@@ -60,10 +32,10 @@ typedef struct{
   float yaw;
 } GT_LINE;
 
-
 std::vector<ODOM_LINE> odom_vec;
 std::vector<GT_LINE> gt_vec;
 
+HybridModel *g_hybrid_model;
 
 int readOdomFile(std::ifstream &odom_file, ODOM_LINE &odom_line){
   char comma;
@@ -91,8 +63,6 @@ int readGTFile(std::ifstream &gt_file, GT_LINE &gt_line){
 
 
 
-
-
 void load_files(const char *odom_fn, const char *gt_fn){
   std::ifstream odom_file(odom_fn);
   std::ifstream gt_file(gt_fn);
@@ -111,12 +81,10 @@ void load_files(const char *odom_fn, const char *gt_fn){
     gt_vec.push_back(gt_line);
   }
   
-  ROS_INFO("gt vec size %lu", gt_vec.size());
-  ROS_INFO("odom vec size %lu", odom_vec.size());
-
   odom_file.close();
   gt_file.close();
 }
+
 
 void getDisplacement(float &total_len, float &total_ang){
   float dx, dy, dyaw;
@@ -125,50 +93,38 @@ void getDisplacement(float &total_len, float &total_ang){
   total_ang = 0;
 
   double start_time = gt_vec[0].ts;
-  ROS_INFO("Total Duration of File %f", gt_vec[gt_vec.size()-1].ts - start_time);
+  //ROS_INFO("Total Duration of File %f", gt_vec[gt_vec.size()-1].ts - start_time);
   
   for(int i = 0; (gt_vec[i].ts - start_time) < SIM_LEN; i++){
     dx = gt_vec[i+1].x - gt_vec[i].x;
     dy = gt_vec[i+1].y - gt_vec[i].y;
     dyaw = gt_vec[i+1].yaw - gt_vec[i].yaw;
+    dyaw = fabs(dyaw);
+    
+    dyaw = dyaw > M_PI ?  dyaw - (2*M_PI) : dyaw;
     
     total_len += sqrtf((dx*dx) + (dy*dy));
     total_ang += fabs(dyaw);
   }
 }
 
+
 void simulatePeriod(double start_time, float *X_start, float *X_end){
-  double dur;
-  float Xn[21];
-  float Xn1[21];
-  for(int i = 0; i < 21; i++){
-    Xn[i] = X_start[i];
-  }
+  g_hybrid_model->init_state(X_start);
   
-  float dx;
-  float dy;
-  
-  double roll, pitch, yaw, yaw_next;
-  
-  JackalDynamicSolver solver;
-  solver.stabilize_sinkage(Xn, Xn);
-  
+  float vl, vr, dur;
   for(unsigned idx = 0; (odom_vec[idx].ts - start_time) < SIM_LEN; idx++){
-    Xn[17] = std::max(1e-3d, odom_vec[idx].vr);
-    Xn[18] = std::max(1e-3d, odom_vec[idx].vr);
-    Xn[19] = std::max(1e-3d, odom_vec[idx].vl);
-    Xn[20] = std::max(1e-3d, odom_vec[idx].vl);
+    dur = odom_vec[idx+1].ts - odom_vec[idx].ts; //dur approximately equals .05s, which is the timestep of the hybrid model.
     
-    dur = odom_vec[idx+1].ts - odom_vec[idx].ts;
-    solver.solve(Xn, Xn1, dur);
+    vr = std::max(1e-4d, odom_vec[idx].vr);
+    vl = std::max(1e-4d, odom_vec[idx].vl);
     
-    for(int i = 0; i < 21; i++){
-      Xn[i] = Xn1[i];
-    }
+    g_hybrid_model->step(vl, vr);
+    g_hybrid_model->bekker_model.log_xout(g_hybrid_model->vehicle_state);
   }
   
   for(int i = 0; i < 21; i++){
-    X_end[i] = Xn[i];
+    X_end[i] = g_hybrid_model->vehicle_state[i];
   }
 }
 
@@ -197,7 +153,7 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
   double time = gt_vec[0].ts;      
   Xn[0] = gt_vec[0].x;
   Xn[1] = gt_vec[0].y;
-  Xn[2] = 0; //.16;
+  Xn[2] = .16;
   
   initial_quat.setRPY(0,0,gt_vec[0].yaw);
   initial_quat = initial_quat.normalize();
@@ -235,26 +191,26 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
 }
 
 
-
-
-
-int main(int argc, char **argv){
-  //feenableexcept(FE_INVALID | FE_OVERFLOW);
+//this matches the same result from python.
+//Which validates the conversion of the neural network from python to C++
+void test_nn(NNJackalModel &nn_model){
+  Eigen::Matrix<float,NNJackalModel::num_in_features,1> features;
+  Eigen::Matrix<float,NNJackalModel::num_out_features,1> nn_prediction;
   
-  ros::init(argc, argv, "auvsl_global_planner");
-  ros::NodeHandle nh;
+  for(int i = 0; i < 16; i++){
+    features[i] = 1.0f+i;
+  }
   
-  ROS_INFO("Starting up test_terrain_node\n");
+  nn_prediction = nn_model.forward(features);
   
-  int plot_res;
-  nh.getParam("/TerrainMap/plot_res", plot_res); 
-  
-  GlobalParams::load_params(&nh);
-  ompl::RNG::setSeed(GlobalParams::get_seed());
-  srand(GlobalParams::get_seed());
+  //ROS_INFO("Vx %f", nn_prediction[0]);
+  //ROS_INFO("Vy %f", nn_prediction[1]);
+  //ROS_INFO("Wz %f", nn_prediction[2]);
+}
 
-  ros::Rate loop_rate(10);
 
+//test accuracy by following the cv3 paths for the first 6 seconds.
+void test_CV3_paths(){
   float total_lin_err = 0;
   float total_ang_err = 0;
   
@@ -266,19 +222,19 @@ int main(int argc, char **argv){
   
   int count = 0;
   
-  JackalDynamicSolver::set_terrain_map((TerrainMap*) &simple_terrain_map);
-  JackalDynamicSolver::init_model(2);
+  //int skip = {32,33,34,35,36,37,38, 78,79,80,81};
   
-  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
-  //144
-  for(int i = 1; i <= 144; i++){
+  //this needs to start at 1.
+  for(int jj = 1; jj <= 144; jj++){
+    if((jj >= 32 && jj <= 38) || (jj >= 78 && jj <= 81))
+      continue;
     memset(odom_fn, 0, 100);
-    sprintf(odom_fn, "/home/justin/Downloads/CV3/extracted_data/odometry/%04d_odom_data.txt", i);
+    sprintf(odom_fn, "/home/justin/Downloads/CV3/extracted_data/odometry/%04d_odom_data.txt", jj);
     ROS_INFO("Reading Odom File %s", odom_fn);
     
     memset(gt_fn, 0, 100);
-    sprintf(gt_fn, "/home/justin/Downloads/CV3/localization_ground_truth/%04d_CV_grass_GT.txt", i);
-    ROS_INFO("Readin GT File %s", gt_fn);
+    sprintf(gt_fn, "/home/justin/Downloads/CV3/localization_ground_truth/%04d_CV_grass_GT.txt", jj);
+    //ROS_INFO("Readin GT File %s", gt_fn);
     
     load_files(odom_fn, gt_fn);
     
@@ -290,9 +246,36 @@ int main(int argc, char **argv){
     count++;
   }
   
-  ROS_INFO("RMRSE lin: %f     ang: %f", sqrtf(total_lin_err/(float)count), sqrtf(total_ang_err/(float)count));
+  ROS_INFO("CV3 RMRSE lin: %f     ang: %f", sqrtf(total_lin_err/(float)count), sqrtf(total_ang_err/(float)count));
+
+  /*
+  for(int i = 0; i < odom_vec.size(); i++){
+      g_hybrid_model->step(odom_vec[i].vl, odom_vec[i].vr);
+      g_hybrid_model->bekker_model.log_xout(g_hybrid_model->vehicle_state);
+  }
+  */
+  
+}
+
+
+
+
+int main(int argc, char **argv){
+  feenableexcept(FE_INVALID | FE_OVERFLOW);
+  ros::init(argc, argv, "gen_data");
+  ros::NodeHandle nh;
+  GlobalParams::load_params(&nh);
+
+  TerrainMap *terrain_map = new SimpleTerrainMap();
+  JackalDynamicSolver::set_terrain_map(terrain_map);
+  HybridModel::init();
+
+  g_hybrid_model = new HybridModel();
+  
+  g_hybrid_model->init_state(); //set start pos to 0,0,.16 and orientation to 0,0,0,1
+  g_hybrid_model->settle();     //allow the 3d vehicle to come to rest and reach steady state, equillibrium sinkage for tires.
+  
+  test_CV3_paths();
   
   JackalDynamicSolver::del_model();
-  
-  return 0;
 }

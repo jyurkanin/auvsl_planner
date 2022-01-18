@@ -14,7 +14,8 @@ import numpy as np
 from scipy import interpolate
 
 
-
+#dir_prefix = "/home/justin/JoydeepDataset"
+dir_prefix = "/home/justin/Downloads"
 
 def main():
     process_training_data()
@@ -23,8 +24,8 @@ def main():
 
 #process cv3 data into a form usable by a VehicleNet
 def process_cv3_data():
-    odom_filename = "/home/justin/JoydeepDataset/CV3/extracted_data/odometry/{:04d}_odom_data.txt"
-    gt_filename = "/home/justin/JoydeepDataset/CV3/localization_ground_truth/{:04d}_CV_grass_GT.txt"
+    odom_filename = dir_prefix + "/CV3/extracted_data/odometry/{:04d}_odom_data.txt"
+    gt_filename = dir_prefix + "/CV3/localization_ground_truth/{:04d}_CV_grass_GT.txt"
     
     output_fn_x = "../data/joydeep_data/cv3/test_x_CV3_{:04d}.csv"
     output_fn_y = "../data/joydeep_data/cv3/test_y_CV3_{:04d}.csv"
@@ -41,8 +42,8 @@ def process_cv3_data():
         np.savetxt(output_fn_y.format(i), data_y, delimiter=',', comments='', header='vx,vy,wz')
 
 def process_ld3_data():
-    odom_filename = "/home/justin/JoydeepDataset/LD3/extracted_data/odometry/{:04d}_odom_data.txt"
-    gt_filename = "/home/justin/JoydeepDataset/LD3/localization_ground_truth/{:04d}_LD_grass_GT.txt"
+    odom_filename = dir_prefix + "/LD3/extracted_data/odometry/{:04d}_odom_data.txt"
+    gt_filename = dir_prefix + "/LD3/localization_ground_truth/{:04d}_LD_grass_GT.txt"
     
     output_fn_x = "../data/joydeep_data/ld3/test_x_LD3_{:04d}.csv"
     output_fn_y = "../data/joydeep_data/ld3/test_y_LD3_{:04d}.csv"
@@ -64,8 +65,8 @@ def process_training_data():
     concat_data_x = np.zeros((0,16))
     concat_data_y = np.zeros((0,3))
     
-    odom_filename = "/home/justin/JoydeepDataset/Train3/extracted_data/odometry/{:04d}_odom_data.txt"
-    gt_filename = "/home/justin/JoydeepDataset/Train3/localization_ground_truth/{:04d}_Tr_grass_GT.txt"
+    odom_filename = dir_prefix + "/Train3/extracted_data/odometry/{:04d}_odom_data.txt"
+    gt_filename = dir_prefix + "/Train3/localization_ground_truth/{:04d}_Tr_grass_GT.txt"
     
     for i in range(1, 18): #[1-17]
         print("File", i)
@@ -100,7 +101,16 @@ def process_training_data():
 def group_samples(gt_filename, odom_filename):
     #[[timestamp,vx,vy,wz,qd1,qd3]...]
     raw_features = process_file(gt_filename, odom_filename)
-    data_x = raw_features[:,4:6]
+    data_x = np.array(raw_features[:,4:6])
+    
+    #data_z = np.zeros(data_x.shape)
+
+    #import pdb; pdb.set_trace() #this is completely overpowered. Too useful.
+    #temp = (data_x[:,0] + data_x[:][1])
+    #data_z[:,0] = data_x[:,0] + data_x[:,1]
+    #data_z[:,1] = data_x[:,0] - data_x[:,1]
+    #data_x = data_z
+    
     data_x_0 = np.concatenate([np.zeros([0,2]), data_x[:,:]], axis=0)   # data at t=0
     data_x_1 = np.concatenate([np.zeros([1,2]), data_x[:-1,:]], axis=0) # data at t=-1
     data_x_2 = np.concatenate([np.zeros([2,2]), data_x[:-2,:]], axis=0) # data at t=-2
@@ -119,11 +129,9 @@ def group_samples(gt_filename, odom_filename):
 #Time,x,y,rad
 #reads file, converts to velocity, then uses interpolation to convert to odometry rate.
 def process_file(gt_filename, odom_filename):
-    #"/home/justin/JoydeepDataset/Train3/localization_ground_truth/{:04d}_Tr_grass_GT.txt".format(idx), header=None)
     df = pd.read_csv(gt_filename, header=None) 
     gt_data = df.to_numpy()
     
-    #"/home/justin/JoydeepDataset/Train3/extracted_data/odometry/{:04d}_odom_data.txt".format(idx), header=None)
     df = pd.read_csv(odom_filename, header=None)
     odom_data = df.to_numpy()
     

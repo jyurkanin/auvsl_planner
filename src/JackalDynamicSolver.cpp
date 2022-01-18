@@ -257,7 +257,7 @@ std::ofstream JackalDynamicSolver::temp_log;
 Vector3d JackalDynamicSolver::base_size;
 int JackalDynamicSolver::debug_level;
 Model* JackalDynamicSolver::model = 0;
-float JackalDynamicSolver::stepsize;
+//const float JackalDynamicSolver::stepsize;
 float JackalDynamicSolver::tire_radius;
 float JackalDynamicSolver::tire_thickness;
 
@@ -284,7 +284,7 @@ float JackalDynamicSolver::force_scalars[4];
 //actual class members
 
 JackalDynamicSolver::JackalDynamicSolver(){
-  stepsize = GlobalParams::get_timestep();
+  //stepsize = GlobalParams::get_timestep();
   tau = VectorNd::Zero(model->qdot_size);
   
   
@@ -779,10 +779,10 @@ void JackalDynamicSolver::get_tire_f_ext(float *X){
         }
 
         
-        tire_wrench[1] = force_scalars[0]*tire_wrench[1];
-        tire_wrench[3] = force_scalars[1]*tire_wrench[3];
-        tire_wrench[4] = force_scalars[2]*tire_wrench[4];
-        tire_wrench[5] = force_scalars[3]*tire_wrench[5];
+        tire_wrench[1] = 0*tire_wrench[1];
+        tire_wrench[3] = tire_wrench[3];
+        tire_wrench[4] = tire_wrench[4];
+        tire_wrench[5] = tire_wrench[5];
         
         
         //tire_X is the transform from world to tire.
@@ -957,7 +957,7 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
   for(int i = 0; i < 21; i++){
     Xout[i] = x_init[i];
   }
-
+  
   unsigned max_steps = sim_steps + timestep;
   for(; timestep < max_steps; timestep++){
     step(Xout, Xout_next, vl, vr);
@@ -965,7 +965,6 @@ void JackalDynamicSolver::solve(float *x_init, float *x_end, float vl, float vr,
     if(debug_level == 2){
       log_xout(Xout);
       //log_features(Xout, 0);
-
     }
     
     for(int i = 0; i < 21; i++){
@@ -992,7 +991,6 @@ void JackalDynamicSolver::step(float *X_now, float *X_next, float vl, float vr){
   tau[8] = tau[9] = std::min(std::max(internal_controller[1].step(left_err), -20.0f), 20.0f);
   
   //ROS_INFO("%f   %f   %f   %f", tau[6],tau[7],tau[8],tau[9]);
-  
   //euler_method_unit(X_now, X_next);
   runge_kutta_method(X_now, X_next);
 }
@@ -1048,14 +1046,17 @@ void JackalDynamicSolver::ode_kinematic(float *X, float *Xd){
     Xd[i+model->q_size] = 0;
   }
 
+  //These values identified through linear regression. See pretrain5.py
+  float vr = (X[17]+X[18])*.5;
+  float vl = (X[19]+X[20])*.5;
   
-  float vr = tire_radius*(X[17]+X[18])*.5;
-  float vl = tire_radius*(X[19]+X[20])*.5;
-  float vf = (vl+vr)*.5;
+  float vx = (vl*0.0519) + (vr*0.0352);
+  float vy = (vl*0.0038) + (vr*-0.0034);
+  float wz = (vl*-0.1747) + (vr*0.1744);
   
-  Xd[0] = vf*cosf(X[2]);
-  Xd[1] = vf*sinf(X[2]);
-  Xd[2] = (vr-vl)/.323;
+  Xd[0] = vx*cosf(X[2]) - vy*sinf(X[2]);
+  Xd[1] = vx*sinf(X[2]) + vy*cosf(X[2]);
+  Xd[2] = wz;
   
   
 }
@@ -1179,6 +1180,10 @@ void JackalDynamicSolver::stabilize_sinkage(float *X, float *Xt1){
   
   //do{
   for(int ii = 0; ii < 10000; ii++){
+    Xn[17] = 1e-4f;
+    Xn[18] = 1e-4f;
+    Xn[19] = 1e-4f;
+    Xn[20] = 1e-4f;
     log_xout(Xn);
     ode_stabilize(Xn, Xd);
     

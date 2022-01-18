@@ -97,7 +97,20 @@ def load_data():
     
     for i in range(data_x.shape[1]):
       print("nans in data_x", i, "=", np.any(np.isnan(data_x[:,i])))
+
+    num_features = len(in_features)
+    data_x_0 = np.concatenate([np.zeros([0,num_features]), data_x[:,:]], axis=0)   # data at t=0
+    data_x_1 = np.concatenate([np.zeros([1,num_features]), data_x[:-1,:]], axis=0) # data at t=-1
+    data_x_2 = np.concatenate([np.zeros([2,num_features]), data_x[:-2,:]], axis=0) # data at t=-2
+    data_x_3 = np.concatenate([np.zeros([3,num_features]), data_x[:-3,:]], axis=0) # data at t=-3
+    data_x_4 = np.concatenate([np.zeros([4,num_features]), data_x[:-4,:]], axis=0) # data at t=-4
+    data_x_5 = np.concatenate([np.zeros([5,num_features]), data_x[:-5,:]], axis=0) # data at t=-5
+    data_x_6 = np.concatenate([np.zeros([6,num_features]), data_x[:-6,:]], axis=0) # data at t=-6
+    data_x_7 = np.concatenate([np.zeros([7,num_features]), data_x[:-7,:]], axis=0) # data at t=-7
     
+    data_x = np.concatenate((data_x_0, data_x_1, data_x_2, data_x_3, data_x_4, data_x_5, data_x_6, data_x_7), axis=1)
+
+      
     #plt.plot(data_x[:,2])
     #plt.show()
     
@@ -132,7 +145,7 @@ class VehicleResNet(nn.Module):
     super(VehicleResNet, self).__init__()
     
     self.in_size = test_data.shape[1]
-    self.hidden_size = 100
+    self.hidden_size = 10
     self.out_size = test_labels.shape[1]
     
     self.tanh_block1 = nn.Sequential(
@@ -235,15 +248,11 @@ def test_network(model):
     
 model_name = "../data/vehicle_res1.net"
 model = VehicleResNet(model_name)
-#model.load(model_name)
+model.load(model_name)
 
 print("Training first block")
-model.fit(1e-4, 1000, 1000)
-#print("Training full network")
-#model.train_all_weights()
-#model.fit_full(1e-5, 10, 100)
+model.fit(1e-4, 10, 1000)
 print("Done learning")
-
 plt.show()
 
 model.save()
