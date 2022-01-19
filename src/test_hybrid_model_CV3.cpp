@@ -111,6 +111,7 @@ void getDisplacement(float &total_len, float &total_ang){
 
 void simulatePeriod(double start_time, float *X_start, float *X_end){
   g_hybrid_model->init_state(X_start);
+  g_hybrid_model->settle();
   
   float vl, vr, dur;
   for(unsigned idx = 0; (odom_vec[idx].ts - start_time) < SIM_LEN; idx++){
@@ -176,7 +177,8 @@ void simulateFiles(float &rel_lin_err, float &rel_ang_err){
   tf::Matrix3x3 m(temp_quat);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-      
+  
+  //Calculates the smallest angle between two angles.
   ang_err = fabs(yaw - gt_vec[j].yaw);
   ang_err = ang_err > M_PI ?  ang_err - (2*M_PI) : ang_err;
   
@@ -222,12 +224,8 @@ void test_CV3_paths(){
   
   int count = 0;
   
-  //int skip = {32,33,34,35,36,37,38, 78,79,80,81};
-  
   //this needs to start at 1.
   for(int jj = 1; jj <= 144; jj++){
-    if((jj >= 32 && jj <= 38) || (jj >= 78 && jj <= 81))
-      continue;
     memset(odom_fn, 0, 100);
     sprintf(odom_fn, "/home/justin/Downloads/CV3/extracted_data/odometry/%04d_odom_data.txt", jj);
     ROS_INFO("Reading Odom File %s", odom_fn);
@@ -261,7 +259,7 @@ void test_CV3_paths(){
 
 
 int main(int argc, char **argv){
-  feenableexcept(FE_INVALID | FE_OVERFLOW);
+  //feenableexcept(FE_INVALID | FE_OVERFLOW);
   ros::init(argc, argv, "gen_data");
   ros::NodeHandle nh;
   GlobalParams::load_params(&nh);

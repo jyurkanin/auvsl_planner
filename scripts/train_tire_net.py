@@ -47,7 +47,7 @@ def print_c_network(md, input_scaler, output_scaler):
 
 
 def process_data():
-    in_features = ['zr','slip_ratio','slip_angle']
+    in_features = ['zr','slip_ratio','slip_angle', 'kc','kphi','n0','n1','phi']
     out_features = ['Fx','Fy','Fz', 'Ty']
     
     df = pd.read_csv("../data/f_tire_train.csv")
@@ -115,8 +115,8 @@ print("has gpu? ", torch.cuda.is_available())
 
 
 
-in_size = 3
-hidden_size = 10
+in_size = 8
+hidden_size = 32
 out_size = 4
 
 loss_fn = torch.nn.MSELoss()
@@ -165,7 +165,7 @@ def get_evaluation_loss():
     predicted = model.cpu().forward(test_data.cpu()).detach().numpy()
     predicted_force = output_scaler.inverse_transform(predicted)
     actual_force = output_scaler.inverse_transform(test_labels.cpu().detach().numpy())
-    print(np.mean(np.abs(predicted_force[:,0] - actual_force[:,0])))
+    print(np.sqrt(np.mean(np.square(predicted_force[:,0] - actual_force[:,0]))))
 
 
 
@@ -248,12 +248,12 @@ def create_plots():
     plt.show()
 
 model_name = "../data/tire_terrain1.net"
-#md = torch.load(model_name)
-#model.load_state_dict(md)
+md = torch.load(model_name)
+model.load_state_dict(md)
 
-fit(1e-2, 5000, 10)
-#fit(1e-3, 5000, 300)
-fit(1e-4, 500, 100)
+#fit(1e-2, 5000, 10)
+#fit(1e-4, 5000, 2000)
+#fit(1e-4, 500, 100)
 #fit(1e-6, 50, 20)
 #fit(1e-2, 50, 5)
 #fit(1e-3, 50, 100)

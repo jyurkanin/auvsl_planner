@@ -7,12 +7,10 @@ import torch.autograd as autograd
 
 
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import mean_squared_error
 from sklearn.utils import shuffle
 from scipy.spatial.transform import Rotation
 import matplotlib.pyplot as plt
-
 import sys
 
 from pickle import load
@@ -20,14 +18,11 @@ from pickle import dump
 
 #import pdb; pdb.set_trace() #this is completely overpowered. Too useful.
 
-input_scaler = StandardScaler()
-output_scaler = StandardScaler()
-
 dir_prefix = "/home/justin/Downloads"
 
 #load test and training data
 def load_training_data():
-    in_features = ['qd1_0','qd3_0','qd1_1','qd3_1','qd1_2','qd3_2','qd1_3','qd3_3','qd1_4','qd3_4','qd1_5','qd3_5','qd1_6','qd3_6','qd1_7','qd3_7']
+    in_features = ['qd1_0','qd3_0']
     out_features = ["vx","vy","wz"]
     
     df_x = pd.read_csv("../data/joydeep_data/training_x.csv")
@@ -39,10 +34,7 @@ def load_training_data():
     
     data_y = np.array(df_y[out_features])
     data_y = data_y[skip_rows:]
-    
-    data_x = input_scaler.fit_transform(data_x)
-    data_y = output_scaler.fit_transform(data_y)
-    
+        
     data_len = data_x.shape[0]
     
     train_data = data_x[:int(data_len),:]
@@ -58,35 +50,30 @@ class VehicleNet(nn.Module):
   def __init__(self, mn):
     super(VehicleNet, self).__init__()
     
-    self.in_size = 16
-    self.hidden_size = 10
+    self.in_size = 2
     self.out_size = 3
     
-    self.tanh_block1 = nn.Sequential(
-      nn.Linear(self.in_size, self.hidden_size),
-      nn.Tanh(),
-      nn.Linear(self.hidden_size, self.hidden_size),
-      nn.Tanh(),
-      nn.Linear(self.hidden_size, self.out_size)
-    )
-        
+    self.layer = nn.Linear(self.in_size, self.out_size)
+    
     self.loss_fn = torch.nn.MSELoss()
-    self.opt = torch.optim.Adam(self.tanh_block1.parameters(), lr=1e-1)
+    self.opt = torch.optim.Adam(self.layer.parameters(), lr=1e-1)
     self.count = 0
     self.model_name = mn
     
+    
+  def forward(self, x):
+    return self.layer.forward(x)
+
   def save(self):
-    md = self.tanh_block1.state_dict()
+    md = self.layer.state_dict()
     torch.save(md, self.model_name)
     return
 
   def load(self, name):
     md = torch.load(name)
-    self.tanh_block1.load_state_dict(md)
+    self.layer.load_state_dict(md)
     return
     
-  def forward(self, x):
-    return self.tanh_block1.forward(x)
 
   def get_validation_loss(self):
     x = test_data
@@ -132,11 +119,9 @@ print("label data size ", label_data.size())
 print("has gpu? ", torch.cuda.is_available())
 
 def network_forward(model, x):
-  x_scaled = input_scaler.transform(x)
-  x_torch= torch.from_numpy(x_scaled).float()
-  yhat = model.forward(x_torch).detach().numpy()
-  yhat = output_scaler.inverse_transform(yhat)
-  return yhat
+    x_torch = torch.from_numpy(x).float()
+    yhat = model.forward(x_torch).detach().numpy()
+    return yhat
 
 #returns linear and angular displacement
 #expects gt_pos to be [[x,y,yaw], ...]
@@ -190,14 +175,14 @@ def test_vehicle_network(model, gt_filename, features_filename):
         if(idx == 0):
             break
         
-        #print("time diff", cur_test_features[idx,0] - start_time)
-          
         #select features that are within a 6 second window.
         window_test_features = cur_test_features[:idx+1,:]
         stop_time = window_test_features[-1,0] #save the stop time
         window_test_features = window_test_features[:,1:]  #remove timestamp column
-
+        
         cur_gt_pos = gt_pos #this is probably not necessary
+
+        #print("time diff", cur_test_features[idx,0] - start_time)
         
         start_idx = 0
         #search for start index that most closely matches feature start idx
@@ -224,7 +209,7 @@ def test_vehicle_network(model, gt_filename, features_filename):
         #this condition checks if we reached the end of the dataset.
         if(stop_idx == 0):
             break
-        
+
         #print("time diff", cur_gt_pos[stop_idx,0] - start_time)
         
         #select 6 second window and select x,y,yaw columns
@@ -238,10 +223,13 @@ def test_vehicle_network(model, gt_filename, features_filename):
         sum_ang_sre += ang_re*lin_re
         count += 1
         
+        
+        
         #advance by one timestep
         cur_test_features = cur_test_features[idx:,:]
+        break
         
-    plt.plot()
+    #plt.show()
     return sum_lin_sre,sum_ang_sre,count
 
 #test vehicle over 6 second horizon
@@ -253,7 +241,7 @@ def test_time_horizon(gt_pos, test_features):
   
   
   pos = np.array([0.0,0.0])
-  features = np.zeros([16], dtype=float)
+  features = np.zeros([2], dtype=float)
   
   yhat = np.array([0.0, 0, 0])
   predicted_path = np.zeros([test_features.shape[0]+1, 3])
@@ -264,11 +252,7 @@ def test_time_horizon(gt_pos, test_features):
   
   ts = .05
   
-  for i in range(test_features.shape[0]):
-    for j in range(6,-1,-1): #6,5,4,3,2,1,0
-      features[((j+1)*2)] = features[(j*2)]
-      features[((j+1)*2)+1] = features[(j*2)+1]
-    
+  for i in range(test_features.shape[0]):    
     features[0] = test_features[i,0]
     features[1] = test_features[i,1]
     
@@ -286,11 +270,13 @@ def test_time_horizon(gt_pos, test_features):
     
     predicted_path[i+1][:] = temp_int
   
-  plt.plot(predicted_path[:,0], predicted_path[:,1], color='red', alpha=.5)
-  np.savetxt("example_cv3_55_neural.csv", predicted_path, delimiter=",")
+  #plt.plot(predicted_path[:,0], predicted_path[:,1], color='red', alpha=.5)
+  
+  #np.savetxt("example_cv3_55.csv", gt_pos, delimiter=",")
+  #np.savetxt("example_cv3_55_linear.csv", predicted_path, delimiter=",")
   plt.show()
   
-  sys.exit()
+  #sys.exit()
   
   total_lin_disp, total_ang_disp = get_path_distance(gt_pos)
   
@@ -314,9 +300,9 @@ def evaluate_cv3_paths(model):
   
   err_list = np.zeros((144,2))
   
-  for i in range(55, 56):
+  for i in range(1, 145):
     lin_sre, ang_sre, count = test_vehicle_network(model, gt_filename.format(i), features_filename.format(i))
-    print("Error", np.sqrt(lin_sre)/count, np.sqrt(ang_sre)/count, count)
+    print("Trajectory", i, "Error", np.sqrt(lin_sre)/count, np.sqrt(ang_sre)/count, count)
     err_list[i-1][0] = np.sqrt(lin_sre)/count
     err_list[i-1][1] = np.sqrt(ang_sre)/count
     
@@ -324,12 +310,14 @@ def evaluate_cv3_paths(model):
     sum_ang_sre += ang_sre
     total_count += count
 
-  np.savetxt("err_nn_model.csv", err_list, delimiter=",") #save the errors and create a bar chart.
-  plt.bar(np.arange(0,144,1), err_list[:,0], width=1)
+  #import pdb; pdb.set_trace()
+    
+  np.savetxt("err_lin_model.csv", err_list, delimiter=",") #save the errors and create a bar chart.
+  #plt.bar(np.arange(0,144,1), err_list[:,0], width=1)
   plt.show()
   
-  lin_rmsre = np.sqrt(sum_lin_sre)/total_count
-  ang_rmsre = np.sqrt(sum_ang_sre)/total_count
+  lin_rmsre = np.sqrt(sum_lin_sre)/(total_count)
+  ang_rmsre = np.sqrt(sum_ang_sre)/(total_count)
   
   print("Total rmrse", lin_rmsre, ang_rmsre)
   
@@ -353,13 +341,13 @@ def evaluate_ld3_paths(model):
 
 
   
-model_name = "../data/best_vehicle.net"
-#model_name = "../data/lin_vehicle.net"
+model_name = "../data/lin_vehicle.net"
 model = VehicleNet(model_name)
 model.load(model_name)
 
 #evaluate_ld3_paths(model)
 evaluate_cv3_paths(model)
+
 
 #md = model.state_dict()
 

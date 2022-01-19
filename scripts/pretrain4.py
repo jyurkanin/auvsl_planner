@@ -251,7 +251,7 @@ def test_vehicle_network(model):
   predicted_path = np.zeros([test_data.shape[0]+1, 3])
   predicted_path[0][2] = 0
   
-  ts = .05
+  ts = .001
   
   for i in range(test_data.shape[0]):
     for j in range(6,-1,-1): #6,5,4,3,2,1,0
@@ -266,14 +266,17 @@ def test_vehicle_network(model):
     #yhat[0] = (features[0] + features[1])*.1*.5
     #yhat[1] = 0
     #yhat[2] = .1*(features[0] + features[1])/.323
+
+    temp_state = predicted_path[i][:]
+    for j in range(50):
+        rot = np.array([[np.cos(temp_state[2]), -np.sin(temp_state[2])],[np.sin(temp_state[2]), np.cos(temp_state[2])]])
+        vel = np.dot(rot, yhat[0:2])  #transform to world coordinates so we can integrate
+        
+        temp_state[0] = temp_state[0] + vel[0]*ts
+        temp_state[1] = temp_state[1] + vel[1]*ts
+        temp_state[2] = temp_state[2] + yhat[2]*ts
     
-    theta = predicted_path[i][2]
-    rot = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
-    vel = np.dot(rot, yhat[0:2])  #transform to world coordinates so we can integrate
-    
-    predicted_path[i+1][0] = predicted_path[i][0] + vel[0]*ts
-    predicted_path[i+1][1] = predicted_path[i][1] + vel[1]*ts
-    predicted_path[i+1][2] = predicted_path[i][2] + yhat[2]*ts
+    predicted_path[i+1][:] = temp_state
   
   plt.plot(predicted_path[:,0], predicted_path[:,1], color='red')
   plt.show()
@@ -296,7 +299,7 @@ print("Training All Layers")
 # model.optimize_all()
 # model.fit(1e-4, 100, 1000)
   
-plt.show()
+#plt.show()
 
 #model.save()
 

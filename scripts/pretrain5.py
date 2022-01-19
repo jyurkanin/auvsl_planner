@@ -52,8 +52,8 @@ def load_data():
     
     train_data, label_data = shuffle(train_data, label_data, random_state=1)    
     
-    df_x = pd.read_csv("../data/joydeep_data/cv3/test_x_CV3_0116.csv")
-    df_y = pd.read_csv("../data/joydeep_data/cv3/test_y_CV3_0116.csv")
+    df_x = pd.read_csv("../data/joydeep_data/cv3/test_x_CV3_0001.csv")
+    df_y = pd.read_csv("../data/joydeep_data/cv3/test_y_CV3_0001.csv")
     test_data = np.array(df_x[in_features])
     test_labels = np.array(df_y[out_features])
     
@@ -156,7 +156,7 @@ def test_network(model):
     plt.show()
 
 def test_vehicle_network(model):
-  df = pd.read_csv(dir_prefix + "/CV3/localization_ground_truth/0116_CV_grass_GT.txt", header=None)
+  df = pd.read_csv(dir_prefix + "/CV3/localization_ground_truth/0001_CV_grass_GT.txt", header=None)
   gt_pos = df.to_numpy()
   gt_pos = gt_pos[:,1:3]
   print("gt_pos.shape", gt_pos.shape)
@@ -173,7 +173,7 @@ def test_vehicle_network(model):
   predicted_path = np.zeros([test_data.shape[0]+1, 3])
   predicted_path[0][2] = 0
   
-  ts = .05
+  ts = .001
   
   for i in range(test_data.shape[0]):    
     features[0] = test_data[i,0]
@@ -181,18 +181,21 @@ def test_vehicle_network(model):
     
     yhat = network_forward(model, features.reshape(1, -1)).reshape((3,))
     
-    theta = predicted_path[i][2]
-    rot = np.array([[np.cos(theta), -np.sin(theta)],[np.sin(theta), np.cos(theta)]])
-    vel = np.dot(rot, yhat[0:2])  #transform to world coordinates so we can integrate
-    
-    predicted_path[i+1][0] = predicted_path[i][0] + vel[0]*ts
-    predicted_path[i+1][1] = predicted_path[i][1] + vel[1]*ts
-    predicted_path[i+1][2] = predicted_path[i][2] + yhat[2]*ts
+    temp_state = predicted_path[i][:]
+    for j in range(50):
+        rot = np.array([[np.cos(temp_state[2]), -np.sin(temp_state[2])],[np.sin(temp_state[2]), np.cos(temp_state[2])]])
+        vel = np.dot(rot, yhat[0:2])  #transform to world coordinates so we can integrate
+        
+        temp_state[0] = temp_state[0] + vel[0]*ts
+        temp_state[1] = temp_state[1] + vel[1]*ts
+        temp_state[2] = temp_state[2] + yhat[2]*ts
+
+    predicted_path[i+1][:] = temp_state
   
   plt.plot(predicted_path[:,0], predicted_path[:,1], color='red')
   plt.show()
-  plt.plot(predicted_path[:,2], color='blue')
-  plt.show()
+  #plt.plot(predicted_path[:,2], color='blue')
+  #plt.show()
   return
 
 
@@ -200,14 +203,15 @@ def test_vehicle_network(model):
 model_name = "../data/lin_vehicle.net"
 
 model = VehicleNet(model_name)
-import pdb; pdb.set_trace()
+#import pdb; pdb.set_trace()
 
 
 model.load(model_name)
 print("Training All Layers")
 #for i in range(4):
 #model.optimize_all()
-#model.fit(1e-4, 10, 20)
+#model.fit(1e-2, 1000, 100)
+#model.fit(1e-4, 1000, 100)
 # print("Training only last layer")
 # model.optimize_last_layer()
 # model.fit(1e-4, 100, 1000)

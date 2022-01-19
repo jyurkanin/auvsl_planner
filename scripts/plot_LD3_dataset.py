@@ -8,8 +8,8 @@ from mpl_toolkits.mplot3d import axes3d, Axes3D
 df = pd.read_csv("/home/justin/Downloads/LD3/localization_ground_truth/0001_LD_grass_GT.txt", header=None)
 plt.plot(df[1], df[2], color='r')
 
-df = pd.read_csv("/home/justin/xout_file.csv")
-plt.plot(df['x'], df['y'], color='b')
+#df = pd.read_csv("/home/justin/xout_file.csv")
+#plt.plot(df['x'], df['y'], color='b')
 
 plt.xlabel('m')
 plt.ylabel('m')

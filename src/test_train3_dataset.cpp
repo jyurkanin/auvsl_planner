@@ -243,7 +243,7 @@ void simulateFileSet(float &total_lin_err, float &total_ang_err){
   char odom_fn[100];
   char gt_fn[100];  
   
-  for(int i = 1; i <= 7; i++){
+  for(int i = 1; i <= 1; i++){
     memset(odom_fn, 0, 100);
     sprintf(odom_fn, "/home/justin/Downloads/Train3/extracted_data/odometry/%04d_odom_data.txt", i);
       
@@ -317,31 +317,49 @@ void followGradientSoil(BekkerData &soil_params){
   float rel_lin_err, rel_ang_err;
   float loss;
   float fx;
-  float lr = .1f;
+  float lr = 1.0f;
   
   simple_terrain_map.test_bekker_data_ = soil_params;
-  simulateFiles(rel_lin_err, rel_ang_err);
+  simulateFileSet(rel_lin_err, rel_ang_err);
   loss = rel_lin_err + (rel_ang_err*.5);
   fx = loss;
   ROS_INFO("Current Performance %f", rel_lin_err);
   
-  
+  /*
   simple_terrain_map.test_bekker_data_ = soil_params;
   simple_terrain_map.test_bekker_data_.kphi += 1;
-  simulateFiles(rel_lin_err, rel_ang_err);
+  simulateFileSet(rel_lin_err, rel_ang_err);
   loss = rel_lin_err + (rel_ang_err*.5);
   soil_params_pde.kphi = fx - loss;
   
   simple_terrain_map.test_bekker_data_ = soil_params;
-  simple_terrain_map.test_bekker_data_.phi += EPS;
-  simulateFiles(rel_lin_err, rel_ang_err);
+  simple_terrain_map.test_bekker_data_.phi += .01;
+  simulateFileSet(rel_lin_err, rel_ang_err);
   loss = rel_lin_err + (rel_ang_err*.5);
   soil_params_pde.phi = fx - loss;
   
-  ROS_INFO("dphi %f phi %f     dkphi %f kphi %f", soil_params_pde.phi, soil_params.phi,   soil_params_pde.kphi, soil_params.kphi);
+
+  simple_terrain_map.test_bekker_data_ = soil_params;
+  simple_terrain_map.test_bekker_data_.kc += .1;
+  simulateFileSet(rel_lin_err, rel_ang_err);
+  loss = rel_lin_err + (rel_ang_err*.5);
+  soil_params_pde.kc = fx - loss;
+  */
   
-  soil_params.kphi += soil_params_pde.kphi*lr;
-  soil_params.phi += soil_params_pde.phi*lr;
+  simple_terrain_map.test_bekker_data_ = soil_params;
+  simple_terrain_map.test_bekker_data_.n0 += .01;
+  simulateFileSet(rel_lin_err, rel_ang_err);
+  loss = rel_lin_err + (rel_ang_err*.5);
+  soil_params_pde.n0 = fx - loss;
+
+  
+  
+  ROS_INFO("dkc %f kc %f    dphi %f phi %f    dkphi %f kphi %f    dn0 %f n0 %f", soil_params_pde.kc, soil_params.kc, soil_params_pde.phi, soil_params.phi,   soil_params_pde.kphi, soil_params.kphi,  soil_params_pde.n0, soil_params.n0);
+  
+  //soil_params.kphi += soil_params_pde.kphi*lr;
+  //soil_params.phi += soil_params_pde.phi*lr;
+  //soil_params.kc += soil_params_pde.kc*lr;
+  soil_params.n0 += soil_params_pde.n0*lr;
 }
 
 
@@ -375,9 +393,10 @@ int main_stupid(int argc, char **argv){
   JackalDynamicSolver::init_model(2);
   
   simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
-  
+
+  BekkerData soil_params = lookup_soil_table(0);
   for(int j = 0; j < 100; j++){
-    followGradientScalars();
+    followGradientSoil(soil_params);
   }
 
   JackalDynamicSolver::del_model();
@@ -444,16 +463,18 @@ int main(int argc, char **argv){
   param_graph_file << "param,lin_err,ang_err\n";
   
   float test_value;
-  
-  for(int j = 0; j < 100; j++){
+
+  simple_terrain_map.test_bekker_data_ = lookup_soil_table(0);
+  for(float kphi = 1800; kphi < 2200; kphi += 50.0f){
     total_lin_err = 0;
     total_ang_err = 0;
     count = 0;
     
-    test_value = (1.0f*j/100.0) + 1;
-    JackalDynamicSolver::force_scalars[2] = test_value;
+    simple_terrain_map.test_bekker_data_.n0 = .695;
+    simple_terrain_map.test_bekker_data_.kc = 26.0f;
+    simple_terrain_map.test_bekker_data_.kphi = kphi;
     
-    for(int i = 1; i <= 7; i++){
+    for(int i = 1; i <= 1; i++){
       memset(odom_fn, 0, 100);
       sprintf(odom_fn, "/home/justin/Downloads/Train3/extracted_data/odometry/%04d_odom_data.txt", i);
       
@@ -469,9 +490,8 @@ int main(int argc, char **argv){
       
       count++;
     }
-    
-    param_graph_file << test_value << ',' << sqrtf(total_lin_err/(float)count) << ',' << sqrtf(total_ang_err/(float)count) << '\n';
-    
+
+    ROS_INFO("kphi %f", kphi);
     ROS_INFO("RMRSE lin: %f     ang: %f", sqrtf(total_lin_err/(float)count), sqrtf(total_ang_err/(float)count));
   }
   

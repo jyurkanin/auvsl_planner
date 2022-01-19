@@ -69,7 +69,8 @@ void HybridModel::fuse_predictions(Eigen::Matrix<float,NNJackalModel::num_out_fe
   Vector3d body_lin_vel = rbdl_quat.toMatrix() * Vector3d(bekker_state[11],bekker_state[12],bekker_state[13]);
   Vector3d fused_body_vel;
   
-  const float mix = 0.5f;
+  //0 mean use bekker model. 1 is nn.
+  const float mix = 1.0f;
   
   //perform mixing in body coords
   fused_body_vel[0] = (mix*nn_vel[0]) + ((1.0f - mix)*body_lin_vel[0]);  //Vx
@@ -79,7 +80,7 @@ void HybridModel::fuse_predictions(Eigen::Matrix<float,NNJackalModel::num_out_fe
   Vector3d fused_world_vel = rbdl_quat.toMatrix().transpose() * fused_body_vel;
   fused_state[11] = fused_world_vel[0];
   fused_state[12] = fused_world_vel[1];
-  fused_state[16] = (mix*nn_vel[2]) + ((1-mix)*bekker_state[16]); //Mix Wz
+  fused_state[16] = (mix*nn_vel[2]) + ((1.0f-mix)*bekker_state[16]); //Mix Wz
 }
 
 //only modifies bekker model

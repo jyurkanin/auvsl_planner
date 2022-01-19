@@ -1,6 +1,7 @@
 #include "JackalDynamicSolver.h"
 #include "TerrainMap.h"
 #include <math.h>
+#include <stdlib.h>
 
 //integral of cosine is sine.
 float f_cos(float x){
@@ -21,7 +22,7 @@ int num_steps = 100;
 
 float integrate(float (*func)(float), float upper_b, float lower_b){
   float dtheta = (upper_b - lower_b) / num_steps;
-  float eps = dtheta*.1; //adaptive machine epsilon
+  float eps = dtheta*.1; //adaptive machine epsilon. Lol idk how it works tbh
     
   //trapezoidal rule.
   float sum = 0;
@@ -84,10 +85,14 @@ void test_tire_soil_model(){
   JackalDynamicSolver solver;
   Eigen::Matrix<float,JackalDynamicSolver::num_in_features,1> features;
   TireSoilLine ts_line;
-  SpatialVector wrench;
+  SpatialVector bk_wrench;
+  SpatialVector nn_wrench;
   
-  //while(ts_file.peek() != EOF){
-  for(int i = 0; i < 20; i++){
+  float mse[4] = {0,0,0,0}; //mean squared error
+  unsigned count = 0;
+  
+  while(ts_file.peek() != EOF){
+  //for(int i = 0; i < 20; i++){
     readTireSoilLine(ts_file, ts_line);
     
     //due to bug in the matlab script related to n = n0*|s|
@@ -106,14 +111,47 @@ void test_tire_soil_model(){
     features[6] = ts_line.n1;
     features[7] = ts_line.phi;
     
-    wrench = solver.tire_model_bekker(features);
-
-    ROS_INFO("Features  %f   %f   %f", ts_line.zr, ts_line.slip_ratio, ts_line.slip_angle);
-    ROS_INFO("C++    Fx %f     Fy %f     Fz %f     Ty %f", wrench[3], wrench[4],  wrench[5], wrench[1]);
-    ROS_INFO("Matlab Fx %f     Fy %f     Fz %f     Ty %f", ts_line.Fx, ts_line.Fy, ts_line.Fz, ts_line.Ty);
-    ROS_INFO(" ");
+    bk_wrench = solver.tire_model_bekker(features);
+    nn_wrench = solver.tire_model_nn(features);
+    
+    mse[0] += (bk_wrench[1] - nn_wrench[1])*(bk_wrench[1] - nn_wrench[1]);
+    mse[1] += (bk_wrench[3] - nn_wrench[3])*(bk_wrench[3] - nn_wrench[3]);
+    mse[2] += (bk_wrench[4] - nn_wrench[4])*(bk_wrench[4] - nn_wrench[4]);
+    mse[3] += (bk_wrench[5] - nn_wrench[5])*(bk_wrench[5] - nn_wrench[5]);
+    
+    count++;
+    
+    //ROS_INFO("Features  %f   %f   %f", ts_line.zr, ts_line.slip_ratio, ts_line.slip_angle);
+    //ROS_INFO("C++    Fx %f     Fy %f     Fz %f     Ty %f", wrench[3], wrench[4],  wrench[5], wrench[1]);
+    //ROS_INFO("Matlab Fx %f     Fy %f     Fz %f     Ty %f", ts_line.Fx, ts_line.Fy, ts_line.Fz, ts_line.Ty);
+    //ROS_INFO(" ");
   }
+  
+  mse[0] /= count;
+  mse[1] /= count;
+  mse[2] /= count;
+  mse[3] /= count;
+
+  float rmse = sqrtf((mse[0] + mse[1] + mse[2] + mse[3])/4.0f);
+  
+  ROS_INFO("MSE %f %f %f %f", mse[0], mse[1], mse[2], mse[3]);
+  ROS_INFO("RMSE %f", rmse);
+  
 }
+
+/*
+int main(){  
+  SimpleTerrainMap simple_map;
+  JackalDynamicSolver::init_model(2);
+  JackalDynamicSolver::set_terrain_map(&simple_map);
+  
+  //test_integrator();
+  test_tire_soil_model();
+  
+  JackalDynamicSolver::del_model();
+}
+*/
+
 
 
 
@@ -147,17 +185,21 @@ int main(){
   
   std::ofstream force_log;
   force_log.open("/home/justin/force_log.csv", std::ofstream::out);
-  force_log << "slip_ratio,bk1,nn1,bk2,nn2\n";
+  force_log << "zr,bk_fz,nn_fz\n";
   
-  for(float s = -2; s < 2; s += .001){
-    features[1] = s;
+  for(int i = 0; i < 10000; i++){
+    features[0] = .01f*((float)rand()/RAND_MAX) + .00001;
+    features[1] = 2.0f*((float)rand()/RAND_MAX) - 1.0f;
+    features[2] = M_PI*((float)rand()/RAND_MAX) - M_PI_2;
+    
     bk = solver.tire_model_bekker(features);
     nn = solver.tire_model_nn(features);
     
-    force_log << features[1] << ',' << bk[3] << ',' << nn[3] << ',' << bk[1] << ',' << nn[1] << '\n';
+    force_log << features[0] << ',' << bk[5] << ',' << nn[5] << '\n';
   }
   
   force_log.close();
 
   JackalDynamicSolver::del_model();
 }
+

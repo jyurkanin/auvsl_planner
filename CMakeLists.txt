@@ -557,6 +557,28 @@ target_link_libraries(test_residual_net_node rbdl)
 set_target_properties(test_residual_net_node PROPERTIES COMPILE_FLAGS "-O3 -g")
 
 
+add_executable(test_hybrid_model_node
+  src/test_hybrid_model.cpp
+  src/GlobalParams.cpp
+  src/TerrainMap.cpp
+  src/JackalDynamicSolver.cpp
+  src/utils.cpp
+  src/NNJackalModel.cpp
+  src/HybridModel.cpp
+  )
+
+target_link_libraries(test_hybrid_model_node ${OMPL_LIBRARIES})
+target_link_libraries(test_hybrid_model_node ${PCL_LIBRARIES})
+target_link_libraries(test_hybrid_model_node ${catkin_LIBRARIES})
+target_link_libraries(test_hybrid_model_node rbdl)
+set_target_properties(test_hybrid_model_node PROPERTIES COMPILE_FLAGS "-O3 -g")
+
+
+
+
+
+
+
 
 add_executable(test_hybrid_model_CV3_node
   src/test_hybrid_model_CV3.cpp

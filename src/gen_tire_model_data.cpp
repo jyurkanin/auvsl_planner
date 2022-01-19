@@ -116,19 +116,24 @@ int main(){
   SpatialVector nn;
   
   std::ofstream force_log;
-  
-  force_log.open("/home/justin/code/catkin_ws   /src/auvsl_planner/data/f_tire_train.csv", std::ofstream::out);
-  force_log << "zr,slip_ratio,slip_angle,Fx,Fy,Fz,Ty\n";
+  force_log.open("/home/justin/code/AUVSL_ROS/src/auvsl_planner/data/f_tire_train.csv", std::ofstream::out);
+  force_log << "zr,slip_ratio,slip_angle,kc,kphi,n0,n1,phi,Fx,Fy,Fz,Ty\n";
   
   for(unsigned i = 0; i < 100000; i++){
-    features[0] = rand_float(.1,0);             //zr
+    features[0] = rand_float(.1,.00001);        //zr
     features[1] = rand_float(1,-1);             //slip_ratio
     features[2] = rand_float(M_PI_2,-M_PI_2);   //slip_angle
+    features[3] = rand_float(100,20);           //kc
+    features[4] = rand_float(3500,500);         //kphi
+    features[5] = rand_float(1.3,.3);           //n0
+    features[6] = rand_float(.2,0);             //n1
+    features[7] = rand_float(.524,.175);
+
     
     bk = solver.tire_model_bekker(features);
     
 
-    for(int j = 0; j < 3; j++){
+    for(int j = 0; j < 8; j++){
 
       force_log << features[j] << ',';
     }

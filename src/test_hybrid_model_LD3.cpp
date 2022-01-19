@@ -203,7 +203,8 @@ void simulatePeriod(double start_time, float *X_start, float *X_end){
   }
   
   g_hybrid_model->init_state(X_start);  
-
+  g_hybrid_model->settle();
+  
   float vl, vr;
   for(unsigned idx = start_idx; (odom_vec[idx].ts - start_time) < 6; idx++){
     vr = std::max(1e-4d, odom_vec[idx].vr);
@@ -243,7 +244,6 @@ void getDisplacement(unsigned start_i, unsigned end_i, float &lin_displacement, 
 }
 
 
-//odometry filename, ground truth filename
 void simulateDataset(){
   float Xn[21];
   float Xn1[21];
@@ -261,86 +261,97 @@ void simulateDataset(){
   double ang_sum = 0;
   double ang_err;
   
-  int num_trials_lin = 0;
-  int num_trials_ang = 0;
+  int count = 0;
   
   //so it doesnt skip the first one.
-  double time = -10;//gt_vec[0].ts;
-  //sampled 30x a second. 200 samples is a bit more than 6s to be safe.
-  for(unsigned i = 0; i < gt_vec.size()-200; i++){
-    if((gt_vec[i].ts - time) > 6){
-      time = gt_vec[i].ts;
-      
-      Xn[0] = gt_vec[i].x;
-      Xn[1] = gt_vec[i].y;
-      Xn[2] = .16;
-      
-      initial_quat.setRPY(0,0,gt_vec[i].yaw);
-      initial_quat = initial_quat.normalize();
-      
-      Xn[3] = initial_quat.getX();
-      Xn[4] = initial_quat.getY();
-      Xn[5] = initial_quat.getZ();
-      Xn[10] = initial_quat.getW();
-      
-      //get rotational velocity from IMU.
-      double diff;
-      unsigned imu_idx = 0;
-      double time_min = 100;
-      for(unsigned i = 0; i < imu_vec.size(); i++){
-        diff = fabs(imu_vec[i].ts - time);
-        if(diff < time_min){
-          time_min = diff;
-          imu_idx = i;
-        }
-      }
-      
-      Xn[14] = imu_vec[i].wx;
-      Xn[15] = imu_vec[i].wy;
-      Xn[16] = imu_vec[i].wz;
-      
-      Xn[11] = gt_vec[i].vx;
-      Xn[12] = gt_vec[i].vy;
-      Xn[13] = 0;
-      
-      simulatePeriod(time, Xn, Xn1);
-      
-      unsigned j;
-      for(j = i; (gt_vec[j].ts - time) < 6.0f && j < gt_vec.size(); j++){}
-      
-      getDisplacement(i, j, lin_displacement, ang_displacement);
-      
-      x_err = Xn1[0] - gt_vec[j].x;
-      y_err = Xn1[1] - gt_vec[j].y;
-      
-      temp_quat = tf::Quaternion(Xn1[3],Xn1[4],Xn1[5],Xn1[10]);
-      tf::Matrix3x3 m(temp_quat);
-      double roll, pitch, yaw;
-      m.getRPY(roll, pitch, yaw);
-      
-      yaw_err = fabs(yaw - gt_vec[j].yaw);
-      yaw_err = yaw_err > M_PI ?  yaw_err - (2*M_PI) : yaw_err;
-      
-      ROS_INFO("Error lin %f    yaw %f", (x_err*x_err + y_err*y_err), yaw_err);
-      ROS_INFO("Displacement lin %f    yaw %f", lin_displacement, ang_displacement);
-      
-      num_trials_lin++;
-      num_trials_ang++;
-
-      float rel_lin_err = sqrtf(x_err*x_err + y_err*y_err) / lin_displacement;
-      float rel_ang_err = yaw_err / ang_displacement;
-      
-      ROS_INFO("Relative lin err %f       ang err %f", rel_lin_err, rel_ang_err);
-      
-      trans_sum += rel_lin_err*rel_lin_err;
-      ang_sum += rel_ang_err*rel_ang_err;
+  double time = 0;
+  for(unsigned i = 0; i < gt_vec.size(); i++){
+    if((gt_vec[i].ts - time) < 6.0f){
+      continue;
     }
+    
+    time = gt_vec[i].ts;
+
+    if((gt_vec[gt_vec.size()-1].ts - time) < 6.0f){
+      break; //If we reached the end of the gt_vec dataset, we're done.
+    }
+    
+    if((odom_vec[odom_vec.size()-1].ts - time) < 6.0f){
+      break; //If we reached the end of the odom_vec dataset, we're done.
+    }
+    
+    
+    Xn[0] = gt_vec[i].x;
+    Xn[1] = gt_vec[i].y;
+    Xn[2] = .16;
+    
+    initial_quat.setRPY(0,0,gt_vec[i].yaw);
+    initial_quat = initial_quat.normalize();
+      
+    Xn[3] = initial_quat.getX();
+    Xn[4] = initial_quat.getY();
+    Xn[5] = initial_quat.getZ();
+    Xn[10] = initial_quat.getW();
+    
+    
+    //find initial angular vel that matches with the start time "time"
+    //get rotational velocity from IMU.
+    double diff;
+    unsigned imu_idx = 0;
+    double time_min = 100;
+    for(unsigned j = 0; j < imu_vec.size(); j++){
+      diff = fabs(imu_vec[j].ts - time);
+      if(diff < time_min){
+        time_min = diff;
+        imu_idx = j;
+      }
+    }
+      
+    Xn[14] = imu_vec[imu_idx].wx;
+    Xn[15] = imu_vec[imu_idx].wy;
+    Xn[16] = imu_vec[imu_idx].wz;
+      
+    Xn[11] = gt_vec[i].vx;
+    Xn[12] = gt_vec[i].vy;
+    Xn[13] = 0;
+      
+    simulatePeriod(time, Xn, Xn1);
+    
+    //Done simulating, now evaluate error.
+    unsigned j;
+    for(j = i; (gt_vec[j].ts - time) < 6.0f && j < gt_vec.size(); j++){}
+        
+    getDisplacement(i, j, lin_displacement, ang_displacement);
+      
+    x_err = Xn1[0] - gt_vec[j].x;
+    y_err = Xn1[1] - gt_vec[j].y;
+    
+    temp_quat = tf::Quaternion(Xn1[3],Xn1[4],Xn1[5],Xn1[10]);
+    tf::Matrix3x3 m(temp_quat);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw); //we just need yaw.
+
+    yaw_err = fabs(yaw - gt_vec[j].yaw);
+    yaw_err = yaw_err > M_PI ?  yaw_err - (2*M_PI) : yaw_err;
+    
+    ROS_INFO("Error lin %f    yaw %f", sqrtf(x_err*x_err + y_err*y_err), yaw_err);
+    ROS_INFO("Displacement lin %f    yaw %f", lin_displacement, ang_displacement);
+      
+    count++;
+
+    float rel_lin_err = sqrtf(x_err*x_err + y_err*y_err) / lin_displacement;
+    float rel_ang_err = yaw_err / ang_displacement;
+      
+    ROS_INFO("Relative lin err %f       ang err %f", rel_lin_err, rel_ang_err);
+      
+    trans_sum += rel_lin_err;
+    ang_sum += rel_ang_err;
   }
   
   ROS_INFO(" ");
   ROS_INFO(" ");
   ROS_INFO(" ");
-  ROS_INFO("MSE Translation Error %f   MSE Heading Error %f", sqrt(trans_sum/num_trials_lin), sqrtf(ang_sum/num_trials_ang));
+  ROS_INFO("MSE Translation Error %f   MSE Heading Error %f", trans_sum/count, ang_sum/count);
   
   
   return;
@@ -349,7 +360,7 @@ void simulateDataset(){
 
 
 int main(int argc, char **argv){
-  feenableexcept(FE_INVALID | FE_OVERFLOW);
+  //feenableexcept(FE_INVALID | FE_OVERFLOW);
   ros::init(argc, argv, "auvsl_global_planner");
   ros::NodeHandle nh;  
   GlobalParams::load_params(&nh);
